@@ -185,6 +185,11 @@
         <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
       </a>
       <ul class="tab-nav">
+        <li><button class="active" data-tab="home">首页</button></li>
+        <li><button data-tab="features">核心功能</button></li>
+        <li><button data-tab="how">发射流程</button></li>
+        <li><button data-tab="projects">热门项目</button></li>
+        <li><button data-tab="faq">常见问题</button></li>
       </ul>
       <button class="menu-toggle" id="menu-btn" onclick="document.getElementById('mobile-nav').classList.toggle('open')">☰</button>
       <button class="btn btn-primary" onclick="alert('正在连接钱包...')">连接钱包 🔗</button>
@@ -208,7 +213,7 @@
       <h1>潜入深海<br/><span class="gt">发射你的代币</span></h1>
       <p>SquidLaunch 是新一代 Web3 代币发射平台。我们像深海鱿鱼一样敏捷、透明、强大——为每一个优质项目提供公平、安全、高效的发射体验。</p>
       <div class="hero-buttons">
-        <button class="btn btn-primary" onclick="switchTab('projects')">🚀 浏览项目</button>
+        <a href="launch.html" class="btn btn-primary">🚀 浏览项目</a>
         <button class="btn btn-primary" style="background:transparent;border:1.5px solid var(--cyan);color:var(--cyan)" onclick="switchTab('features')">📋 核心功能</button>
       </div>
     </div>
@@ -256,7 +261,7 @@
       <div class="cta-box">
         <h2>准备好 <span class="gtxt">深海发射</span> 你的项目了吗？</h2>
         <p>加入 SquidLaunch，让千万用户看到你的代币。</p>
-        <button class="btn btn-primary" style="font-size:1rem;padding:14px 36px">🚀 立即提交发射申请</button>
+        <a href="launch.html" class="btn btn-primary" style="font-size:1rem;padding:14px 36px">🚀 立即提交发射申请</a>
       </div>
       <div class="cfooter">
         <div class="cfooter-left">
