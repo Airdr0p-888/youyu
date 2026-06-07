@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SquidLaunch — 鱿鱼发射台 | Web3 代币发射平台</title>
+  <meta name="description" content="SquidLaunch - 深海级 Web3 代币发射平台，安全、公平、透明。" />
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-deep:    #030812;
+      --bg-dark:     #060e1a;
+      --bg-card:     rgba(6, 30, 50, 0.65);
+      --border:      rgba(0, 212, 255, 0.15);
+      --cyan:        #00d4ff;
+      --cyan-glow:   #00d4ff88;
+      --magenta:     #ff2daa;
+      --magenta-glow:#ff2daa66;
+      --green:       #00ffb2;
+      --yellow:      #ffe600;
+      --text-primary:#eaf6ff;
+      --text-secondary:#7eb8d8;
+      --radius:      16px;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', 'PingFang SC', 'Noto Sans SC', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ===== Animated Background ===== */
+    #bg-canvas {
+      position: fixed; inset: 0; z-index: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+
+    /* ===== Layout ===== */
+    .rel { position: relative; z-index: 1; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+    /* ===== Navbar ===== */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      backdrop-filter: blur(18px);
+      background: rgba(3, 8, 18, 0.72);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.3s;
+    }
+    .navbar .container {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 72px;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.35rem; font-weight: 800; letter-spacing: 1px;
+    }
+    .logo-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--cyan), var(--magenta));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 18px var(--cyan-glow);
+      animation: tentacle-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes tentacle-pulse {
+      0%, 100% { box-shadow: 0 0 18px var(--cyan-glow); }
+      50%       { box-shadow: 0 0 32px var(--magenta-glow), 0 0 60px var(--cyan-glow); }
+    }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      color: var(--text-secondary); font-weight: 500; font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--cyan); text-decoration: none; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: 12px; font-weight: 700;
+      font-size: 0.95rem; cursor: pointer; border: none;
+      transition: all 0.25s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), #0099cc);
+      color: #000; box-shadow: 0 0 24px var(--cyan-glow);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 40px var(--cyan-glow);
+      text-decoration: none; color: #000;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 1.5px solid var(--cyan);
+      color: var(--cyan);
+    }
+    .btn-ghost:hover {
+      background: rgba(0,212,255,0.08);
+      text-decoration: none; color: var(--cyan);
+    }
+
+    /* ===== Hero ===== */
+    .hero {
+      min-height: 100vh;
+      display: flex; align-items: center;
+      padding-top: 72px;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,212,255,0.07) 0%, transparent 70%),
+                  radial-gradient(ellipse 60% 50% at 80% 20%, rgba(255,45,170,0.05) 0%, transparent 60%);
+      z-index: 0;
+    }
+    .hero .container {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+      align-items: center; position: relative; z-index: 1;
+      padding-top: 60px; padding-bottom: 60px;
+    }
+    .hero-text { animation: fadeUp 0.8s ease-out; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(32px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 16px; border-radius: 999px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--cyan);
+      margin-bottom: 24px;
+    }
+    .hero-badge .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 900; line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .hero h1 .gradient-text {
+      background: linear-gradient(90deg, var(--cyan), var(--magenta), var(--green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.1rem; color: var(--text-secondary);
+      max-width: 480px; margin-bottom: 36px; line-height: 1.8;
+    }
+    .hero-buttons { display: flex; gap: 16px; flex-wrap: wrap; }
+
+    /* Hero visual - squid SVG */
+    .hero-visual {
+      display: flex; align-items: center; justify-content: center;
+      animation: float 6s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-18px); }
+    }
+    .squid-svg {
+      width: 100%; max-width: 420px;
+      filter: drop-shadow(0 0 60px rgba(0,212,255,0.25))
+              drop-shadow(0 0 120px rgba(255,45,170,0.12));
+    }
+
+    /* ===== Stats Bar ===== */
+    .stats-bar {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin: -40px auto 80px;
+      max-width: 960px;
+      padding: 28px 40px;
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      position: relative; z-index: 2;
+    }
+    .stat-item { text-align: center; }
+    .stat-value {
+      font-size: 1.7rem; font-weight: 800;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; }
+
+    /* ===== Sections ===== */
+    .section { padding: 100px 0; position: relative; }
+    .section-header { text-align: center; margin-bottom: 64px; }
+    .section-header h2 {
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      font-weight: 800; margin-bottom: 12px;
+    }
+    .section-header p {
+      color: var(--text-secondary); font-size: 1.05rem;
+      max-width: 540px; margin: 0 auto;
+    }
+    .gradient-text {
+      background: linear-gradient(90deg, var(--cyan), var(--magenta));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ===== Features Grid ===== */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 28px;
+      transition: all 0.3s;
+      position: relative; overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--magenta));
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .feature-card:hover::before { opacity: 1; }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0,212,255,0.3);
+      box-shadow: 0 8px 40px rgba(0,212,255,0.08);
+    }
+    .feature-icon {
+      width: 56px; height: 56px; border-radius: 14px;
+      background: rgba(0,212,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 1.15rem; font-weight: 700; margin-bottom: 10px;
+    }
+    .feature-card p {
+      font-size: 0.92rem; color: var(--text-secondary); line-height: 1.7;
+    }
+
+    /* ===== How It Works ===== */
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px;
+    }
+    .step-card {
+      text-align: center; padding: 40px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: all 0.3s;
+    }
+    .step-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0,212,255,0.3);
+    }
+    .step-num {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--magenta));
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.1rem; color: #000;
+      margin-bottom: 20px;
+    }
+    .step-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 10px; }
+    .step-card p { font-size: 0.88rem; color: var(--text-secondary); line-height: 1.7; }
+
+    /* ===== Token Card (Project Showcase) ===== */
+    .projects-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    }
+    .project-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .project-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 40px rgba(0,212,255,0.1);
+      border-color: rgba(0,212,255,0.3);
+    }
+    .project-img {
+      height: 180px; display: flex; align-items: center; justify-content: center;
+      font-size: 4rem;
+      background: linear-gradient(135deg, rgba(0,212,255,0.06), rgba(255,45,170,0.04));
+      position: relative;
+    }
+    .project-img .progress-bar {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 4px;
+      background: rgba(255,255,255,0.06);
+    }
+    .project-img .progress-fill {
+      height: 100%; border-radius: 0 4px 0 0;
+      background: linear-gradient(90deg, var(--cyan), var(--green));
+    }
+    .project-body { padding: 24px; }
+    .project-body h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .project-body p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px; }
+    .project-meta {
+      display: flex; justify-content: space-between;
+      font-size: 0.8rem; color: var(--text-secondary);
+      padding-top: 14px; border-top: 1px solid var(--border);
+    }
+    .project-meta .val {
+      color: var(--green); font-weight: 700;
+    }
+
+    /* ===== CTA ===== */
+    .cta-section {
+      text-align: center;
+      padding: 100px 0;
+      position: relative;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(0,212,255,0.06) 0%, transparent 70%);
+    }
+    .cta-section h2 {
+      font-size: clamp(2rem, 4vw, 3rem); font-weight: 900;
+      margin-bottom: 16px; position: relative;
+    }
+    .cta-section p {
+      color: var(--text-secondary); font-size: 1.05rem;
+      margin-bottom: 40px; position: relative;
+    }
+    .cta-section .btn { position: relative; }
+
+    /* ===== Footer ===== */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 60px 0 30px;
+      background: rgba(3,8,18,0.9);
+      position: relative; z-index: 1;
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px; margin-bottom: 40px;
+    }
+    .footer-brand p { color: var(--text-secondary); font-size: 0.9rem; margin-top: 14px; line-height: 1.7; }
+    .footer-col h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 18px; }
+    .footer-col ul { list-style: none; }
+    .footer-col li { margin-bottom: 10px; }
+    .footer-col a { color: var(--text-secondary); font-size: 0.88rem; transition: color 0.2s; }
+    .footer-col a:hover { color: var(--cyan); }
+    .footer-bottom {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.82rem; color: var(--text-secondary);
+    }
+    .social-links { display: flex; gap: 16px; }
+    .social-links a {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary); font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+    .social-links a:hover {
+      border-color: var(--cyan); color: var(--cyan);
+      background: rgba(0,212,255,0.06);
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 900px) {
+      .hero .container { grid-template-columns: 1fr; text-align: center; }
+      .hero p { margin-left: auto; margin-right: auto; }
+      .hero-buttons { justify-content: center; }
+      .hero-visual { order: -1; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .steps-grid { grid-template-columns: 1fr 1fr; }
+      .projects-grid { grid-template-columns: 1fr 1fr; }
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 600px) {
+      .features-grid, .steps-grid, .projects-grid {
+        grid-template-columns: 1fr;
+      }
+      .stats-bar { grid-template-columns: 1fr 1fr; }
+      .footer-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ===== Scroll animations ===== */
+    .reveal {
+      opacity: 0; transform: translateY(30px);
+      transition: all 0.7s cubic-bezier(.23,1,.32,1);
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<!-- Animated Background Canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- ===== Navbar ===== -->
+<nav class="navbar">
+  <div class="container">
+    <a href="#" class="logo">
+      <div class="logo-icon">🦑</div>
+      <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">核心功能</a></li>
+      <li><a href="#how">发射流程</a></li>
+      <li><a href="#projects">热门项目</a></li>
+      <li><a href="#faq">常见问题</a></li>
+    </ul>
+    <button class="btn btn-primary" onclick="alert('正在连接钱包...')">连接钱包 🔗</button>
+  </div>
+</nav>
+
+<!-- ===== Hero ===== -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-text">
+      <div class="hero-badge">
+        <span class="dot"></span>
+        深海级代币发射平台 · 已安全发射 128+ 项目
+      </div>
+      <h1>
+        潜入深海<br/>
+        <span class="gradient-text">发射你的代币</span>
+      </h1>
+      <p>
+        SquidLaunch 是新一代 Web3 代币发射平台。我们像深海鱿鱼一样敏捷、透明、强大——
+        为每一个优质项目提供公平、安全、高效的发射体验。
+      </p>
+      <div class="hero-buttons">
+        <a href="#projects" class="btn btn-primary">🚀 浏览项目</a>
+        <a href="#features" class="btn btn-ghost">📋 提交发射申请</a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <!-- Animated Squid SVG -->
+      <svg class="squid-svg" viewBox="0 0 400 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Glow -->
+        <defs>
+          <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#00d4ff"/>
+            <stop offset="100%" stop-color="#ff2daa"/>
+          </linearGradient>
+          <filter id="neon">
+            <feGaussianBlur stdDeviation="4" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- Body -->
+        <ellipse cx="200" cy="160" rx="90" ry="110" fill="url(#bodyGrad)" opacity="0.85" filter="url(#neon)"/>
+        <!-- Mantle details -->
+        <path d="M130 120 Q200 60 270 120" stroke="#00d4ff" stroke-width="2" fill="none" opacity="0.5"/>
+        <path d="M120 160 Q200 100 280 160" stroke="#ff2daa" stroke-width="1.5" fill="none" opacity="0.4"/>
+        <!-- Eyes -->
+        <circle cx="170" cy="150" r="18" fill="#030812"/>
+        <circle cx="230" cy="150" r="18" fill="#030812"/>
+        <circle cx="174" cy="146" r="8" fill="#00d4ff" filter="url(#neon)"/>
+        <circle cx="234" cy="146" r="8" fill="#00d4ff" filter="url(#neon)"/>
+        <circle cx="176" cy="144" r="3" fill="#fff"/>
+        <circle cx="236" cy="144" r="3" fill="#fff"/>
+        <!-- Tentacles (animated with wavy paths) -->
+        <g class="tentacles">
+          <path class="t" d="M140 260 Q120 340 130 420 Q135 460 125 500" stroke="url(#bodyGrad)" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.8">
+            <animate attributeName="d" dur="3s" repeatCount="indefinite"
+              values="M140 260 Q120 340 130 420 Q135 460 125 500;
+                      M140 260 Q160 340 140 420 Q130 460 145 500;
+                      M140 260 Q120 340 130 420 Q135 460 125 500"/>
+          </path>
+          <path class="t" d="M165 265 Q150 350 155 430 Q153 470 160 500" stroke="url(#bodyGrad)" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.75">
+            <animate attributeName="d" dur="2.8s" repeatCount="indefinite"
+              values="M165 265 Q150 350 155 430 Q153 470 160 500;
+                      M165 265 Q180 350 170 430 Q168 470 155 500;
+                      M165 265 Q150 350 155 430 Q153 470 160 500"/>
+          </path>
+          <path class="t" d="M190 268 Q185 355 188 430 Q187 470 190 500" stroke="url(#bodyGrad)" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.7">
+            <animate attributeName="d" dur="3.2s" repeatCount="indefinite"
+              values="M190 268 Q185 355 188 430 Q187 470 190 500;
+                      M190 268 Q200 355 195 430 Q194 470 188 500;
+                      M190 268 Q185 355 188 430 Q187 470 190 500"/>
+          </path>
+          <path class="t" d="M215 265 Q230 350 225 430 Q227 470 220 500" stroke="url(#bodyGrad)" stroke-width="7" fill="none" stroke-linecap="round" opacity="0.75">
+            <animate attributeName="d" dur="2.6s" repeatCount="indefinite"
+              values="M215 265 Q230 350 225 430 Q227 470 220 500;
+                      M215 265 Q195 350 210 430 Q208 470 225 500;
+                      M215 265 Q230 350 225 430 Q227 470 220 500"/>
+          </path>
+          <path class="t" d="M240 260 Q255 340 250 420 Q245 460 260 500" stroke="url(#bodyGrad)" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.8">
+            <animate attributeName="d" dur="3.4s" repeatCount="indefinite"
+              values="M240 260 Q255 340 250 420 Q245 460 260 500;
+                      M240 260 Q220 340 235 420 Q240 460 235 500;
+                      M240 260 Q255 340 250 420 Q245 460 260 500"/>
+          </path>
+        </g>
+        <!-- Suction cups on tentacles -->
+        <circle cx="132" cy="340" r="5" fill="#00d4ff" opacity="0.4" filter="url(#neon)"/>
+        <circle cx="148" cy="400" r="4" fill="#ff2daa" opacity="0.3"/>
+        <circle cx="222" cy="350" r="5" fill="#00d4ff" opacity="0.4" filter="url(#neon)"/>
+        <circle cx="252" cy="410" r="4" fill="#ff2daa" opacity="0.3"/>
+        <!-- Particles -->
+        <circle cx="80" cy="200" r="2" fill="#00d4ff" opacity="0.6"><animate attributeName="cy" values="200;180;200" dur="4s" repeatCount="indefinite"/></circle>
+        <circle cx="320" cy="240" r="1.5" fill="#ff2daa" opacity="0.5"><animate attributeName="cy" values="240;210;240" dur="3s" repeatCount="indefinite"/></circle>
+        <circle cx="60" cy="300" r="1" fill="#00ffb2" opacity="0.4"><animate attributeName="cy" values="300;280;300" dur="5s" repeatCount="indefinite"/></circle>
+        <circle cx="340" cy="160" r="2" fill="#00d4ff" opacity="0.5"><animate attributeName="cy" values="160;140;160" dur="3.5s" repeatCount="indefinite"/></circle>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Stats Bar ===== -->
+<div class="container">
+  <div class="stats-bar reveal">
+    <div class="stat-item">
+      <div class="stat-value">128+</div>
+      <div class="stat-label">成功发射项目</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">$86M+</div>
+      <div class="stat-label">总发射市值</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">52K+</div>
+      <div class="stat-label">活跃参与用户</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">99.7%</div>
+      <div class="stat-label">发射成功率</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Features ===== -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>为什么选择 <span class="gradient-text">SquidLaunch</span></h2>
+      <p>我们像深海中最聪明的捕食者一样，为你的项目保驾护航</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-icon">🛡️</div>
+        <h3>审核精选</h3>
+        <p>每个上线项目均经过团队背景、资方背书、运营能力三维审核，确保投资者资金安全。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">📉</div>
+        <h3>破发保护</h3>
+        <p>内置 LP 金库保护机制，设定价格底线，防止项目上线后短期内破发归零。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🔍</div>
+        <h3>公开进度</h3>
+        <p>Mint 进度、联合曲线、毕业状态全部链上可查，透明度远超传统发射平台。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">⚡</div>
+        <h3>极速发射</h3>
+        <p>从申请到上线最快仅需 48 小时，全流程线上化，无需繁琐线下对接。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">💧</div>
+        <h3>流动性锁定</h3>
+        <p>自动锁定 LP 代币最长 12 个月，杜绝 Rug Pull，建立社区信任基石。</p>
+      </div>
+      <div class="feature-card reveal">
+        <div class="feature-icon">🐙</div>
+        <h3>多触手支持</h3>
+        <p>提供市值管理、KOL 推广、CEX 上所对接等一站式孵化服务。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== How It Works ===== -->
+<section class="section" id="how" style="background: rgba(0,212,255,0.02);">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>发射流程</h2>
+      <p>四步完成代币发射，简单高效，全程透明</p>
+    </div>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-num">01</div>
+        <h3>提交申请</h3>
+        <p>填写项目基本信息、代币经济学、团队背景，提交发射申请。</p>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">02</div>
+        <h3>审核通过</h3>
+        <p>SquidLaunch 团队进行多维度审核，确保项目质量与合规性。</p>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">03</div>
+        <h3>社区 Mint</h3>
+        <p>开放社区 Mint，支持 ETH/BNB/USDT 多种参与方式。</p>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-num">04</div>
+        <h3>发射上线</h3>
+        <p>达成软顶后自动上线 DEX，LP 锁定，项目正式毕业。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Projects ===== -->
+<section class="section" id="projects">
+  <div class="container">
+    <div class="section-header reveal">
+      <h2>热门发射项目</h2>
+      <p>探索正在热 Mint 和刚毕业的优质项目</p>
+    </div>
+    <div class="projects-grid">
+      <!-- Project 1 -->
+      <div class="project-card reveal">
+        <div class="project-img" style="background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(0,255,178,0.06));">
+          🐙
+          <div class="progress-bar"><div class="progress-fill" style="width:78%"></div></div>
+        </div>
+        <div class="project-body">
+          <h3>DeepOcean DAO</h3>
+          <p>去中心化海洋保护组织，通过代币激励全球海洋清洁行动。</p>
+          <div class="project-meta">
+            <span>进度 <span class="val">78%</span></span>
+            <span>剩余 <span class="val">2天</span></span>
+          </div>
+        </div>
+      </div>
+      <!-- Project 2 -->
+      <div class="project-card reveal">
+        <div class="project-img" style="background:linear-gradient(135deg,rgba(255,45,170,0.1),rgba(0,212,255,0.06));">
+          🦑
+          <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+        </div>
+        <div class="project-body">
+          <h3>SquidGame Fi</h3>
+          <p>鱿鱼主题 GameFi 平台，Play-to-Earn 与 NFT 深度融合。</p>
+          <div class="project-meta">
+            <span>状态 <span class="val" style="color:var(--cyan)">已毕业 🎓</span></span>
+            <span>上线 <span class="val">PancakeSwap</span></span>
+          </div>
+        </div>
+      </div>
+      <!-- Project 3 -->
+      <div class="project-card reveal">
+        <div class="project-img" style="background:linear-gradient(135deg,rgba(0,255,178,0.1),rgba(0,212,255,0.06));">
+          🌊
+          <div class="progress-bar"><div class="progress-fill" style="width:42%"></div></div>
+        </div>
+        <div class="project-body">
+          <h3>AquaChain</h3>
+          <p>基于海洋数据的 RWA 公链，将全球海洋传感器数据代币化。</p>
+          <div class="project-meta">
+            <span>进度 <span class="val">42%</span></span>
+            <span>剩余 <span class="val">5天</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section class="cta-section" id="faq">
+  <div class="container">
+    <h2 class="reveal">准备好 <span class="gradient-text">深海发射</span> 你的项目了吗？</h2>
+    <p class="reveal">加入 SquidLaunch，让千万用户看到你的代币。</p>
+    <a href="#" class="btn btn-primary reveal" style="font-size:1.1rem;padding:16px 40px;">🚀 立即提交发射申请</a>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="logo" style="justify-content:flex-start;">
+          <div class="logo-icon">🦑</div>
+          <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
+        </a>
+        <p>新一代 Web3 代币发射平台，让每一个优质项目都能公平发射、透明成长。</p>
+        <div class="social-links" style="margin-top:18px;">
+          <a href="#">𝕏</a>
+          <a href="#">TG</a>
+          <a href="#">DC</a>
+          <a href="#">GH</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>产品</h4>
+        <ul>
+          <li><a href="#">浏览项目</a></li>
+          <li><a href="#">发射申请</a></li>
+          <li><a href="#">我的参与</a></li>
+          <li><a href="#">代币列表</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>资源</h4>
+        <ul>
+          <li><a href="#">文档中心</a></li>
+          <li><a href="#">API 接口</a></li>
+          <li><a href="#">审计报告</a></li>
+          <li><a href="#">品牌素材</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>关于</h4>
+        <ul>
+          <li><a href="#">关于我们</a></li>
+          <li><a href="#">费用说明</a></li>
+          <li><a href="#">常见问题</a></li>
+          <li><a href="#">联系我们</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 SquidLaunch. All rights reserved.</span>
+      <span>🦑 Built by squid, for the deep sea.</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ===== Scripts ===== -->
+<script>
+  // ---- Scroll Reveal ----
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('visible'); }
+    });
+  }, { threshold: 0.12 });
+  reveals.forEach(el => observer.observe(el));
+
+  // ---- Animated Background (bubbles / particles) ----
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  const PARTICLE_COUNT = 60;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  class Particle {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * canvas.width;
+      this.y = Math.random() * canvas.height;
+      this.r = Math.random() * 2.5 + 0.5;
+      this.dy = -(Math.random() * 0.4 + 0.1);
+      this.dx = (Math.random() - 0.5) * 0.3;
+      this.alpha = Math.random() * 0.35 + 0.05;
+      this.color = ['#00d4ff','#ff2daa','#00ffb2'][Math.floor(Math.random()*3)];
+    }
+    update() {
+      this.x += this.dx;
+      this.y += this.dy;
+      this.alpha += (Math.random() - 0.5) * 0.005;
+      this.alpha = Math.max(0.03, Math.min(0.45, this.alpha));
+      if (this.y < -10) this.reset(), this.y = canvas.height + 10;
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.globalAlpha = this.alpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  // ---- Smooth nav background on scroll ----
+  const navbar = document.querySelector('.navbar');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 50) {
+      navbar.style.background = 'rgba(3,8,18,0.92)';
+    } else {
+      navbar.style.background = 'rgba(3,8,18,0.72)';
+    }
+  });
+</script>
+</body>
+</html>
