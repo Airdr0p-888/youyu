@@ -265,10 +265,10 @@
   <!-- Contract Suffix -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">🔢</div><div><h3>合约地址尾号</h3><p class="sub">可选，留空则随机生成</p></div>
+      <div class="card-icon">🔢</div><div><h3>合约地址尾号</h3><p class="sub">固定尾号，无需手动设置</p></div>
     </div>
-    <div class="field"><input type="text" id="t_suffix" placeholder="例如：555 或 SQUID（1-10位十六进制字符）" maxlength="10" />
-      <div class="hint">尾号越长碰撞时间越长。3 位约需 1 秒，6 位约需 30 分钟</div>
+    <div class="field"><input type="text" value="0000" readonly style="background:rgba(255,255,255,0.03);color:var(--text-secondary);cursor:not-allowed" />
+      <div class="hint">系统自动为每个发射的合约分配固定尾号 0000</div>
     </div>
   </div>
 
@@ -294,6 +294,25 @@
       <input type="range" min="0" max="365" value="3" id="antiArbSlider" oninput="document.getElementById('antiArbVal').textContent=this.value+' 天'"/>
     </div>
     <div class="hint">在反套利保护期内，用户无法向部分 V3 池添加流动性。最小 0 天 · 最大 365 天 · 默认 3 天</div>
+  </div>
+
+  <!-- Open Mode -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">🚀</div><div><h3>开盘模式</h3><p class="sub">设置预售结束后的开盘方式</p></div>
+    </div>
+    <div class="field">
+      <label class="toggle" id="manualOpenToggle" onclick="this.classList.toggle('on');document.getElementById('openModeHint').textContent=this.classList.contains('on')?'开启：需 Owner 手动调用 enableTrading() 开盘':'关闭：预售结束后自动开盘（默认）'">
+        <span>手动开盘模式</span>
+        <div class="toggle-box"></div>
+      </label>
+      <div class="hint" id="openModeHint">关闭：预售结束后自动开盘（默认）</div>
+    </div>
+    <div class="calc-panel" style="margin-top:12px">
+      <div class="calc-row"><span>💰 Mint 资金分配规则（不可修改）：</span></div>
+      <div class="calc-row"><span>　├ 25% → Owner 钱包（立即到账）</span></div>
+      <div class="calc-row"><span>　└ 75% → 合约留存（等开盘时使用）</span></div>
+    </div>
   </div>
 
   <!-- Tax Distribution -->
@@ -359,6 +378,7 @@
       <h3 style="margin-bottom:8px">✅ 代币部署成功！</h3>
       <p style="font-size:0.82rem;color:var(--text-secondary)">CONTRACT ADDRESS</p>
       <div class="addr-box" id="contractAddr">—</div>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:8px">开盘模式：<strong id="resultOpenMode" style="color:var(--cyan)">—</strong></p>
 
       <div class="accordion open" style="margin-top:16px">
         <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
@@ -383,100 +403,6 @@
       <div class="btn-group" style="margin-top:12px">
         <button class="btn btn-outline btn-sm">📋 复制地址</button>
         <button class="btn btn-outline btn-sm">View on BscScan ↗</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Admin Panel (Accordion) -->
-  <div class="accordion" style="margin-top:18px">
-    <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
-      <span>🛡️ 管理员控制面板（仅 Owner 可用）</span><span class="acc-arrow">▼</span>
-    </div>
-    <div class="acc-body">
-      <!-- Contract Address Input -->
-      <div class="field" style="margin-bottom:14px">
-        <label>输入已有合约地址</label>
-        <div style="display:flex;gap:8px">
-          <input type="text" id="adminContractAddr" placeholder="0x..." style="flex:1" />
-          <button class="btn btn-primary btn-sm" onclick="loadContract()">加载</button>
-        </div>
-      </div>
-
-      <!-- Contract Status -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">📊 合约状态</h4>
-        <button class="btn btn-outline btn-sm">🔄 刷新状态</button>
-      </div>
-
-      <!-- Withdraw BNB -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">💰 提取 BNB</h4>
-        <p class="hint">将合约中所有 BNB 转入 Owner 钱包（仅 Owner 可调用）</p>
-        <button class="btn btn-outline btn-sm">💸 withdrawBNB（提取全部 BNB 到 Owner）</button>
-      </div>
-
-      <!-- Presale Management -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">🏁 预售管理</h4>
-        <div class="btn-group">
-          <button class="btn btn-outline btn-sm">✅ 手动结束预售（注入 LP）</button>
-          <button class="btn btn-outline btn-sm">🔓 开启交易</button>
-        </div>
-        <div class="warn" style="margin-top:10px"><span class="wicon">⚠️</span><span>手动结束预售会将合约内所有 BNB + 代币注入 Uniswap 流动性</span></div>
-      </div>
-
-      <!-- Tax Adjustment -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">⚙️ 税费调整</h4>
-        <div class="row">
-          <div class="field"><label>买入税 (bps)</label><div style="display:flex;gap:6px"><input type="number" placeholder="100" style="flex:1"/><button class="btn btn-outline btn-sm">设置</button></div></div>
-          <div class="field"><label>卖出税 (bps)</label><div style="display:flex;gap:6px"><input type="number" placeholder="100" style="flex:1"/><button class="btn btn-outline btn-sm">设置</button></div></div>
-        </div>
-        <p style="font-size:0.82rem;margin:10px 0 6px;color:var(--text-secondary)"><strong>📊 税费分配比例</strong>（四项合计 ≤ 100%）</p>
-        <div class="range-wrap"><div class="range-label"><span>📢 营销</span><span>0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-        <div class="range-wrap"><div class="range-label"><span>🔥 销毁</span><span>0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-        <div class="range-wrap"><div class="range-label"><span>💰 分红</span><span>0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-        <div class="range-wrap"><div class="range-label"><span>💧 流动性</span><span>0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-        <button class="btn btn-outline btn-sm" style="margin-top:8px">💾 保存分配比例</button>
-      </div>
-
-      <!-- Dividend Settings -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">📊 分红设置</h4>
-        <p class="hint">分红税费累积到合约，达到阈值后自动 swap 成分红代币并分配</p>
-        <div class="field"><label>分红阈值（代币数量）</label><div style="display:flex;gap:6px"><input type="number" placeholder="100000" style="flex:1"/><button class="btn btn-outline btn-sm">设置</button></div></div>
-        <div class="btn-group">
-          <button class="btn btn-outline btn-sm">🔄 处理分红 (swap → WBNB)</button>
-          <button class="btn btn-outline btn-sm">💧 处理流动性 (swap → BNB)</button>
-          <button class="btn btn-outline btn-sm">⚡ 一键处理全部</button>
-        </div>
-      </div>
-
-      <!-- Whitelist Management -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">📋 Mint 白名单管理</h4>
-        <button class="btn btn-outline btn-sm" style="margin-bottom:10px">🔒 查看并切换白名单模式</button>
-        <div class="btn-group">
-          <button class="btn btn-outline btn-sm">✅ 添加白名单</button>
-          <button class="btn btn-outline btn-sm">❌ 移除白名单</button>
-          <button class="btn btn-outline btn-sm">🔍 查询</button>
-        </div>
-      </div>
-
-      <!-- Danger Zone -->
-      <div class="card" style="margin:14px 0;border-color:rgba(255,71,87,0.3)">
-        <h4 style="font-size:0.88rem;margin-bottom:8px;color:var(--red)">⚠️ 危险操作</h4>
-        <p class="hint">丢弃 Owner 权限后，合约将永久无法再调用管理员函数。此操作不可撤销！</p>
-        <button class="btn btn-danger btn-sm" style="margin-top:8px">🚨 丢弃 Owner 权限（不可撤销）</button>
-      </div>
-
-      <!-- Mint Test -->
-      <div class="card" style="margin:14px 0">
-        <h4 style="font-size:0.88rem;margin-bottom:8px">🪙 Mint 测试（诊断）</h4>
-        <div style="display:flex;gap:8px;align-items:flex-end">
-          <div class="field" style="margin-bottom:0;flex:1"><label>Mint 数量 (次)</label><input type="number" value="1" min="1"/></div>
-          <button class="btn btn-primary btn-sm">Mint 测试</button>
-        </div>
       </div>
     </div>
   </div>
@@ -542,6 +468,9 @@ function doLaunch(){
   setTimeout(()=>{
     document.getElementById('deployResult').style.display='block';
     document.getElementById('contractAddr').textContent='0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join('');
+    // 显示开盘模式
+    const manual=document.getElementById('manualOpenToggle').classList.contains('on');
+    document.getElementById('resultOpenMode').textContent=manual?'手动开盘（需 Owner 手动启用交易）':'自动开盘（预售结束后自动启用）';
     // Scroll to result
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
     btn.textContent='🚀 立即发射代币';

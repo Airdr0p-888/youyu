@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SquidLaunch — 管理员控制台 | Web3 代币发射平台</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg-deep:#030812; --bg-card:rgba(6,30,50,0.65); --bg-input:rgba(3,15,28,0.9);
+      --border:rgba(0,212,255,0.15); --border-focus:rgba(0,212,255,0.5);
+      --cyan:#00d4ff; --cyan-glow:#00d4ff88; --magenta:#ff2daa;
+      --magenta-glow:#ff2daa66; --green:#00ffb2; --yellow:#ffe600;
+      --red:#ff4757; --orange:#ff9f43;
+      --text-primary:#eaf6ff; --text-secondary:#7eb8d8; --radius:14px;
+      --wallet:rgba(0,255,178,0.08); --danger:rgba(255,71,87,0.12);
+    }
+    html{font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg-deep);color:var(--text-primary);line-height:1.6;}
+    body{min-height:100vh;background:radial-gradient(ellipse at top, rgba(20,10,40,1) 0%, var(--bg-deep) 60%);}
+    a{color:var(--cyan);text-decoration:none;}
+
+    /* Navbar */
+    .navbar{ position:sticky;top:0;z-index:50; backdrop-filter:blur(18px); background:rgba(3,8,18,0.88); border-bottom:1px solid var(--border); }
+    .navbar .container{ display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 24px;max-width:1100px;margin:0 auto; }
+    .logo{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:800;text-decoration:none;color:var(--text-primary)}
+    .logo-icon{ width:34px;height:34px;border-radius:10px; background:linear-gradient(135deg,var(--cyan),var(--magenta)); display:flex;align-items:center;justify-content:center;font-size:1.15rem; box-shadow:0 0 16px var(--cyan-glow); animation:tpulse 2.5s ease-in-out infinite; }
+    @keyframes tpulse{ 0%,100%{box-shadow:0 0 16px var(--cyan-glow);} 50%{box-shadow:0 0 32px var(--magenta-glow),0 0 56px var(--cyan-glow);} }
+
+    .nav-links{display:flex;gap:18px;list-style:none}
+    .nav-links a{color:var(--text-secondary);font-size:0.88rem;font-weight:500;transition:.2s}
+    .nav-links a:hover{color:var(--cyan)}
+    .admin-badge{background:rgba(255,45,170,0.12);color:var(--magenta);padding:3px 10px;border-radius:6px;font-size:0.75rem;font-weight:700}
+
+    /* Main */
+    .main{max-width:740px;margin:0 auto;padding:28px 20px 80px}
+
+    /* Page Title */
+    .page-title{text-align:center;padding:30px 0 20px}
+    .page-title h1{font-size:clamp(1.5rem,2.8vw,2rem);font-weight:900}
+    .page-title h1 .gt{background:linear-gradient(90deg,var(--magenta),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .page-title p{color:var(--text-secondary);font-size:0.88rem;margin-top:6px}
+
+    /* Wallet Status Bar */
+    .wallet-bar{display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:12px;margin-bottom:22px;background:var(--danger);border:1px solid rgba(255,71,87,0.2)}
+    .wallet-bar.connected{background:var(--wallet);border-color:rgba(0,255,178,0.2)}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot-r{background:var(--red);animation:bink 1.6s infinite}
+    .dot-g{background:var(--green)}
+    @keyframes bink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+    /* Contract Load Bar */
+    .load-bar{display:flex;gap:8px;margin-bottom:22px}
+    .load-bar input{flex:1;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:inherit;font-size:0.92rem;outline:none;font-family:'Fira Code','Consolas',monospace}
+    .load-bar input:focus{border-color:var(--border-focus)}
+
+    /* Cards */
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:14px}
+    .card h4{font-size:0.94rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    .card p.hint{font-size:0.78rem;color:var(--text-secondary);line-height:1.5;margin-bottom:10px}
+
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 20px;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;border:none;transition:.25s;text-align:center}
+    .btn-primary{background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;box-shadow:0 0 16px var(--cyan-glow)}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 26px var(--cyan-glow)}
+    .btn-danger{background:linear-gradient(135deg,var(--red),#c0392b);color:#fff}
+    .btn-danger:hover{transform:translateY(-1px)}
+    .btn-outline{background:transparent;border:1.5px solid var(--cyan);color:var(--cyan);font-size:0.82rem;padding:7px 15px;border-radius:8px}
+    .btn-outline:hover{background:rgba(0,212,255,0.06)}
+    .btn-sm{padding:7px 14px;font-size:0.8rem;border-radius:8px}
+    .btn-full{width:100%;padding:12px;font-size:0.92rem}
+    .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+    .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+    /* Form Elements */
+    input[type=number],input[type=text]{padding:10px 13px;border-radius:9px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:inherit;font-size:0.88rem;outline:none;transition:.25s}
+    input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(0,212,255,0.08)}
+    label{display:block;font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:5px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+    /* Range Slider */
+    .range-wrap{margin-bottom:12px}
+    .range-label{display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:5px}
+    .range-val{color:var(--cyan);font-weight:700}
+    input[type=range]{width:100%;accent-color:var(--cyan);height:5px;cursor:pointer}
+
+    /* Warning */
+    .warn{background:var(--danger);border:1px solid rgba(255,71,87,0.2);border-radius:10px;padding:11px 14px;font-size:0.81rem;display:flex;align-items:start;gap:8px;margin-top:10px}
+    .warn .wicon{font-size:1rem;flex-shrink:0;margin-top:1px}
+
+    /* Status Display */
+    .status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+    .stat-item{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+    .stat-val{font-size:1.1rem;font-weight:800;color:var(--green)}
+    .stat-label{font-size:0.74rem;color:var(--text-secondary);margin-top:3px}
+
+    /* Danger card special style */
+    .card-danger{border-color:rgba(255,71,87,0.35);background:rgba(255,71,87,0.03)}
+
+    /* Back link */
+    .back-link{text-align:center;padding:24px 0}
+    .back-link a{color:var(--text-secondary);font-size:0.86rem}
+    .back-link a:hover{color:var(--cyan)}
+
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.2);border-radius:3px}
+
+    @media(max-width:640px){
+      .main{padding:14px 12px 60px}.field-row{grid-template-columns:1fr}
+      .navbar .container{padding:0 12px}
+      .card{padding:16px 14px}.load-bar{flex-direction:column}
+      .btn-group{flex-direction:column}.status-grid{grid-template-columns:1fr 1fr}
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="index.html" class="logo"><div class="logo-icon">🦑</div><span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span> <span class="admin-badge">ADMIN</span></a>
+    <ul class="nav-links">
+      <li><a href="index.html">← 首页</a></li>
+      <li><a href="launch.html">发射代币</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- Title -->
+  <div class="page-title">
+    <h1>🛡️ 管理员<span class="gt">控制台</span></h1>
+    <p>仅合约 Owner 可用 — 加载合约地址后进行管理操作</p>
+  </div>
+
+  <!-- Wallet -->
+  <div id="walletBar" class="wallet-bar">
+    <span class="dot dot-r"></span>
+    <span>请先连接钱包</span>
+    <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包 📡</button>
+  </div>
+
+  <!-- Contract Address Input -->
+  <div class="load-bar">
+    <input type="text" id="contractAddrInput" placeholder="输入合约地址 (Contract Address)..." />
+    <button class="btn btn-primary" onclick="loadContract()">加载合约 🔍</button>
+  </div>
+
+  <!-- ===== CONTRACT STATUS ===== -->
+  <div class="card" id="section-status">
+    <h4>📊 合约状态</h4>
+    <p class="hint">点击下方按钮从链上读取合约当前运行状态</p>
+    <button class="btn btn-primary btn-sm" onclick="refreshStatus()">🔄 刷新状态</button>
+
+    <div class="status-grid" style="margin-top:14px;display:none" id="statusGrid">
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">预售状态</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">已售 BNB</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">已 Mint 次数</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">交易是否开启</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">买入税率</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">卖出税率</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">合约余额 (BNB)</div></div>
+      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">LP 已注入</div></div>
+    </div>
+  </div>
+
+  <!-- ===== WITHDRAW BNB ===== -->
+  <div class="card">
+    <h4>💰 提取 BNB</h4>
+    <p class="hint">将合约中所有累积的 BNB 转入 Owner 钱包。仅 Owner 可调用此函数。</p>
+    <button class="btn btn-outline btn-sm">💸 withdrawBNB（提取全部 BNB 到 Owner）</button>
+  </div>
+
+  <!-- ===== PRESALE MANAGEMENT ===== -->
+  <div class="card">
+    <h4>🏁 预售管理</h4>
+    <div class="btn-group">
+      <button class="btn btn-outline btn-sm">✅ 手动结束预售（并注入流动性）</button>
+      <button class="btn btn-outline btn-sm">🔓 开启交易（Trading）</button>
+    </div>
+    <div class="warn">
+      <span class="wicon">⚠️</span>
+      <span>手动结束预售会将合约内所有已募集 BNB + 对应比例代币自动注入 DEX 流动性池，操作不可逆。</span>
+    </div>
+  </div>
+
+  <!-- ===== TAX ADJUSTMENT ===== -->
+  <div class="card">
+    <h4>⚙️ 税费调整</h4>
+    <p class="hint">动态调整买卖税费（单位：bps，即基点；100 bps = 1%）</p>
+    <div class="field-row">
+      <div><label>买入税 (bps)</label><div style="display:flex;gap:6px"><input type="number" placeholder="例如：100" /><button class="btn btn-outline btn-sm">设置买入税</button></div></div>
+      <div><label>卖出税 (bps)</label><div style="display:flex;gap:6px"><input type="number" placeholder="例如：100" /><button class="btn btn-outline btn-sm">设置卖出税</button></div></div>
+    </div>
+
+    <p style="font-size:0.8rem;margin:16px 0 10px;color:var(--text-secondary)"><strong>📊 税费分配比例</strong>（四项合计 ≤ 100%）</p>
+    <div class="range-wrap"><div class="range-label"><span>📢 营销/资金钱包</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
+    <div class="range-wrap"><div class="range-label"><span>🔥 销毁</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
+    <div class="range-wrap"><div class="range-label"><span>💰 分红</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
+    <div class="range-wrap"><div class="range-label"><span>💧 流动性</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
+    <button class="btn btn-outline btn-sm" style="margin-top:8px">💾 保存分配比例</button>
+  </div>
+
+  <!-- ===== DIVIDEND SETTINGS ===== -->
+  <div class="card">
+    <h4>📊 分红设置</h4>
+    <p class="hint">分红税费累积到合约中，达到阈值后可触发自动 swap 为分红代币并分发给持币者。</p>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><label>分红阈值（代币数量）</label><input type="number" placeholder="例如：100000" /></div>
+      <button class="btn btn-outline btn-sm">设置阈值</button>
+    </div>
+    <div class="btn-group" style="margin-top:12px">
+      <button class="btn btn-outline btn-sm">🔄 处理分红 (swap → WBNB)</button>
+      <button class="btn btn-outline btn-sm">💧 处理流动性 (swap → BNB)</button>
+      <button class="btn btn-outline btn-sm">⚡ 一键处理全部</button>
+    </div>
+  </div>
+
+  <!-- ===== WHITELIST MANAGEMENT ===== -->
+  <div class="card">
+    <h4>📋 Mint 白名单管理</h4>
+    <button class="btn btn-outline btn-sm" style="margin-bottom:12px">🔒 查看 / 切换白名单模式</button>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><label>地址</label><input type="text" placeholder="0x... 输入地址" /></div>
+      <div style="flex:1"><label>数量限制</label><input type="number" placeholder="Mint 次数上限" /></div>
+    </div>
+    <div class="btn-group" style="margin-top:10px">
+      <button class="btn btn-outline btn-sm">✅ 添加白名单</button>
+      <button class="btn btn-outline btn-sm">❌ 移除白名单</button>
+      <button class="btn btn-outline btn-sm">🔍 查询状态</button>
+    </div>
+  </div>
+
+  <!-- ===== DANGER ZONE ===== -->
+  <div class="card card-danger">
+    <h4 style="color:var(--red)">⚠️ 危险操作区</h4>
+    <p class="hint">丢弃 Owner 权限后，合约将永久无法再调用任何管理员函数。<strong style="color:var(--red)">此操作不可撤销！</strong></p>
+    <button class="btn btn-danger btn-sm">🚨 丢弃 Owner 权限（Renounce Ownership）</button>
+  </div>
+
+  <!-- ===== MINT TEST ===== -->
+  <div class="card">
+    <h4>🪙 Mint 测试（诊断）</h4>
+    <p class="hint">用于测试合约的 Mint 功能是否正常工作</p>
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1"><label>Mint 数量（次）</label><input type="number" value="1" min="1" /></div>
+      <button class="btn btn-primary btn-sm">执行 Mint 测试 🚀</button>
+    </div>
+  </div>
+
+  <div class="back-link">
+    <a href="launch.html">← 返回发射页面</a> &nbsp;|&nbsp;
+    <a href="index.html">返回首页</a>
+  </div>
+</div>
+
+<script>
+function connectWallet(){
+  const el=document.getElementById('walletBar');
+  el.className='wallet-bar connected';
+  el.innerHTML='<span class="dot dot-g"></span><span>已连接: 0x1234...abcd (BSC)</span><button class="btn btn-outline btn-sm" onclick="location.reload()">断开</button>';
+}
+function loadContract(){
+  const addr=document.getElementById('contractAddrInput').value.trim();
+  if(!addr){alert('请输入合约地址');return}
+  alert('正在加载合约: '+addr+'\n\n（实际部署后此处会调用 web3.js 读取链上数据）');
+}
+function refreshStatus(){
+  document.getElementById('statusGrid').style.display='grid';
+  // Mock data
+  const vals=document.querySelectorAll('#statusGrid .stat-val');
+  const labels=['预售进行中 ✅','12.5 BNB','186 次','未开启 ⛔','1%','1%','3.2 BNB','—'];
+  vals.forEach((v,i)=>v.textContent=labels[i]||'—');
+}
+</script>
+</body>
+</html>
