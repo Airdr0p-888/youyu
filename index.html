@@ -34,6 +34,14 @@
     .btn-primary{ background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;box-shadow:0 0 20px var(--cyan-glow); }
     .btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 34px var(--cyan-glow);text-decoration:none;}
 
+    /* Mobile menu */
+    .menu-toggle{ display:none; background:none;border:none;cursor:pointer; padding:8px; color:var(--text-primary); font-size:1.4rem; line-height:1; }
+    .mobile-nav{ display:none; flex-direction:column; gap:2px; padding:12px 0 6px; border-top:1px solid var(--border); }
+    .mobile-nav.open{display:flex}
+    .mobile-nav button{ font-family:inherit;font-size:0.92rem;font-weight:600;color:var(--text-secondary); background:none;border:none;border-radius:10px;padding:12px 16px; cursor:pointer;transition:all 0.25s;text-align:left;width:100%;}
+    .mobile-nav button:hover{color:var(--text-primary);background:rgba(255,255,255,0.04)}
+    .mobile-nav button.active{ color:var(--cyan);background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.15); }
+
     .main-area{flex:1;display:flex;overflow:hidden;position:relative;}
     .hero-panel{ width:46%;min-width:360px;padding:40px 48px; display:flex;flex-direction:column;justify-content:center; z-index:2;position:relative; }
     .hero-panel::before{ content:'';position:absolute;inset:0; background:radial-gradient(ellipse 80% 70% at 60% 30%, rgba(0,212,255,0.05) 0%,transparent 70%); pointer-events:none; }
@@ -146,12 +154,21 @@
       .stats-row{grid-template-columns:repeat(2,1fr)}
       .tab-nav{gap:4px}.tab-nav li button{padding:7px 14px;font-size:0.84rem}
     }
+    @media(max-width:768px){
+      .tab-nav{display:none}
+      .menu-toggle{display:block}
+      .btn-primary{font-size:0.82rem;padding:8px 16px}
+      .navbar .container{flex-wrap:wrap;height:auto;padding-top:12px;padding-bottom:4px;}
+      .mobile-nav-wrap{display:flex;width:100%}
+      .logo-icon{width:30px;height:30px;font-size:1rem;border-radius:9px}
+      .logo{font-size:1.15rem;gap:7px}
+    }
     @media(max-width:640px){
       .fgrid,.sg,.pgrid{grid-template-columns:1fr}
       .stats-row{grid-template-columns:1fr 1fr}
-      .navbar .container{padding:0 16px}
+      .navbar .container{padding:10px 12px 2px}
       .hero-panel{padding:32px 16px 24px}
-      .squid-visual{height:300px}
+      .squid-visual{height:260px}
       .cfooter{flex-direction:column}
     }
   </style>
@@ -168,13 +185,19 @@
         <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
       </a>
       <ul class="tab-nav">
-        <li><button class="active" data-tab="home">首页</button></li>
-        <li><button data-tab="features">核心功能</button></li>
-        <li><button data-tab="how">发射流程</button></li>
-        <li><button data-tab="projects">热门项目</button></li>
-        <li><button data-tab="faq">常见问题</button></li>
       </ul>
+      <button class="menu-toggle" id="menu-btn" onclick="document.getElementById('mobile-nav').classList.toggle('open')">☰</button>
       <button class="btn btn-primary" onclick="alert('正在连接钱包...')">连接钱包 🔗</button>
+    </div>
+    <!-- Mobile Nav -->
+    <div class="mobile-nav-wrap">
+      <div id="mobile-nav" class="mobile-nav">
+        <button class="active" data-tab="home">🏠 首页</button>
+        <button data-tab="features">⚡ 核心功能</button>
+        <button data-tab="how">🚀 发射流程</button>
+        <button data-tab="projects">🔥 热门项目</button>
+        <button data-tab="faq">❓ 常见问题</button>
+      </div>
     </div>
   </nav>
 
@@ -310,11 +333,23 @@ function switchTab(tabId) {
   tabBtns.forEach(b => b.classList.remove('active'));
   const activeBtn = document.querySelector(`[data-tab="${tabId}"]`);
   if(activeBtn) activeBtn.classList.add('active');
+  // Sync mobile nav active state
+  document.querySelectorAll('#mobile-nav button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tabId);
+  });
   panels.forEach(p => p.classList.remove('active'));
   if(tabId === 'home') { heroPanel.style.display = 'flex'; squidContainer.style.display = 'flex'; }
   else { heroPanel.style.display = 'none'; squidContainer.style.display = 'none'; const panel = document.getElementById(`panel-${tabId}`); if(panel) { panel.classList.add('active'); panel.scrollTop = 0; } }
 }
 tabBtns.forEach(btn => { btn.addEventListener('click', () => switchTab(btn.dataset.tab)); });
+
+// Mobile nav buttons
+document.querySelectorAll('#mobile-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchTab(btn.dataset.tab);
+    document.getElementById('mobile-nav').classList.remove('open');
+  });
+});
 
 // Background particles
 const canvas = document.getElementById('bg-canvas'), ctx = canvas.getContext('2d');
