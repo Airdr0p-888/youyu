@@ -162,6 +162,64 @@
     </div>
   </div>
 
+  <!-- ===== REFUND CONTRACT MANAGEMENT ===== -->
+  <div class="card" style="border-color:rgba(255,230,0,0.25)">
+    <h4>🔐 退款合约管理 (SquidLaunchRefund)</h4>
+    <p class="hint">管理退款合约 — 处理24h超时退款、LP提取、资产提取</p>
+
+    <!-- Set Refund Contract Address -->
+    <div style="margin-bottom:14px">
+      <label>绑定退款合约地址</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="refundContractAddr" placeholder="0x... (SquidLaunchRefund 合约地址)" style="flex:1" />
+        <button class="btn btn-primary btn-sm" onclick="setRefundContract()">绑定</button>
+      </div>
+    </div>
+
+    <!-- Refund Contract Status -->
+    <div class="status-grid" style="margin:14px 0">
+      <div class="stat-item"><div class="stat-val" id="refund-bnb-bal">—</div><div class="stat-label">退款合约 BNB 余额</div></div>
+      <div class="stat-item"><div class="stat-val" id="refund-deadline">—</div><div class="stat-label">退款截止时间</div></div>
+      <div class="stat-item"><div class="stat-val" id="refund-fee">—</div><div class="stat-label">退款手续费</div></div>
+      <div class="stat-item"><div class="stat-val" id="refund-finalized">—</div><div class="stat-label">Presale 状态</div></div>
+    </div>
+
+    <!-- Admin Withdraw BNB -->
+    <div style="margin:14px 0">
+      <h4 style="font-size:0.88rem;margin-bottom:8px">💰 管理员提取 BNB</h4>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label>接收地址</label><input type="text" id="refund-withdraw-to" placeholder="0x... (默认 Owner)" /></div>
+        <button class="btn btn-outline btn-sm" onclick="adminWithdrawBNB()">提取全部 BNB</button>
+      </div>
+    </div>
+
+    <!-- Admin Withdraw Token -->
+    <div style="margin:14px 0">
+      <h4 style="font-size:0.88rem;margin-bottom:8px">🪙 管理员提取代币 / LP</h4>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px"><label>代币地址</label><input type="text" id="refund-token-addr" placeholder="0x... (LP 代币地址)" /></div>
+        <div style="flex:1;min-width:200px"><label>提取数量 (0=全部)</label><input type="number" id="refund-token-amt" placeholder="0" /></div>
+        <div style="flex:1;min-width:200px"><label>接收地址</label><input type="text" id="refund-token-to" placeholder="0x..." /></div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="adminWithdrawToken()">提取代币</button>
+    </div>
+
+    <!-- Set Refund Fee -->
+    <div style="margin:14px 0">
+      <h4 style="font-size:0.88rem;margin-bottom:8px">⚙️ 设置退款手续费</h4>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label>手续费 (bps, 100=1%, 最大500=5%)</label><input type="number" id="refund-fee-bps" placeholder="0" min="0" max="500" /></div>
+        <div style="flex:1"><label>手续费接收地址</label><input type="text" id="refund-fee-recipient" placeholder="0x..." /></div>
+        <button class="btn btn-outline btn-sm" onclick="setRefundFee()">设置</button>
+      </div>
+    </div>
+
+    <div class="warn">
+      <span class="wicon">⚠️</span>
+      <span>退款合约中的 BNB 包含用户 mint 资金，请在确认项目已成功发射后再提取。24h 内用户可申请退款。</span>
+    </div>
+  </div>
+
   <!-- ===== WITHDRAW BNB ===== -->
   <div class="card">
     <h4>💰 提取 BNB</h4>
@@ -269,6 +327,41 @@ function refreshStatus(){
   const vals=document.querySelectorAll('#statusGrid .stat-val');
   const labels=['预售进行中 ✅','12.5 BNB','186 次','未开启 ⛔','1%','1%','3.2 BNB','—'];
   vals.forEach((v,i)=>v.textContent=labels[i]||'—');
+
+  // Also refresh refund contract status (mock)
+  document.getElementById('refund-bnb-bal').textContent='3.2 BNB';
+  document.getElementById('refund-deadline').textContent='23h 12m 后';
+  document.getElementById('refund-fee').textContent='0%';
+  document.getElementById('refund-finalized').textContent='未结束';
+}
+
+function setRefundContract(){
+  const addr=document.getElementById('refundContractAddr').value.trim();
+  if(!addr){alert('请输入退款合约地址');return}
+  alert('正在绑定退款合约: '+addr+'\n\n（实际部署后此处会调用主合约 setRefundContract()）');
+}
+
+function adminWithdrawBNB(){
+  const to=document.getElementById('refund-withdraw-to').value.trim();
+  const target=to||'Owner 钱包';
+  if(!confirm('确认从退款合约提取全部 BNB 到：'+target+'？')) return;
+  alert('提取成功！（模拟）\n\n实际部署后将调用 refundContract.adminWithdrawBNB()');
+}
+
+function adminWithdrawToken(){
+  const tokenAddr=document.getElementById('refund-token-addr').value.trim();
+  const amount=document.getElementById('refund-token-amt').value;
+  const to=document.getElementById('refund-token-to').value.trim();
+  if(!tokenAddr){alert('请输入代币地址');return}
+  if(!to){alert('请输入接收地址');return}
+  alert('提取代币成功！（模拟）\n代币: '+tokenAddr+'\n数量: '+(amount||'全部')+'\n接收: '+to);
+}
+
+function setRefundFee(){
+  const bps=document.getElementById('refund-fee-bps').value;
+  const recipient=document.getElementById('refund-fee-recipient').value.trim();
+  if(bps===''){alert('请输入手续费 (bps)');return}
+  alert('设置退款手续费: '+bps+' bps ('+(bps/100)+'%)'+(recipient?'\n接收地址: '+recipient:''));
 }
 </script>
 </body>

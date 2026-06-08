@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SquidLaunch — 紧急赎回 | Web3 代币发射平台</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg-deep:#030812; --bg-card:rgba(6,30,50,0.65); --bg-input:rgba(3,15,28,0.9);
+      --border:rgba(0,212,255,0.15); --border-focus:rgba(0,212,255,0.5);
+      --cyan:#00d4ff; --cyan-glow:#00d4ff88; --magenta:#ff2daa;
+      --magenta-glow:#ff2daa66; --green:#00ffb2; --yellow:#ffe600;
+      --red:#ff4757; --orange:#ff9f43;
+      --text-primary:#eaf6ff; --text-secondary:#7eb8d8; --radius:14px;
+    }
+    html{font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg-deep);color:var(--text-primary);line-height:1.6;}
+    body{min-height:100vh;background:radial-gradient(ellipse at top, rgba(20,10,40,1) 0%, var(--bg-deep) 60%)}
+
+    /* Navbar */
+    .navbar{ position:sticky;top:0;z-index:50; backdrop-filter:blur(18px); background:rgba(3,8,18,0.88); border-bottom:1px solid var(--border); }
+    .navbar .container{ display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 24px;max-width:1100px;margin:0 auto; }
+    .logo{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:800;text-decoration:none;color:var(--text-primary)}
+    .logo-icon{ width:34px;height:34px;border-radius:10px; background:linear-gradient(135deg,var(--cyan),var(--magenta)); display:flex;align-items:center;justify-content:center;font-size:1.15rem; box-shadow:0 0 16px var(--cyan-glow); }
+
+    /* Main */
+    .main{max-width:640px;margin:0 auto;padding:28px 20px 80px}
+
+    /* Page Title */
+    .page-title{text-align:center;padding:30px 0 20px}
+    .page-title h1{font-size:clamp(1.3rem,2.5vw,1.8rem);font-weight:900}
+    .page-title h1 .gt{background:linear-gradient(90deg,var(--magenta),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .page-title p{color:var(--text-secondary);font-size:0.85rem;margin-top:6px}
+
+    /* Wallet Bar */
+    .wallet-bar{display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:12px;margin-bottom:22px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2)}
+    .wallet-bar.connected{background:rgba(0,255,178,0.08);border-color:rgba(0,255,178,0.2)}
+    .dot{width:10px;height:10px;border-radius:50%}
+    .dot-r{background:var(--red);animation:bink 1.6s infinite}
+    .dot-g{background:var(--green)}
+    @keyframes bink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+    /* Card */
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:16px}
+    .card h3{font-size:0.94rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+    /* Form */
+    input[type=text],input[type=number]{padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:inherit;font-size:0.92rem;outline:none;width:100%;transition:.25s}
+    input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(0,212,255,0.08)}
+    label{display:block;font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:5px}
+
+    /* Buttons */
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 22px;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;border:none;transition:.25s;text-align:center}
+    .btn-primary{background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;box-shadow:0 0 16px var(--cyan-glow)}
+    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 26px var(--cyan-glow)}
+    .btn-danger{background:linear-gradient(135deg,var(--red),#c0392b);color:#fff}
+    .btn-outline{background:transparent;border:1.5px solid var(--cyan);color:var(--cyan);font-size:0.82rem;padding:8px 16px;border-radius:8px}
+    .btn-full{width:100%;padding:13px;font-size:0.92rem}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+
+    /* Record List */
+    .record-list{margin-top:14px}
+    .record-item{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+    .record-info{font-size:0.84rem}
+    .record-info .v{color:var(--cyan);font-weight:700}
+    .record-status{font-size:0.76rem;padding:3px 10px;border-radius:6px}
+    .rs-active{background:rgba(0,212,255,0.1);color:var(--cyan)}
+    .rs-refunded{background:rgba(255,71,87,0.1);color:var(--red)}
+
+    /* Countdown */
+    .countdown{font-size:1.4rem;font-weight:800;color:var(--magenta);text-align:center;padding:14px;background:rgba(255,45,170,0.06);border-radius:10px;margin:12px 0}
+    .countdown.ready{color:var(--green)}
+
+    /* Hint / Warn */
+    .hint{font-size:0.8rem;color:var(--text-secondary);line-height:1.6;margin-bottom:10px}
+    .warn{background:rgba(255,230,0,0.06);border:1px solid rgba(255,230,0,0.2);border-radius:10px;padding:12px 14px;font-size:0.82rem;color:var(--yellow);margin-top:12px}
+
+    /* Back link */
+    .back-link{text-align:center;padding:24px 0}
+    .back-link a{color:var(--text-secondary);font-size:0.86rem}
+    .back-link a:hover{color:var(--cyan)}
+
+    /* Steps */
+    .steps{display:flex;gap:0;margin:16px 0}
+    .step{flex:1;text-align:center;padding:10px 6px;font-size:0.76rem;color:var(--text-secondary);border-bottom:2px solid var(--border);position:relative}
+    .step.active{color:var(--cyan);border-color:var(--cyan)}
+    .step.done{color:var(--green);border-color:var(--green)}
+    .step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.06);font-size:0.72rem;margin-right:4px;vertical-align:middle}
+    .step.active .step-num{background:var(--cyan);color:#000}
+    .step.done .step-num{background:var(--green);color:#000}
+
+    @media(max-width:640px){
+      .main{padding:14px 12px 60px}
+      .record-item{flex-direction:column;align-items:flex-start}
+      .navbar .container{padding:0 12px}
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="index.html" class="logo"><div class="logo-icon">🦑</div><span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span></a>
+    <span style="font-size:0.82rem;color:var(--text-secondary)">紧急赎回</span>
+  </div>
+</nav>
+
+<div class="main">
+
+  <div class="page-title">
+    <h1>🚨 紧急<span class="gt">赎回</span></h1>
+    <p>项目 24h 内未成功发射？立即申请退款，取回你的 Mint 资金</p>
+  </div>
+
+  <!-- Wallet -->
+  <div id="walletBar" class="wallet-bar">
+    <span class="dot dot-r"></span>
+    <span>请先连接钱包</span>
+    <button class="btn btn-outline" onclick="connectWallet()">连接钱包 📡</button>
+  </div>
+
+  <!-- Step indicator -->
+  <div class="steps">
+    <div class="step active" id="step1"><span class="step-num">1</span> 连接钱包</div>
+    <div class="step" id="step2"><span class="step-num">2</span> 查询记录</div>
+    <div class="step" id="step3"><span class="step-num">3</span> 申请退款</div>
+  </div>
+
+  <!-- Token Contract Input -->
+  <div class="card">
+    <h3>📋 输入项目合约地址</h3>
+    <p class="hint">输入你参与 Mint 的代币合约地址，系统将自动查询你的 Mint 记录和退款资格</p>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="tokenAddr" placeholder="0x... 代币合约地址" style="flex:1" />
+      <button class="btn btn-primary" onclick="loadRecords()">查询 🔍</button>
+    </div>
+  </div>
+
+  <!-- Refund Eligibility Check -->
+  <div class="card" id="eligibilityCard" style="display:none">
+    <h3>⏰ 退款资格检查</h3>
+    <div id="eligibilityResult"></div>
+  </div>
+
+  <!-- Mint Records -->
+  <div class="card" id="recordsCard" style="display:none">
+    <h3>📊 我的 Mint 记录</h3>
+    <p class="hint">以下地址为此钱包参与该项目 Mint 的所有记录。可选择单条或批量申请退款。</p>
+    <div class="record-list" id="recordList"></div>
+    <button class="btn btn-danger btn-full" id="refundBtn" onclick="requestRefund()" style="margin-top:14px;display:none">
+      🚨 申请退款（Gas 费由你承担）
+    </button>
+  </div>
+
+  <!-- FAQ -->
+  <div class="card" style="border-color:rgba(255,230,0,0.15)">
+    <h3>❓ 退款规则说明</h3>
+    <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.8">
+      <p><strong style="color:var(--text-primary)">Q: 什么情况下可以申请退款？</strong></p>
+      <p style="margin-bottom:10px">A: 项目部署后 24 小时，若项目方未结束预售并开启交易，所有参与者均可申请退款。</p>
+      <p><strong style="color:var(--text-primary)">Q: 退款流程是怎样的？</strong></p>
+      <p style="margin-bottom:10px">A: ① 连接钱包 → ② 输入项目合约地址 → ③ 选择要退款的记录 → ④ 确认交易（Gas 费自理）→ ⑤ 代币被收回，BNB 退回钱包</p>
+      <p><strong style="color:var(--text-primary)">Q: 退款会扣除手续费吗？</strong></p>
+      <p style="margin-bottom:10px">A: 平台默认不收取退款手续费（0%），具体以项目方设置的退款合约为准。</p>
+    </div>
+  </div>
+
+  <div class="back-link">
+    <a href="index.html">← 返回首页</a> &nbsp;|&nbsp;
+    <a href="launch.html">发射代币</a>
+  </div>
+</div>
+
+<script>
+let currentWallet = null;
+let mockRecords = [];  // { bnbPaid, tokensMinted, timestamp, refunded }
+
+function connectWallet(){
+  currentWallet = '0x1234...abcd';
+  const el = document.getElementById('walletBar');
+  el.className = 'wallet-bar connected';
+  el.innerHTML = '<span class="dot dot-g"></span><span>已连接: '+currentWallet+' (BSC)</span><button class="btn btn-outline" style="font-size:0.78rem;padding:5px 12px" onclick="disconnectWallet()">断开</button>';
+  // Update step
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step1').classList.add('done');
+  document.getElementById('step2').classList.add('active');
+}
+
+function disconnectWallet(){
+  currentWallet = null;
+  location.reload();
+}
+
+function loadRecords(){
+  const addr = document.getElementById('tokenAddr').value.trim();
+  if(!addr){alert('请输入代币合约地址');return}
+  if(!currentWallet){alert('请先连接钱包');return}
+
+  // Mock: generate sample records
+  mockRecords = [
+    { bnbPaid: 0.001, tokensMinted: 1000000, timestamp: Date.now() - 26*3600*1000, refunded: false },
+    { bnbPaid: 0.002, tokensMinted: 2000000, timestamp: Date.now() - 25*3600*1000, refunded: false },
+  ];
+
+  // Mock: check refund eligibility
+  const canRefund = true;  // mock: 24h passed, trading not enabled
+  const tradingEnabled = false;
+
+  // Show eligibility
+  const elig = document.getElementById('eligibilityCard');
+  const eligR = document.getElementById('eligibilityResult');
+  elig.style.display = 'block';
+
+  if(canRefund && !tradingEnabled){
+    eligR.innerHTML = '<div style="color:var(--magenta);font-weight:700;margin-bottom:8px">✅ 符合退款条件</div><div class="countdown">退款窗口已开放（24h 超时）</div><div class="hint">项目未在 24h 内开启交易，你可以申请退款。点击下方记录旁的「退款」按钮。</div>';
+    // Show records
+    renderRecords();
+  } else if(tradingEnabled){
+    eligR.innerHTML = '<div style="color:var(--green);font-weight:700;margin-bottom:8px">🎉 项目已成功发射！</div><div class="hint">项目已开启交易，请在 DEX（如 PancakeSwap）直接交易代币即可，无需在本页面操作。</div>';
+    renderRecords(true);
+  } else {
+    const remaining = 3600; // mock: 1 hour remaining
+    const h = Math.floor(remaining/3600);
+    const m = Math.floor((remaining%3600)/60);
+    eligR.innerHTML = '<div style="color:var(--text-secondary);margin-bottom:8px">⏳ 退款窗口未开放</div><div class="countdown">'+h+'h '+m+'m 后可申请退款</div><div class="hint">项目部署后 24 小时才可申请退款，请耐心等待。</div>';
+  }
+
+  // Update step
+  document.getElementById('step2').classList.remove('active');
+  document.getElementById('step2').classList.add('done');
+  document.getElementById('step3').classList.add('active');
+}
+
+function renderRecords(isClaimMode){
+  const card = document.getElementById('recordsCard');
+  const list = document.getElementById('recordList');
+  card.style.display = 'block';
+  list.innerHTML = '';
+
+  mockRecords.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'record-item';
+    const timeStr = new Date(r.timestamp).toLocaleString('zh-CN');
+    let statusHtml = '';
+    if(r.refunded){
+      statusHtml = '<span class="record-status rs-refunded">已退款</span>';
+    } else {
+      statusHtml = isClaimMode
+        ? '<span class="record-status" style="color:var(--green)">项目已发射，请在 DEX 交易</span>'
+        : '<span class="record-status rs-active">可退款</span>';
+    }
+
+    div.innerHTML = '<div class="record-info"><div>记录 #'+(i+1)+'　|　'+timeStr+'</div><div style="margin-top:4px">支付 <span class="v">'+r.bnbPaid+' BNB</span>　获得 <span class="v">'+(r.tokensMinted/1e18)+' 代币</span></div></div>' + statusHtml;
+    list.appendChild(div);
+  });
+
+  if(!isClaimMode){
+    document.getElementById('refundBtn').style.display = 'inline-flex';
+  }
+}
+
+function requestRefund(){
+  if(!confirm('确认申请退款？\n\n你将：\n• 将代币转回合约\n• 取回 Mint 支付的 BNB（扣除手续费后）\n• 承担本次交易的 Gas 费\n\n确认继续？')) return;
+
+  // Mock refund process
+  const btn = document.getElementById('refundBtn');
+  btn.disabled = true;
+  btn.textContent = '处理中... ⏳';
+  setTimeout(()=>{
+    mockRecords.forEach(r => r.refunded = true);
+    renderRecords();
+    btn.style.display = 'none';
+    alert('✅ 退款成功！\n\n退回 BNB: 0.003 BNB（扣除 0% 手续费）\n\n交易哈希: 0x' + Math.random().toString(16).slice(2,18));
+    // Update step
+    document.getElementById('step3').classList.remove('active');
+    document.getElementById('step3').classList.add('done');
+  }, 2000);
+}
+</script>
+</body>
+</html>
