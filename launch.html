@@ -228,6 +228,7 @@
     .sdiv-tag { font-size:0.7rem;font-weight:700;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap; }
 
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 </head>
 <body>
 
@@ -555,7 +556,42 @@
 // ★ 平台方钱包地址（硬编码）
 const PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36'.toLowerCase();
 
-// ★ 实际连接钱包（MetaMask / TP Wallet / OKX 等注入式钱包）
+// ★══════════════════════════════════════════════════════
+//  Factory 合约配置（部署后填入真实地址）
+// ════════════════════════════════════════════════════════
+const FACTORY_ADDRESS = '0x4F184A53BA5A82a49bFe87b49206208e9980EC3c'; // ✅ 已部署
+const PANCAKE_ROUTER  = '0x10ED43C718714eb63d5aA57B78B90Ca6b3e3f4E7'; // BSC 主网 PancakeSwap V2
+
+// Factory 最小 ABI（仅包含 launch 相关）
+const FACTORY_ABI = [
+  {"inputs":[{"name":"_launchFee","type":"uint256"},{"name":"_platformOwner","type":"address"}],
+   "stateMutability":"nonpayable","type":"constructor"},
+  {"inputs":[],"name":"launchFee","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"name":"_name","type":"string"},{"name":"_symbol","type":"string"},
+             {"name":"_totalSupply","type":"uint256"},{"name":"_routerAddress","type":"address"},
+             {"name":"_enableDividend","type":"bool"},{"name":"_rewardToken","type":"address"},
+             {"name":"_dividendThreshold","type":"uint256"}],
+   "name":"launch","outputs":[{"name":"tokenAddr","type":"address"},
+                             {"name":"refundAddr","type":"address"},
+                             {"name":"dividendAddr","type":"address"}],
+   "stateMutability":"payable","type":"function"},
+  {"inputs":[],"name":"launchEnabled","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"name":"","type":"address"}],"name":"projects","outputs":[
+    {"name":"tokenContract","type":"address"},{"name":"refundContract","type":"address"},
+    {"name":"dividendContract","type":"address"},{"name":"projectOwner","type":"address"},
+    {"name":"name","type":"string"},{"name":"symbol","type":"string"},
+    {"name":"totalSupply","type":"uint256"},{"name":"launchedAt","type":"uint256"},
+    {"name":"active","type":"bool"},{"name":"isPlatformProject","type":"bool"}],
+   "stateMutability":"view","type":"function"}
+];
+
+// Token 最小 ABI（用于验证代币）
+const TOKEN_ABI = [
+  {"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"stateMutability":"view","type":"function"},
+];
 async function connectWallet(){
   if(!window.ethereum){
     alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
@@ -745,13 +781,86 @@ function updateDist(changedId){
   }
 }
 
-function doLaunch(){
+async function doLaunch(){
   const btn = document.getElementById('launchBtn');
+
+  // ★ 检查 Factory 地址是否已配置
+  if(FACTORY_ADDRESS === '0x0000000000000000000000000000000000000000'){
+    alert('⚠️ Factory 合约地址未配置！\n\n请先部署 SquidLaunchFactory 合约，然后将地址填入 launch.html 第 14 行的 FACTORY_ADDRESS 变量。');
+    return;
+  }
+
+  // ★ 检查钱包
+  if(!window.ethereum){
+    alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
+    return;
+  }
+
+  // ★ 收集表单参数
+  const name = document.getElementById('t_name').value.trim();
+  const symbol = document.getElementById('t_symbol').value.trim().toUpperCase();
+  const supply = document.getElementById('t_supply').value.trim();
+  const distReward = +document.getElementById('distReward').value;
+
+  if(!name || !symbol || !supply){
+    alert('请填写完整的代币信息（名称、符号、总供应量）');
+    return;
+  }
+
   btn.textContent = '⏳ 正在发射...';
   btn.disabled = true;
-  setTimeout(()=>{
+
+  try {
+    // ★ 初始化 web3 和合约
+    const web3 = new Web3(window.ethereum);
+    const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+
+    // ★ 获取发射手续费
+    const launchFee = await factory.methods.launchFee().call();
+    const enableDividend = distReward > 0;
+    const rewardToken = enableDividend ? '0x0000000000000000000000000000000000000000' : '0x0000000000000000000000000000000000000000';
+    const dividendThreshold = enableDividend ? web3.utils.toWei('1000000', 'ether') : 0; // 默认阈值：100万代币
+
+    // ★ 调用 launch()
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+    const userAddr = accounts[0];
+
+    // 估算 gas
+    let gasEstimate;
+    try {
+      gasEstimate = await factory.methods.launch(
+        name, symbol, supply, PANCAKE_ROUTER, enableDividend, rewardToken, dividendThreshold
+      ).estimateGas({
+        from: userAddr,
+        value: launchFee
+      });
+    } catch(e) {
+      console.error('Gas 估算失败', e);
+      alert('参数错误，无法估算 Gas：' + (e.message || e));
+      btn.textContent = '🚀 立即发射代币';
+      btn.disabled = false;
+      return;
+    }
+
+    // 发送交易
+    const result = await factory.methods.launch(
+      name, symbol, supply, PANCAKE_ROUTER, enableDividend, rewardToken, dividendThreshold
+    ).send({
+      from: userAddr,
+      value: launchFee,
+      gas: Math.floor(gasEstimate * 1.2)
+    });
+
+    // ★ 解析结果
+    const tokenAddr = result.events.ProjectLaunched.returnValues.token;
+    const refundAddr = result.events.ProjectLaunched.returnValues.refund;
+    const dividendAddr = result.events.ProjectLaunched.returnValues.dividend;
+
+    // ★ 显示结果
     document.getElementById('deployResult').style.display = 'block';
-    document.getElementById('contractAddr').textContent = '0x' + Array.from({length:36}, ()=>Math.floor(Math.random()*16).toString(16)).join('') + '0000';
+    document.getElementById('contractAddr').textContent = tokenAddr;
+
+    // 开盘模式
     let modeText = '';
     if(currentOpenMode === 'auto'){
       modeText = '定时开盘（' + (document.getElementById('t_openTime').value || '未设置') + '）';
@@ -763,37 +872,33 @@ function doLaunch(){
     }
     document.getElementById('resultOpenMode').textContent = modeText;
 
-    // ★ 分红状态（由 distReward > 0 决定，非单独开关）
-    const divEnabled = +document.getElementById('distReward').value > 0;
-    const divAddrEl = document.getElementById('dividendAddrRow');
-    if(divAddrEl){
-      if(divEnabled){
-        divAddrEl.style.display = '';
-        divAddrEl.querySelector('.val').textContent = '0x' + Array.from({length:36}, ()=>Math.floor(Math.random()*16).toString(16)).join('') + 'DDDD';
-      } else {
-        divAddrEl.style.display = 'none';
-      }
+    // 分红合约
+    const divAddrRow = document.getElementById('dividendAddrRow');
+    if(dividendAddr && dividendAddr !== '0x0000000000000000000000000000000000000000'){
+      divAddrRow.style.display = '';
+      divAddrRow.querySelector('.val').textContent = dividendAddr;
+    } else {
+      divAddrRow.style.display = 'none';
     }
 
-    // 构造函数参数（已简化：分红由独立合约处理）
-    const name = document.getElementById('t_name').value || 'MyToken';
-    const symbol = document.getElementById('t_symbol').value || 'MTK';
-    const supply = document.getElementById('t_supply').value || '1000000000';
-    const isPlatform = false; // 由 Factory 自动判定 msg.sender
-
+    // 构造函数参数
     document.getElementById('constructorArgs').innerHTML =
       '<code style="font-size:0.72rem;line-height:1.8;word-break:break-all;display:block;color:var(--text2)">' +
-      '[ "' + name + '", "' + symbol + '", ' + supply + ', owner, router, isPlatformProject ]<br><br>' +
-      '<span style="color:var(--cyan)">▼ 部署的合约</span><br>' +
-      'Token → ' + document.getElementById('contractAddr').textContent.substring(0,18) + '…<br>' +
-      'Refund → 0x' + Array.from({length:8},()=>Math.floor(Math.random()*16).toString(16)).join('') + '…RF<br>' +
-      (divEnabled ? 'Dividend → ' + (divAddrEl?.querySelector('.val')?.textContent || '0x…DD') + '<br>' : '') +
+      'Factory: ' + FACTORY_ADDRESS + '<br>' +
+      'Token: ' + tokenAddr + '<br>' +
+      'Refund: ' + refundAddr + '<br>' +
+      (dividendAddr && dividendAddr !== '0x0000000000000000000000000000000000000000' ? 'Dividend: ' + dividendAddr + '<br>' : '') +
       '</code>';
 
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
+
+  } catch(e) {
+    console.error('发射失败', e);
+    alert('发射失败：' + (e.message || e));
+  } finally {
     btn.textContent = '🚀 立即发射代币';
     btn.disabled = false;
-  }, 2000);
+  }
 }
 
 document.getElementById('fileInput')?.addEventListener('change', function(){
