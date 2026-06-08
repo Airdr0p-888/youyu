@@ -114,6 +114,11 @@
     .scard p{font-size:0.85rem;color:var(--text-secondary);line-height:1.7}
 
     .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1080px;margin:0 auto;}
+    .projects-split{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:20px;}
+    .projects-col h3{font-size:0.92rem;font-weight:600;color:var(--text-secondary);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    .projects-col .pcard{margin-bottom:16px}
+    .pcard-wallet{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+    .pcard-wallet .wallet-status{font-size:0.82rem}
     .pcard{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius); overflow:hidden;transition:all 0.3s;}
     .pcard:hover{transform:translateY(-3px);box-shadow:0 6px 32px rgba(0,212,255,0.09);border-color:rgba(0,212,255,0.3)}
     .pi{height:150px;display:flex;align-items:center;justify-content:center;font-size:3.5rem;position:relative;}
@@ -192,7 +197,6 @@
         <li><button data-tab="faq">常见问题</button></li>
       </ul>
       <button class="menu-toggle" id="menu-btn" onclick="document.getElementById('mobile-nav').classList.toggle('open')">☰</button>
-      <button class="btn btn-primary" onclick="alert('正在连接钱包...')">连接钱包 🔗</button>
     </div>
     <!-- Mobile Nav -->
     <div class="mobile-nav-wrap">
@@ -274,27 +278,122 @@
     </div>
 
     <div id="panel-projects" class="content-panel">
-      <div class="panel-header"><h2>热门发射项目</h2><p>探索正在热 Mint 和刚毕业的优质项目</p></div>
+      <div class="panel-header" style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h2>热门发射项目</h2>
+          <p>探索正在热 Mint 和已成功发射的优质项目</p>
+        </div>
+        <button class="btn btn-primary" style="margin-top:4px" onclick="alert('正在连接钱包...')">连接钱包 🔗</button>
+      </div>
       <div class="stats-row">
         <div class="stat-c"><div class="stat-v">128+</div><div class="stat-l">成功发射项目</div></div>
         <div class="stat-c"><div class="stat-v">$86M+</div><div class="stat-l">总发射市值</div></div>
         <div class="stat-c"><div class="stat-v">52K+</div><div class="stat-l">活跃参与用户</div></div>
         <div class="stat-c"><div class="stat-v">99.7%</div><div class="stat-l">发射成功率</div></div>
       </div>
-      <div class="pgrid">
-        <div class="pcard">
-          <div class="pi" style="background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(0,255,178,0.06))">🐙<div class="pb"><div class="pf" style="width:78%"></div></div></div>
-          <div class="pbod"><h3>DeepOcean DAO</h3><p>去中心化海洋保护组织，通过代币激励全球海洋清洁行动。</p><div class="pmeta"><span>进度 <span class="v">78%</span></span><span>剩余 <span class="v">2天</span></span></div></div>
+
+      <div class="projects-split">
+        <!-- Left: Mint 进行中 -->
+        <div class="projects-col">
+          <h3>🔥 Mint 进行中</h3>
+
+          <div class="pcard">
+            <div class="pi" style="background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(0,255,178,0.06))">🐙
+              <div class="pb"><div class="pf" style="width:78%"></div></div>
+            </div>
+            <div class="pbod">
+              <h3>DeepOcean DAO</h3>
+              <p>去中心化海洋保护组织，通过代币激励全球海洋清洁行动。</p>
+              <div class="pmeta"><span>进度 <span class="v">78%</span></span><span>剩余 <span class="v">2天</span></span></div>
+              <div class="pcard-wallet" style="margin-top:10px">
+                <span style="font-size:0.76rem;color:var(--text-secondary)">0x795f...4111</span>
+                <span style="font-size:0.7rem;background:rgba(0,212,255,0.1);color:var(--cyan);padding:2px 8px;border-radius:6px">Mint 中</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pcard">
+            <div class="pi" style="background:linear-gradient(135deg,rgba(0,255,178,0.1),rgba(0,212,255,0.06))">🌊
+              <div class="pb"><div class="pf" style="width:42%"></div></div>
+            </div>
+            <div class="pbod">
+              <h3>AquaChain</h3>
+              <p>基于海洋数据的 RWA 公链，将全球海洋传感器数据代币化。</p>
+              <div class="pmeta"><span>进度 <span class="v">42%</span></span><span>剩余 <span class="v">5天</span></span></div>
+              <div class="pcard-wallet" style="margin-top:10px">
+                <span style="font-size:0.76rem;color:var(--text-secondary)">0x1a2b...3c4d</span>
+                <span style="font-size:0.7rem;background:rgba(0,212,255,0.1);color:var(--cyan);padding:2px 8px;border-radius:6px">Mint 中</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pcard">
+            <div class="pi" style="background:linear-gradient(135deg,rgba(255,45,170,0.1),rgba(0,212,255,0.06))">🪸
+              <div class="pb"><div class="pf" style="width:15%"></div></div>
+            </div>
+            <div class="pbod">
+              <h3>ReefSwap</h3>
+              <p>专注珊瑚礁生态保护的 DEX，交易手续费自动捐赠给海洋保护基金。</p>
+              <div class="pmeta"><span>进度 <span class="v">15%</span></span><span>剩余 <span class="v">11天</span></span></div>
+              <div class="pcard-wallet" style="margin-top:10px">
+                <span style="font-size:0.76rem;color:var(--text-secondary)">0x5e6f...7a8b</span>
+                <span style="font-size:0.7rem;background:rgba(0,212,255,0.1);color:var(--cyan);padding:2px 8px;border-radius:6px">Mint 中</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="pcard">
-          <div class="pi" style="background:linear-gradient(135deg,rgba(255,45,170,0.1),rgba(0,212,255,0.06))">🦑<div class="pb"><div class="pf" style="width:100%"></div></div></div>
-          <div class="pbod"><h3>SquidGame Fi</h3><p>鱿鱼主题 GameFi 平台，Play-to-Earn 与 NFT 深度融合。</p><div class="pmeta"><span>状态 <span class="v" style="color:var(--cyan)">已毕业 🎓</span></span><span>上线 <span class="v">PancakeSwap</span></span></div></div>
-        </div>
-        <div class="pcard">
-          <div class="pi" style="background:linear-gradient(135deg,rgba(0,255,178,0.1),rgba(0,212,255,0.06))">🌊<div class="pb"><div class="pf" style="width:42%"></div></div></div>
-          <div class="pbod"><h3>AquaChain</h3><p>基于海洋数据的 RWA 公链，将全球海洋传感器数据代币化。</p><div class="pmeta"><span>进度 <span class="v">42%</span></span><span>剩余 <span class="v">5天</span></span></div></div>
+
+        <!-- Right: 已发射 -->
+        <div class="projects-col">
+          <h3>🚀 已发射</h3>
+
+          <div class="pcard">
+            <div class="pi" style="background:linear-gradient(135deg,rgba(255,45,170,0.1),rgba(0,255,178,0.06))">🦑
+              <div class="pb"><div class="pf" style="width:100%"></div></div>
+            </div>
+            <div class="pbod">
+              <h3>SquidGame Fi</h3>
+              <p>鱿鱼主题 GameFi 平台，Play-to-Earn 与 NFT 深度融合。</p>
+              <div class="pmeta"><span>状态 <span class="v" style="color:var(--cyan)">已毕业 🎓</span></span><span>上线 <span class="v">PancakeSwap</span></span></div>
+              <div class="pcard-wallet" style="margin-top:10px">
+                <span style="font-size:0.76rem;color:var(--text-secondary)">0xc793...a111</span>
+                <span style="font-size:0.7rem;background:rgba(0,255,178,0.1);color:var(--green);padding:2px 8px;border-radius:6px">已发射</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pcard">
+            <div class="pi" style="background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(255,45,170,0.06))">🐋
+              <div class="pb"><div class="pf" style="width:100%"></div></div>
+            </div>
+            <div class="pbod">
+              <h3>WhalePulse</h3>
+              <p>巨鲸地址追踪 + 跟单平台，实时推送大额转账信号。</p>
+              <div class="pmeta"><span>状态 <span class="v" style="color:var(--cyan)">已毕业 🎓</span></span><span>上线 <span class="v">PancakeSwap</span></span></div>
+              <div class="pcard-wallet" style="margin-top:10px">
+                <span style="font-size:0.76rem;color:var(--text-secondary)">0x8d1e...9f2a</span>
+                <span style="font-size:0.7rem;background:rgba(0,255,178,0.1);color:var(--green);padding:2px 8px;border-radius:6px">已发射</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="pcard">
+            <div class="pi" style="background:linear-gradient(135deg,rgba(0,255,178,0.1),rgba(255,45,170,0.06))">🏖️
+              <div class="pb"><div class="pf" style="width:100%"></div></div>
+            </div>
+            <div class="pbod">
+              <h3>BeachDAO</h3>
+              <p>全球海滩保护 DAO，持币者可投票决定保护资金分配方向。</p>
+              <div class="pmeta"><span>状态 <span class="v" style="color:var(--cyan)">已毕业 🎓</span></span><span>上线 <span class="v">PancakeSwap</span></span></div>
+              <div class="pcard-wallet" style="margin-top:10px">
+                <span style="font-size:0.76rem;color:var(--text-secondary)">0x3c7d...1e4f</span>
+                <span style="font-size:0.7rem;background:rgba(0,255,178,0.1);color:var(--green);padding:2px 8px;border-radius:6px">已发射</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
       <div class="cfooter">
         <div class="cfooter-left">
           <a href="#" onclick="return false" class="logo" style="justify-content:flex-start;"><div class="logo-icon">🦑</div><span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span></a>
