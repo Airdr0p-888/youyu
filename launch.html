@@ -361,7 +361,8 @@
         </label>
       </div>
 
-      <div class="calc-box" style="margin-top:16px">
+      <!-- ★ Mint 资金分配规则：仅平台方钱包连接时显示 -->
+      <div class="calc-box" id="mintFundRule" style="margin-top:16px;display:none">
         <div class="calc-row"><span style="font-size:0.78rem;color:var(--text3)">Mint 资金分配规则（固定不可修改）</span></div>
         <div class="calc-row">
           <span>25% → Owner 钱包</span>
@@ -400,30 +401,11 @@
 
       <div class="field" style="margin-top:16px"><label>资金收款钱包地址</label><input type="text" id="t_fundWallet" placeholder="0x..." /></div>
 
-      <!-- ★ 分红开关 + 配置（默认关闭） -->
-      <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
-        <div class="toggle-row" style="margin-bottom:12px">
-          <div>
-            <div class="toggle-label">💰 启用分红系统</div>
-            <div class="toggle-sub">开启后将部署独立分红合约，交易税费的分红部分自动转发给分红合约处理</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="dividendChk" onchange="toggleDividendUI()" />
-            <span class="toggle-slider"></span>
-          </label>
+      <!-- ★ 分红配置（distReward > 0 时自动展开） -->
+      <div id="dividendConfig" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
+        <div class="row2" style="margin-top:0">
+          <div class="field"><label>分红代币地址</label><input type="text" id="t_rewardToken" placeholder="留空 = BNB" /><div class="hint">留空则分发 BNB，或填 USDT 等 ERC20 地址</div></div>
         </div>
-
-        <!-- 以下内容仅分红启用时显示 -->
-        <div id="dividendConfig" style="display:none">
-
-          <div class="range-wrap" style="margin-top:12px">
-            <div class="range-top"><span><span class="dm dm-r"></span>分红（持有者奖励）</span><span class="rv" id="distRewardVal">0%</span></div>
-            <input type="range" min="0" max="100" value="40" id="distReward" oninput="updateDist('distReward')" />
-          </div>
-
-          <div class="row2" style="margin-top:14px">
-            <div class="field"><label>分红代币地址</label><input type="text" id="t_rewardToken" placeholder="留空 = BNB" /><div class="hint">留空则分发 BNB，或填 USDT 等 ERC20 地址</div></div>
-          </div>
 
           <div class="field" style="margin-top:10px"><label>📊 分红触发阈值</label>
             <div style="display:flex;gap:10px;align-items:flex-end">
@@ -443,8 +425,7 @@
             分红由独立合约 SquidLaunchDividend 处理，平台方钱包拥有紧急暂停/提取权限。即使分红出问题不影响主代币正常交易。
           </div>
         </div><!-- /#dividendConfig -->
-      </div><!-- /分红区块 -->
-    </div>
+      </div>
 
     <!-- ── 白名单 ── -->
     <div class="panel" style="padding:16px 22px">
@@ -521,6 +502,9 @@
 </div>
 
 <script>
+// ★ 平台方钱包地址（硬编码）
+const PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36'.toLowerCase();
+
 function connectWallet(){
   const box = document.getElementById('wallet-box');
   box.className = 'wallet-bar wb-conn';
@@ -529,7 +513,21 @@ function connectWallet(){
   const steps = document.querySelectorAll('.sb-step');
   steps[0].classList.add('done'); steps[0].classList.remove('active');
   if(steps[1]) steps[1].classList.add('active');
+
+  // ★ 连接后检测是否是平台方钱包
+  checkPlatformWallet();
 }
+
+function checkPlatformWallet(){
+  // 模拟：实际应读取当前连接地址，这里用硬编码演示
+  // 实际对接 Web3 时，用 ethereum.selectedAddress 对比
+  const mockConnectedAddress = '0x1234567890abcdef1234567890abcdef12345678'.toLowerCase();
+  const isPlatform = (mockConnectedAddress === PLATFORM_WALLET);
+
+  // 显示/隐藏 Mint 资金分配规则
+  document.getElementById('mintFundRule').style.display = isPlatform ? '' : 'none';
+}
+
 function disconnectWallet(){ location.reload(); }
 
 function onToggleManual(chk){
@@ -574,30 +572,6 @@ function calcPreview(){
   }
 }
 
-// ★ 分红开关 UI 切换
-function toggleDividendUI(){
-  const chk = document.getElementById('dividendChk').checked;
-  const cfg = document.getElementById('dividendConfig');
-  const rewardSlider = document.getElementById('distReward').closest('.range-wrap');
-
-  if(chk){
-    // 开启分红 → 显示配置区，distReward 变为可调
-    cfg.style.display = '';
-    document.getElementById('distReward').disabled = false;
-    // 如果 distReward 是0，给个默认值
-    if(+document.getElementById('distReward').value === 0){
-      document.getElementById('distReward').value = 40;
-      updateDist('distReward');
-    }
-  }else{
-    // 关闭分红 → 隐藏配置区，distReward 强制为0
-    cfg.style.display = 'none';
-    document.getElementById('distReward').value = 0;
-    document.getElementById('distReward').disabled = true;
-    updateDist('distReward');
-  }
-}
-
 function updateDist(changedId){
   const ids = ['distWallet','distBurn','distReward','distLiq'];
   const valIds = ['distWalletVal','distBurnVal','distRewardVal','distLiqVal'];
@@ -626,6 +600,14 @@ function updateDist(changedId){
   const remain = 100 - total;
   document.getElementById('distTotal').innerHTML =
     `总计 ${total}% &nbsp; 未分配: <span class="${remain === 0 ? 'dt-ok' : 'dt-warn'}">${remain}%</span>`;
+
+  // ★ 自动联动：distReward > 0 → 显示分红配置；= 0 → 隐藏
+  const divCfg = document.getElementById('dividendConfig');
+  if(current['distReward'] > 0){
+    divCfg.style.display = '';
+  } else {
+    divCfg.style.display = 'none';
+  }
 }
 
 function doLaunch(){
@@ -638,8 +620,8 @@ function doLaunch(){
     const manual = document.getElementById('manualOpenChk').checked;
     document.getElementById('resultOpenMode').textContent = manual ? '手动开盘（需 Owner 手动启用）' : '自动开盘（预售结束自动启用）';
 
-    // ★ 分红状态
-    const divEnabled = document.getElementById('dividendChk')?.checked || false;
+    // ★ 分红状态（由 distReward > 0 决定，非单独开关）
+    const divEnabled = +document.getElementById('distReward').value > 0;
     const divAddrEl = document.getElementById('dividendAddrRow');
     if(divAddrEl){
       if(divEnabled){
