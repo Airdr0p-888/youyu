@@ -93,7 +93,19 @@ contract SimpleToken {
     event WhitelistUpdated(address indexed addr, bool added);
     event WhitelistModeSet(bool enabled);
 
-    modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
+    // ── Custom errors（4-byte selector 不会被 viaIR optimizer 剥离） ──
+    error EmptyNameSym();
+    error SupplyZero();
+    error OwnerZero();
+    error PriceZero();
+    error PresaleOver100();
+    error LiqPctOver100();
+    error BadMode();
+    error LimitOver100();
+    error TaxTooHigh();
+    error NotOwner();
+
+    modifier onlyOwner() { if (msg.sender != owner) revert NotOwner(); _; }
 
     constructor(
         address     _owner,
@@ -102,15 +114,15 @@ contract SimpleToken {
         TokenConfig memory _tc,
         FeeConfig   memory _fc
     ) {
-        require(bytes(_tc.name).length > 0 && bytes(_tc.symbol).length > 0, "empty name/sym");
-        require(_tc.totalSupply > 0,          "supply=0");
-        require(_owner != address(0),         "owner=0");
-        require(_tc.mintPrice > 0,            "price=0");
-        require(_tc.presalePct <= 100,        "presale>100");
-        require(_fc.liquidityPct <= 100,       "liqPct>100");
-        require(_tc.openMode <= 2,            "bad mode");
-        require(_fc.maxTxPct <= 100 && _fc.maxWalletPct <= 100, "limit>100");
-        require(_fc.buyTax <= MAX_TAX && _fc.sellTax <= MAX_TAX, "tax high");
+        if (bytes(_tc.name).length == 0 || bytes(_tc.symbol).length == 0) revert EmptyNameSym();
+        if (_tc.totalSupply == 0) revert SupplyZero();
+        if (_owner == address(0)) revert OwnerZero();
+        if (_tc.mintPrice == 0) revert PriceZero();
+        if (_tc.presalePct > 100) revert PresaleOver100();
+        if (_fc.liquidityPct > 100) revert LiqPctOver100();
+        if (_tc.openMode > 2) revert BadMode();
+        if (_fc.maxTxPct > 100 || _fc.maxWalletPct > 100) revert LimitOver100();
+        if (_fc.buyTax > MAX_TAX || _fc.sellTax > MAX_TAX) revert TaxTooHigh();
 
         name          = _tc.name;
         symbol        = _tc.symbol;
@@ -168,20 +180,20 @@ contract SimpleToken {
     // ═══════════ Mint ═══════════
 
     function mint() external payable {
-        require(msg.value > 0, "zero val");
-        require(totalMinted + msg.value <= hardCap, "cap reached");
+        if (msg.value == 0) revert PriceZero();
+        if (totalMinted + msg.value > hardCap) revert("cap reached");
 
         // 白名单检查
-        if (whitelistOnly) require(whitelist[msg.sender], "not whitelisted");
+        if (whitelistOnly && !whitelist[msg.sender]) revert("not whitelisted");
 
         // 定时模式：到时间后禁止 mint
-        if (openMode == 0) require(block.timestamp < openTime, "mint closed");
+        if (openMode == 0 && block.timestamp >= openTime) revert("mint closed");
 
         // 满额模式：开盘后禁止 mint
         if (openMode == 2 && tradingEnabled) revert("trading started");
 
         uint256 tokenAmount = _calcTokenAmount(msg.value);
-        require(presaleSold + tokenAmount <= presaleTokens, "sold out");
+        if (presaleSold + tokenAmount > presaleTokens) revert("sold out");
 
         uint256 liqBNB   = msg.value * liquidityPct / 100;
         uint256 liqTokens = tokenAmount * liquidityPct / 100;
@@ -225,7 +237,7 @@ contract SimpleToken {
 
     /// 手动开盘（仅 owner / platformOwner）
     function enableTrading() external {
-        require(msg.sender == owner || msg.sender == platformOwner, "not allowed");
+        if (msg.sender != owner && msg.sender != platformOwner) revert NotOwner();
         tradingEnabled = true;
         emit TradingEnabled();
     }
@@ -240,14 +252,14 @@ contract SimpleToken {
     // ═══════════ 管理员 ═══════════
 
     function setTax(uint256 _buyTax, uint256 _sellTax) external onlyOwner {
-        require(_buyTax <= MAX_TAX && _sellTax <= MAX_TAX, "tax high");
+        if (_buyTax > MAX_TAX || _sellTax > MAX_TAX) revert TaxTooHigh();
         buyTax  = _buyTax;
         sellTax = _sellTax;
         emit TaxSet(_buyTax, _sellTax);
     }
 
     function setLimits(uint256 _maxTxPct, uint256 _maxWalletPct) external onlyOwner {
-        require(_maxTxPct <= 100 && _maxWalletPct <= 100, "bad pct");
+        if (_maxTxPct > 100 || _maxWalletPct > 100) revert LimitOver100();
         maxTxAmount     = totalSupply * _maxTxPct / 100;
         maxWalletAmount  = totalSupply * _maxWalletPct / 100;
         emit LimitsSet(maxTxAmount, maxWalletAmount);
@@ -287,7 +299,7 @@ contract SimpleToken {
     }
 
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        require(allowance[from][msg.sender] >= amount, "insuf");
+        if (allowance[from][msg.sender] < amount) revert("insuf");
         allowance[from][msg.sender] -= amount;
         _transfer(from, to, amount);
         return true;
@@ -300,19 +312,19 @@ contract SimpleToken {
     }
 
     function _transfer(address from, address to, uint256 amount) internal {
-        require(balanceOf[from] >= amount, "insuf bal");
+        if (balanceOf[from] < amount) revert("insuf bal");
 
         if (from != owner && to != owner && from != address(this)) {
-            require(tradingEnabled, "not open");
+            if (!tradingEnabled) revert("not open");
         }
 
         if (limitsEnabled) {
             if (!isExcludedFromLimits[from] && !isExcludedFromLimits[to]) {
                 if (to != uniswapPair && to != address(this)) {
-                    require(balanceOf[to] + amount <= maxWalletAmount || maxWalletAmount == 0, "wallet cap");
+                    if (balanceOf[to] + amount > maxWalletAmount && maxWalletAmount > 0) revert("wallet cap");
                 }
                 if (from != uniswapPair) {
-                    require(amount <= maxTxAmount || maxTxAmount == 0, "tx cap");
+                    if (amount > maxTxAmount && maxTxAmount > 0) revert("tx cap");
                 }
             }
         }
@@ -340,7 +352,7 @@ contract SimpleToken {
 
     function withdrawBNB() external onlyOwner {
         (bool sent,) = lpReceiver.call{value: address(this).balance}("");
-        require(sent);
+        if (!sent) revert("transfer fail");
     }
 
     function withdrawToken(address tkn) external onlyOwner {
