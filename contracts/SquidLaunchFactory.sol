@@ -14,7 +14,7 @@ pragma solidity ^0.8.20;
  * 6. 返回 token 合约地址
  *
  * 权限模型：
- * - owner (工厂) = 平台管理员（= 部署者钱包地址）
+ * - owner (工厂) = 平台管理员（= 部署时传入的 _platformOwner 地址）
  * - guardian (Token) = 平台地址 → 紧急暂停、强制退款
  * - token.owner = 项目方 → 正常操作
  * - refund.platformOwner = 平台 → LP 控制、退款管理
@@ -81,10 +81,11 @@ contract SquidLaunchFactory {
         _;
     }
 
-    constructor(uint256 _launchFee) {
+    constructor(uint256 _launchFee, address _platformOwner) {
         require(_launchFee <= 1 ether, "SquidLaunchFactory: fee too high");
-        platformOwner = msg.sender;
-        guardian     = msg.sender;
+        require(_platformOwner != address(0), "SquidLaunchFactory: zero platform owner");
+        platformOwner = _platformOwner;
+        guardian     = _platformOwner;
         launchFee    = _launchFee;
         launchEnabled = true;
     }
@@ -242,6 +243,51 @@ contract SquidLaunchFactory {
         for (uint256 i = _offset; i < end; i++) {
             result[i - _offset] = projects[allProjects[i]];
         }
+    }
+
+    // ── 查询（按 Owner 筛选）────────────────────────────────────
+
+    /** @notice 获取某 Owner 部署的所有项目 Token 地址 */
+    function getProjectsByOwner(address _owner)
+        external view returns (address[] memory)
+    {
+        uint256 count = 0;
+        for (uint256 i = 0; i < allProjects.length; i++) {
+            if (projects[allProjects[i]].owner == _owner) count++;
+        }
+        address[] memory result = new address[](count);
+        uint256 j = 0;
+        for (uint256 i = 0; i < allProjects.length; i++) {
+            if (projects[allProjects[i]].owner == _owner) {
+                result[j++] = allProjects[i];
+            }
+        }
+        return result;
+    }
+
+    /** @notice 获取单个项目的完整信息 */
+    function getProjectInfo(address _token)
+        external view returns (
+            address owner,
+            address tokenContract,
+            address refundContract,
+            address dividendContract,
+            bool    isPlatformProject,
+            bool    active,
+            uint256 launchTime
+        )
+    {
+        ProjectInfo memory p = projects[_token];
+        require(p.tokenContract != address(0), "SquidLaunchFactory: unknown project");
+        return (
+            p.owner,
+            p.tokenContract,
+            p.refundContract,
+            p.dividendContract,
+            p.isPlatformProject,
+            p.active,
+            p.launchTime
+        );
     }
 
     /** @notice 提取工厂内累积的发射手续费 BNB */
