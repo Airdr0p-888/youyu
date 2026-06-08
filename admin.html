@@ -3,366 +3,305 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SquidLaunch — 管理员控制台 | Web3 代币发射平台</title>
+  <title>SquidLaunch — 白名单管理 | BSC</title>
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     :root {
       --bg-deep:#030812; --bg-card:rgba(6,30,50,0.65); --bg-input:rgba(3,15,28,0.9);
       --border:rgba(0,212,255,0.15); --border-focus:rgba(0,212,255,0.5);
-      --cyan:#00d4ff; --cyan-glow:#00d4ff88; --magenta:#ff2daa;
-      --magenta-glow:#ff2daa66; --green:#00ffb2; --yellow:#ffe600;
-      --red:#ff4757; --orange:#ff9f43;
-      --text-primary:#eaf6ff; --text-secondary:#7eb8d8; --radius:14px;
-      --wallet:rgba(0,255,178,0.08); --danger:rgba(255,71,87,0.12);
+      --cyan:#00d4ff; --magenta:#ff2daa; --green:#00ffb2; --yellow:#ffe600;
+      --red:#ff4757; --text1:#eaf6ff; --text2:#7eb8d8; --radius:14px;
     }
-    html{font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg-deep);color:var(--text-primary);line-height:1.6;}
+    html{font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg-deep);color:var(--text1);line-height:1.6;}
     body{min-height:100vh;background:radial-gradient(ellipse at top, rgba(20,10,40,1) 0%, var(--bg-deep) 60%);}
-    a{color:var(--cyan);text-decoration:none;}
 
-    /* Navbar */
-    .navbar{ position:sticky;top:0;z-index:50; backdrop-filter:blur(18px); background:rgba(3,8,18,0.88); border-bottom:1px solid var(--border); }
-    .navbar .container{ display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 24px;max-width:1100px;margin:0 auto; }
-    .logo{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:800;text-decoration:none;color:var(--text-primary)}
-    .logo-icon{ width:34px;height:34px;border-radius:10px; background:linear-gradient(135deg,var(--cyan),var(--magenta)); display:flex;align-items:center;justify-content:center;font-size:1.15rem; box-shadow:0 0 16px var(--cyan-glow); animation:tpulse 2.5s ease-in-out infinite; }
-    @keyframes tpulse{ 0%,100%{box-shadow:0 0 16px var(--cyan-glow);} 50%{box-shadow:0 0 32px var(--magenta-glow),0 0 56px var(--cyan-glow);} }
+    .navbar{position:sticky;top:0;z-index:50;backdrop-filter:blur(18px);background:rgba(3,8,18,0.88);border-bottom:1px solid var(--border);}
+    .navbar .container{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 24px;max-width:900px;margin:0 auto;}
+    .logo{display:flex;align-items:center;gap:10px;font-size:1.2rem;font-weight:800;color:var(--text1)}
+    .logo-icon{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--magenta));display:flex;align-items:center;justify-content:center;font-size:1rem;}
 
-    .nav-links{display:flex;gap:18px;list-style:none}
-    .nav-links a{color:var(--text-secondary);font-size:0.88rem;font-weight:500;transition:.2s}
-    .nav-links a:hover{color:var(--cyan)}
-    .admin-badge{background:rgba(255,45,170,0.12);color:var(--magenta);padding:3px 10px;border-radius:6px;font-size:0.75rem;font-weight:700}
+    .main{max-width:700px;margin:0 auto;padding:28px 20px 80px}
 
-    /* Main */
-    .main{max-width:740px;margin:0 auto;padding:28px 20px 80px}
+    .wallet-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-radius:12px;margin-bottom:22px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2)}
+    .wallet-bar.wb-conn{background:rgba(0,255,178,0.08);border-color:rgba(0,255,178,0.2)}
+    .wd{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+    .wd-r{background:var(--red)}
+    .wd-g{background:var(--green)}
 
-    /* Page Title */
-    .page-title{text-align:center;padding:30px 0 20px}
-    .page-title h1{font-size:clamp(1.5rem,2.8vw,2rem);font-weight:900}
-    .page-title h1 .gt{background:linear-gradient(90deg,var(--magenta),var(--yellow));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .page-title p{color:var(--text-secondary);font-size:0.88rem;margin-top:6px}
-
-    /* Wallet Status Bar */
-    .wallet-bar{display:flex;align-items:center;gap:14px;padding:14px 20px;border-radius:12px;margin-bottom:22px;background:var(--danger);border:1px solid rgba(255,71,87,0.2)}
-    .wallet-bar.connected{background:var(--wallet);border-color:rgba(0,255,178,0.2)}
-    .dot{width:10px;height:10px;border-radius:50%}
-    .dot-r{background:var(--red);animation:bink 1.6s infinite}
-    .dot-g{background:var(--green)}
-    @keyframes bink{0%,100%{opacity:1}50%{opacity:0.3}}
-
-    /* Contract Load Bar */
-    .load-bar{display:flex;gap:8px;margin-bottom:22px}
-    .load-bar input{flex:1;padding:11px 14px;border-radius:10px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:inherit;font-size:0.92rem;outline:none;font-family:'Fira Code','Consolas',monospace}
-    .load-bar input:focus{border-color:var(--border-focus)}
-
-    /* Cards */
-    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:14px}
-    .card h4{font-size:0.94rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
-    .card p.hint{font-size:0.78rem;color:var(--text-secondary);line-height:1.5;margin-bottom:10px}
-
-    /* Buttons */
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 20px;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;border:none;transition:.25s;text-align:center}
-    .btn-primary{background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;box-shadow:0 0 16px var(--cyan-glow)}
-    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 26px var(--cyan-glow)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 20px;border-radius:10px;font-weight:700;font-size:0.85rem;cursor:pointer;border:none;transition:.25s;font-family:inherit;}
+    .btn-primary{background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;}
+    .btn-primary:hover{transform:translateY(-1px)}
     .btn-danger{background:linear-gradient(135deg,var(--red),#c0392b);color:#fff}
     .btn-danger:hover{transform:translateY(-1px)}
-    .btn-outline{background:transparent;border:1.5px solid var(--cyan);color:var(--cyan);font-size:0.82rem;padding:7px 15px;border-radius:8px}
+    .btn-outline{background:transparent;border:1.5px solid var(--cyan);color:var(--cyan);font-size:0.82rem;padding:7px 15px;border-radius:8px;cursor:pointer}
     .btn-outline:hover{background:rgba(0,212,255,0.06)}
     .btn-sm{padding:7px 14px;font-size:0.8rem;border-radius:8px}
     .btn-full{width:100%;padding:12px;font-size:0.92rem}
-    .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-    .btn-group{display:flex;gap:8px;flex-wrap:wrap}
+    .btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
 
-    /* Form Elements */
-    input[type=number],input[type=text]{padding:10px 13px;border-radius:9px;border:1px solid var(--border);background:var(--bg-input);color:var(--text-primary);font-family:inherit;font-size:0.88rem;outline:none;transition:.25s}
-    input:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(0,212,255,0.08)}
-    label{display:block;font-size:0.82rem;font-weight:600;color:var(--text-secondary);margin-bottom:5px}
-    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    input[type=text],textarea{padding:10px 13px;border-radius:9px;border:1px solid var(--border);background:var(--bg-input);color:var(--text1);font-family:inherit;font-size:0.88rem;outline:none;transition:.25s;width:100%}
+    input:focus,textarea:focus{border-color:var(--border-focus)}
+    textarea{resize:vertical;min-height:100px;font-family:'Fira Code','Consolas',monospace}
+    label{display:block;font-size:0.82rem;font-weight:600;color:var(--text2);margin-bottom:5px}
 
-    /* Range Slider */
-    .range-wrap{margin-bottom:12px}
-    .range-label{display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:5px}
-    .range-val{color:var(--cyan);font-weight:700}
-    input[type=range]{width:100%;accent-color:var(--cyan);height:5px;cursor:pointer}
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:14px}
+    .card h4{font-size:0.94rem;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    .card p.hint{font-size:0.78rem;color:var(--text2);line-height:1.5;margin-bottom:10px}
 
-    /* Warning */
-    .warn{background:var(--danger);border:1px solid rgba(255,71,87,0.2);border-radius:10px;padding:11px 14px;font-size:0.81rem;display:flex;align-items:start;gap:8px;margin-top:10px}
-    .warn .wicon{font-size:1rem;flex-shrink:0;margin-top:1px}
+    .stat-row{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:8px;background:rgba(0,0,0,0.25);margin-bottom:8px}
+    .stat-row .label{font-size:0.8rem;color:var(--text2)}
+    .stat-row .val{font-size:0.9rem;font-weight:700}
+    .val-on{color:var(--green)}  .val-off{color:var(--text2)}
 
-    /* Status Display */
-    .status-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
-    .stat-item{background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
-    .stat-val{font-size:1.1rem;font-weight:800;color:var(--green)}
-    .stat-label{font-size:0.74rem;color:var(--text-secondary);margin-top:3px}
+    .list-box{max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:rgba(0,0,0,0.25);padding:8px}
+    .list-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;font-family:'Fira Code','Consolas',monospace}
+    .list-item:last-child{border-bottom:none}
+    .list-item .remove-btn{color:var(--red);cursor:pointer;font-size:0.75rem;padding:3px 8px;border-radius:5px;border:1px solid rgba(255,71,87,0.3);background:transparent}
+    .list-item .remove-btn:hover{background:rgba(255,71,87,0.15)}
+    .empty-list{text-align:center;color:var(--text2);font-size:0.82rem;padding:20px}
 
-    /* Danger card special style */
-    .card-danger{border-color:rgba(255,71,87,0.35);background:rgba(255,71,87,0.03)}
+    .result-msg{padding:10px 14px;border-radius:8px;font-size:0.82rem;margin-top:10px;display:none}
+    .result-msg.show{display:block}
+    .result-msg.ok{background:rgba(0,255,178,0.08);border:1px solid rgba(0,255,178,0.2);color:var(--green)}
+    .result-msg.err{background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.2);color:var(--red)}
 
-    /* Back link */
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:10px;background:rgba(0,0,0,0.2)}
+    .toggle-row .tl{font-size:0.85rem;font-weight:600}
+    .ts{width:48px;height:26px;border-radius:13px;cursor:pointer;position:relative;transition:.3s;border:none;background:rgba(255,255,255,0.1)}
+    .ts.on{background:var(--cyan)}
+    .ts:after{content:'';width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:.3s}
+    .ts.on:after{left:25px}
+
     .back-link{text-align:center;padding:24px 0}
-    .back-link a{color:var(--text-secondary);font-size:0.86rem}
-    .back-link a:hover{color:var(--cyan)}
-
-    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.2);border-radius:3px}
-
-    @media(max-width:640px){
-      .main{padding:14px 12px 60px}.field-row{grid-template-columns:1fr}
-      .navbar .container{padding:0 12px}
-      .card{padding:16px 14px}.load-bar{flex-direction:column}
-      .btn-group{flex-direction:column}.status-grid{grid-template-columns:1fr 1fr}
-    }
+    .back-link a{color:var(--cyan);text-decoration:none;font-size:0.88rem}
   </style>
 </head>
 <body>
 
-<nav class="navbar">
+<div class="navbar">
   <div class="container">
-    <a href="index.html" class="logo"><div class="logo-icon">🦑</div><span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span> <span class="admin-badge">ADMIN</span></a>
-    <ul class="nav-links">
-      <li><a href="index.html">← 首页</a></li>
-      <li><a href="launch.html">发射代币</a></li>
-    </ul>
-  </div>
-</nav>
-
-<div class="main">
-
-  <!-- Title -->
-  <div class="page-title">
-    <h1>🛡️ 管理员<span class="gt">控制台</span></h1>
-    <p>仅合约 Owner 可用 — 加载合约地址后进行管理操作</p>
-  </div>
-
-  <!-- Wallet -->
-  <div id="walletBar" class="wallet-bar">
-    <span class="dot dot-r"></span>
-    <span>请先连接钱包</span>
-    <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包 📡</button>
-  </div>
-
-  <!-- Contract Address Input -->
-  <div class="load-bar">
-    <input type="text" id="contractAddrInput" placeholder="输入合约地址 (Contract Address)..." />
-    <button class="btn btn-primary" onclick="loadContract()">加载合约 🔍</button>
-  </div>
-
-  <!-- ===== CONTRACT STATUS ===== -->
-  <div class="card" id="section-status">
-    <h4>📊 合约状态</h4>
-    <p class="hint">点击下方按钮从链上读取合约当前运行状态</p>
-    <button class="btn btn-primary btn-sm" onclick="refreshStatus()">🔄 刷新状态</button>
-
-    <div class="status-grid" style="margin-top:14px;display:none" id="statusGrid">
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">预售状态</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">已售 BNB</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">已 Mint 次数</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">交易是否开启</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">买入税率</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">卖出税率</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">合约余额 (BNB)</div></div>
-      <div class="stat-item"><div class="stat-val">—</div><div class="stat-label">LP 已注入</div></div>
-    </div>
-  </div>
-
-  <!-- ===== REFUND CONTRACT MANAGEMENT ===== -->
-  <div class="card" style="border-color:rgba(255,230,0,0.25)">
-    <h4>🔐 退款合约管理 (SquidLaunchRefund)</h4>
-    <p class="hint">管理退款合约 — 处理24h超时退款、LP提取、资产提取</p>
-
-    <!-- Set Refund Contract Address -->
-    <div style="margin-bottom:14px">
-      <label>绑定退款合约地址</label>
-      <div style="display:flex;gap:8px">
-        <input type="text" id="refundContractAddr" placeholder="0x... (SquidLaunchRefund 合约地址)" style="flex:1" />
-        <button class="btn btn-primary btn-sm" onclick="setRefundContract()">绑定</button>
-      </div>
-    </div>
-
-    <!-- Refund Contract Status -->
-    <div class="status-grid" style="margin:14px 0">
-      <div class="stat-item"><div class="stat-val" id="refund-bnb-bal">—</div><div class="stat-label">退款合约 BNB 余额</div></div>
-      <div class="stat-item"><div class="stat-val" id="refund-deadline">—</div><div class="stat-label">退款截止时间</div></div>
-      <div class="stat-item"><div class="stat-val" id="refund-fee">—</div><div class="stat-label">退款手续费</div></div>
-      <div class="stat-item"><div class="stat-val" id="refund-finalized">—</div><div class="stat-label">Presale 状态</div></div>
-    </div>
-
-    <!-- Admin Withdraw BNB -->
-    <div style="margin:14px 0">
-      <h4 style="font-size:0.88rem;margin-bottom:8px">💰 管理员提取 BNB</h4>
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <div style="flex:1"><label>接收地址</label><input type="text" id="refund-withdraw-to" placeholder="0x... (默认 Owner)" /></div>
-        <button class="btn btn-outline btn-sm" onclick="adminWithdrawBNB()">提取全部 BNB</button>
-      </div>
-    </div>
-
-    <!-- Admin Withdraw Token -->
-    <div style="margin:14px 0">
-      <h4 style="font-size:0.88rem;margin-bottom:8px">🪙 管理员提取代币 / LP</h4>
-      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:200px"><label>代币地址</label><input type="text" id="refund-token-addr" placeholder="0x... (LP 代币地址)" /></div>
-        <div style="flex:1;min-width:200px"><label>提取数量 (0=全部)</label><input type="number" id="refund-token-amt" placeholder="0" /></div>
-        <div style="flex:1;min-width:200px"><label>接收地址</label><input type="text" id="refund-token-to" placeholder="0x..." /></div>
-      </div>
-      <button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="adminWithdrawToken()">提取代币</button>
-    </div>
-
-    <!-- Set Refund Fee -->
-    <div style="margin:14px 0">
-      <h4 style="font-size:0.88rem;margin-bottom:8px">⚙️ 设置退款手续费</h4>
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <div style="flex:1"><label>手续费 (bps, 100=1%, 最大500=5%)</label><input type="number" id="refund-fee-bps" placeholder="0" min="0" max="500" /></div>
-        <div style="flex:1"><label>手续费接收地址</label><input type="text" id="refund-fee-recipient" placeholder="0x..." /></div>
-        <button class="btn btn-outline btn-sm" onclick="setRefundFee()">设置</button>
-      </div>
-    </div>
-
-    <div class="warn">
-      <span class="wicon">⚠️</span>
-      <span>退款合约中的 BNB 包含用户 mint 资金，请在确认项目已成功发射后再提取。24h 内用户可申请退款。</span>
-    </div>
-  </div>
-
-  <!-- ===== WITHDRAW BNB ===== -->
-  <div class="card">
-    <h4>💰 提取 BNB</h4>
-    <p class="hint">将合约中所有累积的 BNB 转入 Owner 钱包。仅 Owner 可调用此函数。</p>
-    <button class="btn btn-outline btn-sm">💸 withdrawBNB（提取全部 BNB 到 Owner）</button>
-  </div>
-
-  <!-- ===== PRESALE MANAGEMENT ===== -->
-  <div class="card">
-    <h4>🏁 预售管理</h4>
-    <div class="btn-group">
-      <button class="btn btn-outline btn-sm">✅ 手动结束预售（并注入流动性）</button>
-      <button class="btn btn-outline btn-sm">🔓 开启交易（Trading）</button>
-    </div>
-    <div class="warn">
-      <span class="wicon">⚠️</span>
-      <span>手动结束预售会将合约内所有已募集 BNB + 对应比例代币自动注入 DEX 流动性池，操作不可逆。</span>
-    </div>
-  </div>
-
-  <!-- ===== TAX ADJUSTMENT ===== -->
-  <div class="card">
-    <h4>⚙️ 税费调整</h4>
-    <p class="hint">动态调整买卖税费（单位：bps，即基点；100 bps = 1%）</p>
-    <div class="field-row">
-      <div><label>买入税 (bps)</label><div style="display:flex;gap:6px"><input type="number" placeholder="例如：100" /><button class="btn btn-outline btn-sm">设置买入税</button></div></div>
-      <div><label>卖出税 (bps)</label><div style="display:flex;gap:6px"><input type="number" placeholder="例如：100" /><button class="btn btn-outline btn-sm">设置卖出税</button></div></div>
-    </div>
-
-    <p style="font-size:0.8rem;margin:16px 0 10px;color:var(--text-secondary)"><strong>📊 税费分配比例</strong>（四项合计 ≤ 100%）</p>
-    <div class="range-wrap"><div class="range-label"><span>📢 营销/资金钱包</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-    <div class="range-wrap"><div class="range-label"><span>🔥 销毁</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-    <div class="range-wrap"><div class="range-label"><span>💰 分红</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-    <div class="range-wrap"><div class="range-label"><span>💧 流动性</span><span class="range-val">0%</span></div><input type="range" min="0" max="100" value="0"/></div>
-    <button class="btn btn-outline btn-sm" style="margin-top:8px">💾 保存分配比例</button>
-  </div>
-
-  <!-- ===== DIVIDEND SETTINGS ===== -->
-  <div class="card">
-    <h4>📊 分红设置</h4>
-    <p class="hint">分红税费累积到合约中，达到阈值后可触发自动 swap 为分红代币并分发给持币者。</p>
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      <div style="flex:1"><label>分红阈值（代币数量）</label><input type="number" placeholder="例如：100000" /></div>
-      <button class="btn btn-outline btn-sm">设置阈值</button>
-    </div>
-    <div class="btn-group" style="margin-top:12px">
-      <button class="btn btn-outline btn-sm">🔄 处理分红 (swap → WBNB)</button>
-      <button class="btn btn-outline btn-sm">💧 处理流动性 (swap → BNB)</button>
-      <button class="btn btn-outline btn-sm">⚡ 一键处理全部</button>
-    </div>
-  </div>
-
-  <!-- ===== WHITELIST MANAGEMENT ===== -->
-  <div class="card">
-    <h4>📋 Mint 白名单管理</h4>
-    <button class="btn btn-outline btn-sm" style="margin-bottom:12px">🔒 查看 / 切换白名单模式</button>
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      <div style="flex:1"><label>地址</label><input type="text" placeholder="0x... 输入地址" /></div>
-      <div style="flex:1"><label>数量限制</label><input type="number" placeholder="Mint 次数上限" /></div>
-    </div>
-    <div class="btn-group" style="margin-top:10px">
-      <button class="btn btn-outline btn-sm">✅ 添加白名单</button>
-      <button class="btn btn-outline btn-sm">❌ 移除白名单</button>
-      <button class="btn btn-outline btn-sm">🔍 查询状态</button>
-    </div>
-  </div>
-
-  <!-- ===== DANGER ZONE ===== -->
-  <div class="card card-danger">
-    <h4 style="color:var(--red)">⚠️ 危险操作区</h4>
-    <p class="hint">丢弃 Owner 权限后，合约将永久无法再调用任何管理员函数。<strong style="color:var(--red)">此操作不可撤销！</strong></p>
-    <button class="btn btn-danger btn-sm">🚨 丢弃 Owner 权限（Renounce Ownership）</button>
-  </div>
-
-  <!-- ===== MINT TEST ===== -->
-  <div class="card">
-    <h4>🪙 Mint 测试（诊断）</h4>
-    <p class="hint">用于测试合约的 Mint 功能是否正常工作</p>
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      <div style="flex:1"><label>Mint 数量（次）</label><input type="number" value="1" min="1" /></div>
-      <button class="btn btn-primary btn-sm">执行 Mint 测试 🚀</button>
-    </div>
-  </div>
-
-  <div class="back-link">
-    <a href="launch.html">← 返回发射页面</a> &nbsp;|&nbsp;
-    <a href="index.html">返回首页</a>
+    <a class="logo" href="launch.html"><span class="logo-icon">🦑</span>SquidLaunch</a>
+    <div style="font-size:0.78rem;color:var(--magenta);background:rgba(255,45,170,0.12);padding:3px 10px;border-radius:6px;font-weight:700">管理员</div>
   </div>
 </div>
 
+<div class="main">
+
+  <div class="wallet-bar" id="wallet-box">
+    <span class="wd wd-r"></span>
+    <span style="flex:1;font-size:0.86rem">未连接钱包</span>
+    <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包</button>
+  </div>
+
+  <div class="card">
+    <h4>📋 代币合约地址</h4>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="contractAddr" placeholder="0x..." style="font-family:'Fira Code',monospace" />
+      <button class="btn btn-primary" id="loadBtn" onclick="loadContract()" disabled>加载</button>
+    </div>
+    <div class="result-msg" id="loadMsg"></div>
+  </div>
+
+  <div class="card" id="statusCard" style="display:none">
+    <h4>📊 合约状态</h4>
+    <div class="stat-row"><span class="label">代币名称</span><span class="val val-off" id="sName">—</span></div>
+    <div class="stat-row"><span class="label">代币符号</span><span class="val val-off" id="sSym">—</span></div>
+    <div class="stat-row"><span class="label">合约 Owner</span><span class="val val-off" id="sOwner" style="font-family:'Fira Code',monospace;font-size:0.78rem">—</span></div>
+    <div class="stat-row"><span class="label">白名单模式</span><span class="val" id="sWLMode">—</span></div>
+  </div>
+
+  <div class="card" id="wlToggleCard" style="display:none">
+    <div class="toggle-row">
+      <div><div class="tl">白名单 Mint</div><div style="font-size:0.75rem;color:var(--text2)">关闭 = 任何人可 Mint</div></div>
+      <button class="ts" id="wlToggle" onclick="toggleWhitelist()" disabled></button>
+    </div>
+    <div class="result-msg" id="wlToggleMsg"></div>
+  </div>
+
+  <div class="card" id="addWLCard" style="display:none">
+    <h4>➕ 添加白名单</h4>
+    <p class="hint">每行一个 BSC 地址，支持批量添加</p>
+    <textarea id="wlAddInput" placeholder="0x...&#10;0x..."></textarea>
+    <button class="btn btn-primary btn-full" style="margin-top:10px" id="addWlBtn" onclick="addToWhitelist()" disabled>确认添加</button>
+    <div class="result-msg" id="addMsg"></div>
+  </div>
+
+  <div class="card" id="rmWLCard" style="display:none">
+    <h4>➖ 移除白名单</h4>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="wlRmInput" placeholder="0x..." style="font-family:'Fira Code',monospace" />
+      <button class="btn btn-danger" id="rmWlBtn" onclick="removeFromWhitelist()" disabled>移除</button>
+    </div>
+    <div class="result-msg" id="rmMsg"></div>
+  </div>
+
+  <div class="back-link"><a href="launch.html">← 返回发射页面</a></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 <script>
-function connectWallet(){
-  const el=document.getElementById('walletBar');
-  el.className='wallet-bar connected';
-  el.innerHTML='<span class="dot dot-g"></span><span>已连接: 0x1234...abcd (BSC)</span><button class="btn btn-outline btn-sm" onclick="location.reload()">断开</button>';
-}
-function loadContract(){
-  const addr=document.getElementById('contractAddrInput').value.trim();
-  if(!addr){alert('请输入合约地址');return}
-  alert('正在加载合约: '+addr+'\n\n（实际部署后此处会调用 web3.js 读取链上数据）');
-}
-function refreshStatus(){
-  document.getElementById('statusGrid').style.display='grid';
-  // Mock data
-  const vals=document.querySelectorAll('#statusGrid .stat-val');
-  const labels=['预售进行中 ✅','12.5 BNB','186 次','未开启 ⛔','1%','1%','3.2 BNB','—'];
-  vals.forEach((v,i)=>v.textContent=labels[i]||'—');
+var contract = null;
+var tokenAddr = '';
+var isOwner = false;
 
-  // Also refresh refund contract status (mock)
-  document.getElementById('refund-bnb-bal').textContent='3.2 BNB';
-  document.getElementById('refund-deadline').textContent='23h 12m 后';
-  document.getElementById('refund-fee').textContent='0%';
-  document.getElementById('refund-finalized').textContent='未结束';
-}
+var ABI = [
+  {"inputs":[],"name":"name","outputs":[{"type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"symbol","outputs":[{"type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"owner","outputs":[{"type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"whitelistOnly","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"type":"address"}],"name":"whitelist","outputs":[{"type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"type":"bool"}],"name":"setWhitelistOnly","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"type":"address[]"}],"name":"addToWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"type":"address"}],"name":"removeFromWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
 
-function setRefundContract(){
-  const addr=document.getElementById('refundContractAddr').value.trim();
-  if(!addr){alert('请输入退款合约地址');return}
-  alert('正在绑定退款合约: '+addr+'\n\n（实际部署后此处会调用主合约 setRefundContract()）');
+async function connectWallet(){
+  if(!window.ethereum){ alert('请安装 MetaMask'); return; }
+  try {
+    var accounts = await ethereum.request({method:'eth_requestAccounts'});
+    onWalletConnected(accounts[0]);
+  } catch(e){ alert('连接失败：'+(e.message||e)); }
 }
 
-function adminWithdrawBNB(){
-  const to=document.getElementById('refund-withdraw-to').value.trim();
-  const target=to||'Owner 钱包';
-  if(!confirm('确认从退款合约提取全部 BNB 到：'+target+'？')) return;
-  alert('提取成功！（模拟）\n\n实际部署后将调用 refundContract.adminWithdrawBNB()');
+function onWalletConnected(addr){
+  var box = document.getElementById('wallet-box');
+  box.className = 'wallet-bar wb-conn';
+  box.innerHTML = '<span class="wd wd-g"></span><span style="flex:1;font-size:0.86rem">已连接：'+addr.slice(0,6)+'...'+addr.slice(-4)+'</span><button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
+  document.getElementById('loadBtn').disabled = false;
 }
 
-function adminWithdrawToken(){
-  const tokenAddr=document.getElementById('refund-token-addr').value.trim();
-  const amount=document.getElementById('refund-token-amt').value;
-  const to=document.getElementById('refund-token-to').value.trim();
-  if(!tokenAddr){alert('请输入代币地址');return}
-  if(!to){alert('请输入接收地址');return}
-  alert('提取代币成功！（模拟）\n代币: '+tokenAddr+'\n数量: '+(amount||'全部')+'\n接收: '+to);
+function disconnectWallet(){ location.reload(); }
+
+async function loadContract(){
+  var addr = document.getElementById('contractAddr').value.trim();
+  var msg = document.getElementById('loadMsg');
+  if(!addr){ showMsg('loadMsg','err','请输入合约地址'); return; }
+  if(!web3.utils.isAddress(addr)){ showMsg('loadMsg','err','地址格式无效'); return; }
+
+  tokenAddr = web3.utils.toChecksumAddress(addr);
+  var web3js = new Web3(window.ethereum);
+  contract = new web3js.eth.Contract(ABI, tokenAddr);
+
+  try {
+    var accounts = await ethereum.request({method:'eth_requestAccounts'});
+    var myAddr = accounts[0];
+
+    var name = await contract.methods.name().call();
+    var sym  = await contract.methods.symbol().call();
+    var own  = await contract.methods.owner().call();
+    var wlOn = await contract.methods.whitelistOnly().call();
+
+    isOwner = (own.toLowerCase() === myAddr.toLowerCase());
+
+    document.getElementById('sName').textContent = name;
+    document.getElementById('sSym').textContent = sym;
+    document.getElementById('sOwner').textContent = own.slice(0,8)+'...'+own.slice(-6);
+    document.getElementById('sWLMode').textContent = wlOn ? '开启（仅白名单可 Mint）' : '关闭（公开 Mint）';
+    document.getElementById('sWLMode').className = wlOn ? 'val val-on' : 'val val-off';
+
+    document.getElementById('wlToggle').className = wlOn ? 'ts on' : 'ts';
+
+    document.getElementById('statusCard').style.display = '';
+    document.getElementById('wlToggleCard').style.display = '';
+    document.getElementById('addWLCard').style.display = '';
+    document.getElementById('rmWLCard').style.display = '';
+
+    if(isOwner){
+      document.getElementById('wlToggle').disabled = false;
+      document.getElementById('addWlBtn').disabled = false;
+      document.getElementById('rmWlBtn').disabled = false;
+      showMsg('loadMsg','ok','合约加载成功 — 你是 Owner，可管理白名单');
+    } else {
+      document.getElementById('wlToggle').disabled = true;
+      document.getElementById('addWlBtn').disabled = true;
+      document.getElementById('rmWlBtn').disabled = true;
+      showMsg('loadMsg','ok','合约加载成功（非 Owner，仅可查看）');
+    }
+  } catch(e){
+    showMsg('loadMsg','err','加载失败：'+(e.message||e));
+    console.error(e);
+  }
 }
 
-function setRefundFee(){
-  const bps=document.getElementById('refund-fee-bps').value;
-  const recipient=document.getElementById('refund-fee-recipient').value.trim();
-  if(bps===''){alert('请输入手续费 (bps)');return}
-  alert('设置退款手续费: '+bps+' bps ('+(bps/100)+'%)'+(recipient?'\n接收地址: '+recipient:''));
+function showMsg(id, type, text){
+  var el = document.getElementById(id);
+  el.className = 'result-msg '+type+' show';
+  el.textContent = text;
 }
+
+async function toggleWhitelist(){
+  if(!isOwner || !contract) return;
+  var msg = document.getElementById('wlToggleMsg');
+  try {
+    var cur = await contract.methods.whitelistOnly().call();
+    var accounts = await ethereum.request({method:'eth_requestAccounts'});
+    showMsg('wlToggleMsg','','请在钱包中确认...');
+    await contract.methods.setWhitelistOnly(!cur).send({from: accounts[0]});
+
+    document.getElementById('wlToggle').className = !cur ? 'ts on' : 'ts';
+    document.getElementById('sWLMode').textContent = !cur ? '开启（仅白名单可 Mint）' : '关闭（公开 Mint）';
+    document.getElementById('sWLMode').className = !cur ? 'val val-on' : 'val val-off';
+    showMsg('wlToggleMsg','ok',!cur ? '白名单已开启' : '白名单已关闭');
+  } catch(e){
+    if((e.message||'').indexOf('user rejected')>=0) showMsg('wlToggleMsg','err','用户在钱包中取消');
+    else showMsg('wlToggleMsg','err','失败：'+(e.message||e));
+  }
+}
+
+async function addToWhitelist(){
+  if(!isOwner || !contract) return;
+  var text = document.getElementById('wlAddInput').value.trim();
+  if(!text) return;
+
+  var lines = text.split(/[\n\r]+/).map(function(l){return l.trim();}).filter(function(l){return l;});
+  var addrs = [];
+  for(var i=0;i<lines.length;i++){
+    if(web3.utils.isAddress(lines[i])) addrs.push(web3.utils.toChecksumAddress(lines[i]));
+  }
+  if(addrs.length===0){ showMsg('addMsg','err','无有效地址'); return; }
+
+  try {
+    var accounts = await ethereum.request({method:'eth_requestAccounts'});
+    showMsg('addMsg','','请在钱包中确认（添加 '+addrs.length+' 个）...');
+    await contract.methods.addToWhitelist(addrs).send({from: accounts[0]});
+    showMsg('addMsg','ok','成功添加 '+addrs.length+' 个地址');
+    document.getElementById('wlAddInput').value = '';
+  } catch(e){
+    if((e.message||'').indexOf('user rejected')>=0) showMsg('addMsg','err','用户在钱包中取消');
+    else showMsg('addMsg','err','失败：'+(e.message||e));
+  }
+}
+
+async function removeFromWhitelist(){
+  if(!isOwner || !contract) return;
+  var addr = document.getElementById('wlRmInput').value.trim();
+  if(!addr||!web3.utils.isAddress(addr)){ showMsg('rmMsg','err','请输入有效地址'); return; }
+
+  try {
+    var accounts = await ethereum.request({method:'eth_requestAccounts'});
+    showMsg('rmMsg','','请在钱包中确认...');
+    await contract.methods.removeFromWhitelist(web3.utils.toChecksumAddress(addr)).send({from: accounts[0]});
+    showMsg('rmMsg','ok','已移除：'+addr);
+    document.getElementById('wlRmInput').value = '';
+  } catch(e){
+    if((e.message||'').indexOf('user rejected')>=0) showMsg('rmMsg','err','用户在钱包中取消');
+    else showMsg('rmMsg','err','失败：'+(e.message||e));
+  }
+}
+
+// Auto-connect
+(async function(){
+  if(window.ethereum && ethereum.selectedAddress){
+    onWalletConnected(ethereum.selectedAddress);
+  }
+  if(window.ethereum){
+    ethereum.on('accountsChanged', function(accounts){
+      if(accounts.length>0) onWalletConnected(accounts[0]);
+      else disconnectWallet();
+    });
+  }
+})();
 </script>
 </body>
 </html>
