@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>部署分红合约 — SquidLaunch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    :root {
+      --bg:#030812; --bg2:#0a1628; --bg3:#111927; --bg4:#1c2a3e;
+      --cyan:#00d4ff; --magenta:#ff2daa; --green:#34d399; --red:#ef4444;
+      --text:#f0ede8; --muted:#5a6a7a; --border:rgba(0,212,255,.1);
+      --radius:10px; --font:'Space Grotesk',system-ui,sans-serif;
+    }
+    body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; padding:24px 16px; }
+    .container { max-width:520px; margin:0 auto; }
+    h1 { font-size:1.4rem; font-weight:700; color:var(--cyan); margin-bottom:4px; }
+    .sub { color:var(--muted); font-size:.82rem; margin-bottom:28px; }
+    .card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:24px; margin-bottom:18px; }
+    .card-title { font-size:.95rem; font-weight:600; color:var(--cyan); margin-bottom:16px; }
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:.72rem; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+    .field input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; color:var(--text); font-family:var(--font); font-size:.92rem; }
+    .field input:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px rgba(0,212,255,.12); }
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:11px 26px; border-radius:9px; font-family:var(--font); font-weight:600; font-size:.92rem; cursor:pointer; border:none; transition:all .2s; }
+    .btn-cyan { background:linear-gradient(135deg,var(--cyan),var(--magenta)); color:#030812; }
+    .btn-cyan:hover { transform:translateY(-1px); box-shadow:0 4px 24px rgba(0,212,255,.25); }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border2); }
+    .btn-outline:hover { border-color:var(--cyan); color:var(--cyan); }
+    .btn:disabled { opacity:.4; cursor:not-allowed; transform:none!important; }
+    .status { margin-top:14px; font-size:.82rem; padding:10px 14px; border-radius:9px; display:none; }
+    .status.ok { display:block; background:rgba(52,211,153,.08); border:1px solid rgba(52,211,153,.2); color:var(--green); }
+    .status.err { display:block; background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); color:var(--red); }
+    .result-box { margin-top:14px; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:14px; display:none; }
+    .result-box show { display:block; }
+    .result-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:.85rem; }
+    .result-label { color:var(--muted); font-size:.72rem; text-transform:uppercase; }
+    .result-value { font-family:monospace; font-size:.82rem; color:var(--cyan); word-break:break-all; }
+    .chip { font-size:.72rem; color:var(--cyan); background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); padding:4px 12px; border-radius:50px; font-family:monospace; margin-top:10px; display:none; }
+    .note { font-size:.75rem; color:var(--muted); margin-top:6px; line-height:1.5; }
+    .header { display:flex; align-items:center; gap:14px; margin-bottom:28px; }
+    .logo { font-size:1.1rem; font-weight:800; color:var(--cyan); text-decoration:none; cursor:pointer; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <a class="logo" href="index.html">⬡ SquidLaunch</a>
+    <span style="color:var(--muted);font-size:.85rem;">/ 部署分红合约</span>
+  </div>
+
+  <h1>💎 部署分红合约</h1>
+  <div class="sub">独立分红合约 —— 即使代币合约丢弃权限，分红依然正常运行</div>
+
+  <div class="card">
+    <div class="card-title">🔗 连接钱包</div>
+    <button id="btnConnect" class="btn btn-outline" onclick="connectWallet()">连接钱包</button>
+    <div id="walletInfo" class="chip"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚙️ 分红合约参数</div>
+
+    <div class="field">
+      <label>平台方钱包（管理员）</label>
+      <input type="text" id="platformOwner" value="0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36" placeholder="0x..." />
+      <div class="note">此地址可以提取分红合约中误转入的 BNB/代币</div>
+    </div>
+
+    <div class="field">
+      <label>PancakeSwap Router</label>
+      <input type="text" id="routerAddr" value="0x10ED43C718714eb63d5aA57B78B5c4BF50eBF4E7" placeholder="0x..." />
+    </div>
+
+    <button id="btnDeploy" class="btn btn-cyan" onclick="deployDistributor()">部署分红合约</button>
+    <div id="deployStatus" class="status"></div>
+  </div>
+
+  <div class="card result-box" id="resultCard">
+    <div class="card-title">✅ 部署成功</div>
+    <div class="result-row">
+      <span class="result-label">分红合约地址</span>
+      <span class="result-value" id="distAddr">—</span>
+    </div>
+    <div class="result-row">
+      <span class="result-label">交易哈希</span>
+      <span class="result-value" id="distTxHash">—</span>
+    </div>
+    <div class="note" style="margin-top:14px;">
+      ⚡ 复制分红合约地址，在部署代币时填入「分红合约地址」字段即可。
+    </div>
+  </div>
+</div>
+
+<script src="ethers.umd.min.js"></script>
+<script src="distributor_data.js"></script>
+<script>
+  var signer, userAddr;
+
+  async function connectWallet() {
+    if (!window.ethereum) { alert('请安装 MetaMask！'); return; }
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      var provider = new ethers.providers.Web3Provider(window.ethereum);
+      signer   = provider.getSigner();
+      userAddr = await signer.getAddress();
+      var chip = document.getElementById('walletInfo');
+      chip.textContent = '已连接：' + userAddr.slice(0,6) + '...' + userAddr.slice(-4);
+      chip.style.display = 'inline-block';
+      document.getElementById('btnConnect').textContent = '已连接';
+      document.getElementById('btnConnect').disabled = true;
+    } catch(e) { console.error(e); alert('连接失败：' + e.message); }
+  }
+
+  async function deployDistributor() {
+    if (!signer) { alert('请先连接钱包！'); return; }
+
+    var platformOwner = document.getElementById('platformOwner').value.trim();
+    var routerAddr   = document.getElementById('routerAddr').value.trim();
+
+    if (!platformOwner || !routerAddr) { alert('请填写完整参数！'); return; }
+
+    var btn = document.getElementById('btnDeploy');
+    btn.disabled = true;
+    btn.textContent = '部署中…';
+
+    try {
+      // DividendDistributor 构造函数：constructor(address _platformOwner, address _router)
+      var factory = new ethers.ContractFactory(
+        DISTRIBUTOR_DATA.ABI,
+        DISTRIBUTOR_DATA.BYTECODE,
+        signer
+      );
+      var contract = await factory.deploy(platformOwner, routerAddr, { gasLimit: 3000000 });
+      var txHash = contract.deployTransaction.hash;
+
+      document.getElementById('deployStatus').className = 'status ok';
+      document.getElementById('deployStatus').textContent = '⏳ 等待确认… ' + txHash.slice(0,10) + '...';
+
+      await contract.deployed();
+
+      var addr = contract.address;
+      document.getElementById('distAddr').textContent = addr;
+      document.getElementById('distTxHash').textContent = txHash;
+      document.getElementById('resultCard').className = 'card result-box show';
+
+      document.getElementById('deployStatus').className = 'status ok';
+      document.getElementById('deployStatus').textContent = '✅ 分红合约已部署！';
+      btn.textContent = '部署成功 ✓';
+    } catch(e) {
+      console.error(e);
+      var s = document.getElementById('deployStatus');
+      s.className = 'status err';
+      var msg = e.message || String(e);
+      if (msg.indexOf('user rejected') >= 0) msg = '用户在钱包中取消';
+      else if (msg.indexOf('insufficient funds') >= 0) msg = '余额不足';
+      else msg = msg.substring(0, 200);
+      s.textContent = '❌ 部署失败：' + msg;
+      btn.disabled = false;
+      btn.textContent = '重新部署';
+    }
+  }
+</script>
+</body>
+</html>
