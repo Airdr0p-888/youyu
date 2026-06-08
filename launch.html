@@ -239,7 +239,6 @@
       <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
     </a>
     <a href="index.html" class="nb-back">← 返回首页</a>
-    <a href="owner.html" class="nb-back" style="margin-left:12px;color:var(--cyan)">🛠️ 管理面板</a>
   </div>
 </nav>
 
@@ -387,6 +386,12 @@
           <span class="om-label">手动开盘</span>
           <span class="om-desc">Owner 手动开启</span>
         </label>
+        <label class="open-mode-opt" id="optFull" onclick="selectOpenMode('full')">
+          <input type="radio" name="openMode" value="full" />
+          <span class="om-icon">🚀</span>
+          <span class="om-label">满额开盘</span>
+          <span class="om-desc">Mint 满额自动开</span>
+        </label>
       </div>
 
       <!-- ★ 定时开盘时间选择器（仅 auto 模式显示） -->
@@ -394,6 +399,16 @@
         <label>⏰ 预售结束 & 自动开盘时间</label>
         <input type="datetime-local" id="t_openTime" oninput="onOpenTimeChange()" />
         <div class="hint" id="openTimeHint">选择时间后，到达该时刻合约将自动完成预售并开启交易</div>
+      </div>
+
+      <!-- ★ 满额开盘延迟设置（仅 full 模式显示） -->
+      <div id="fullOpenDelayBox" style="display:none">
+        <label>🚀 Mint 满额后延迟开盘</label>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="number" id="t_fullOpenDelay" value="5" min="0" max="1440" style="width:100px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text1);font-size:0.9rem;outline:none;" />
+          <span style="font-size:0.85rem;color:var(--text2)">分钟（0=立即开盘）</span>
+        </div>
+        <div class="hint">Mint 达到 Hard Cap 后，等待指定分钟再自动开启交易</div>
       </div>
 
       <!-- ★ Mint 资金分配规则：仅平台方钱包连接时显示 -->
@@ -646,9 +661,11 @@ function selectOpenMode(mode){
   // 更新选中样式
   document.getElementById('optAuto').classList.toggle('selected', mode === 'auto');
   document.getElementById('optManual').classList.toggle('selected', mode === 'manual');
+  document.getElementById('optFull').classList.toggle('selected', mode === 'full');
 
-  // 显示/隐藏时间选择器
+  // 显示/隐藏时间选择器 & 满额延迟框
   document.getElementById('scheduledTimeBox').style.display = (mode === 'auto') ? '' : 'none';
+  document.getElementById('fullOpenDelayBox').style.display  = (mode === 'full') ? '' : 'none';
 
   // 设置 radio
   document.querySelector(`input[name="openMode"][value="${mode}"]`).checked = true;
@@ -735,10 +752,16 @@ function doLaunch(){
   setTimeout(()=>{
     document.getElementById('deployResult').style.display = 'block';
     document.getElementById('contractAddr').textContent = '0x' + Array.from({length:36}, ()=>Math.floor(Math.random()*16).toString(16)).join('') + '0000';
-    const manual = currentOpenMode === 'manual';
-    document.getElementById('resultOpenMode').textContent = manual
-      ? '手动开盘（需 Owner 调 enableTrading）'
-      : '定时开盘（' + (document.getElementById('t_openTime').value || '未设置') + '）';
+    let modeText = '';
+    if(currentOpenMode === 'auto'){
+      modeText = '定时开盘（' + (document.getElementById('t_openTime').value || '未设置') + '）';
+    } else if(currentOpenMode === 'manual'){
+      modeText = '手动开盘（需 Owner 调 enableTrading）';
+    } else if(currentOpenMode === 'full'){
+      const delay = document.getElementById('t_full').value || '5';
+      modeText = '满额开盘（Mint 达 Hard Cap 后 ' + delay + ' 分钟自动开）';
+    }
+    document.getElementById('resultOpenMode').textContent = modeText;
 
     // ★ 分红状态（由 distReward > 0 决定，非单独开关）
     const divEnabled = +document.getElementById('distReward').value > 0;

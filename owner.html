@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SquidLaunch — 项目方管理</title>
+  <title>SquidLaunch — 项目管理</title>
   <style>
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     :root {
@@ -166,7 +166,7 @@
   <div class="nb-links">
     <a href="index.html" class="nb-link">首页</a>
     <a href="launch.html" class="nb-link">发射</a>
-    <a href="owner.html" class="nb-link active">管理面板</a>
+    <a href="owner.html" class="nb-link active">管理</a>
     <a href="refund.html" class="nb-link">紧急赎回</a>
   </div>
 </div></nav>
@@ -228,9 +228,9 @@
     <!-- 操作 Tab 切换 -->
     <div class="tab-bar">
       <button class="tab-item active" onclick="switchTab('trade')">交易控制</button>
-      <button class="tab-item" onclick="switchTab('whitelist')">白名单管理</button>
+      <button class="tab-item" onclick="switchTab('whitelist')">白名单</button>
       <button class="tab-item" onclick="switchTab('presale')">预售 & LP</button>
-      <button class="tab-item" onclick="switchTab('dividend')">分红操作</button>
+      <button class="tab-item" onclick="switchTab('dividend')">分红</button>
     </div>
 
     <!-- ══ TAB: 交易控制 ══ -->
@@ -247,16 +247,16 @@
             <span class="ab-label">开启交易</span>
             <span class="ab-desc">调用 enableTrading() 允许用户在 DEX 上买卖</span>
           </div>
-          <div class="action-btn" onclick="alert('仅平台 Guardian 可暂停交易')">
+          <div class="action-btn" onclick="callContract('emergencyPause')">
             <span class="ab-icon">⏸️</span>
-            <span class="ab-label">暂停交易</span>
-            <span class="ab-desc">紧急暂停（仅平台方可操作）</span>
+            <span class="ab-label">紧急暂停</span>
+            <span class="ab-desc">仅平台 Guardian 可操作</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ══ TAB: 白名单管理 ══ -->
+    <!-- ══ TAB: 白名单 ══ -->
     <div class="tab-panel" id="tabWhitelist" style="display:none">
       <div class="panel">
         <div class="sec-h"><div class="sec-badge">📝</div><h2>白名单管理</h2></div>
@@ -317,13 +317,15 @@
 
         <div style="margin-top:16px">
           <label style="font-size:0.8rem;font-weight:600;color:var(--text2)">合约状态查询</label>
-          <div class="calc-box">
-            <div class="calc-row"><span>预售是否激活</span><strong id="qPresaleActive">—</strong></div>
-            <div class="calc-row"><span>交易是否启用</span><strong id="qTradingEnabled">—</strong></div>
-            <div class="calc-row"><span>LP 是否已注入</span><strong id="qLiquidityAdded">—</strong></div>
-            <div class="calc-row"><span>预售是否已完成</span><strong id="qPresaleFinalized">—</strong></div>
-            <div class="calc-row"><span>合约 BNB 余额</span><strong id="qBnbBalance">—</strong></div>
-            <div class="calc-row"><span>已 Mint 总额 (BNB)</span><strong id="qTotalRaised">—</strong></div>
+          <div class="addr-box" style="margin-top:6px;padding:14px 16px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.8rem;line-height:2;">
+              <span style="color:var(--text3)">预售激活：<strong id="qPresaleActive" style="color:var(--text)">—</strong></span>
+              <span style="color:var(--text3)">交易启用：<strong id="qTradingEnabled" style="color:var(--text)">—</strong></span>
+              <span style="color:var(--text3)">LP 已注入：<strong id="qLiquidityAdded" style="color:var(--text)">—</strong></span>
+              <span style="color:var(--text3)">预售完成：<strong id="qPresaleFinalized" style="color:var(--text)">—</strong></span>
+              <span style="color:var(--text3)">合约 BNB：<strong id="qBnbBalance" style="color:var(--text)">—</strong></span>
+              <span style="color:var(--text3)">已 Mint 总额：<strong id="qTotalRaised" style="color:var(--text)">—</strong></span>
+            </div>
           </div>
         </div>
       </div>
@@ -359,12 +361,13 @@
 
           <div style="margin-top:16px">
             <label style="font-size:0.8rem;font-weight:600;color:var(--text2)">分红合约状态</label>
-            <div class="calc-box">
-              <div class="calc-row"><span>分红是否暂停</span><strong id="qDivPaused">—</strong></div>
-              <div class="calc-row"><span>累积待处理代币量</span><strong id="qDivPending">—</strong></div>
-              <div class="calc-row"><span>持有人数量</span><strong id="qDivHolders">—</strong></div>
-              <div class="calc-row"><span>已处理总额</span><strong id="qDivProcessed">—</strong></div>
-              <div class="calc-row"><span>我的可领金额</span><strong id="qMyDividend">—</strong></div>
+            <div class="addr-box" style="margin-top:6px;padding:14px 16px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.8rem;line-height:2;">
+                <span style="color:var(--text3)">分红暂停：<strong id="qDivPaused" style="color:var(--text)">—</strong></span>
+                <span style="color:var(--text3)">累积待处理：<strong id="qDivPending" style="color:var(--text)">—</strong></span>
+                <span style="color:var(--text3)">持有人数量：<strong id="qDivHolders" style="color:var(--text)">—</strong></span>
+                <span style="color:var(--text3)">我的可领取：<strong id="qMyDividend" style="color:var(--text)">—</strong></span>
+              </div>
             </div>
           </div>
         </div>
@@ -383,13 +386,74 @@
 </div><!-- /.layout -->
 
 <script>
-// ★ 工厂合约地址（部署后填入真实地址）
-const FACTORY_ADDRESS = ''; // TODO: 部署后填入
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  CONFIG — 部署后填入真实地址
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+const FACTORY_ADDRESS = '';  // ← 部署 Factory 后填这里
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
-// ★ 当前选中的项目
+// ★ 最小 ABI 定义（只含用到的函数）
+const FACTORY_ABI = [
+  // view
+  {"inputs":[{"name":"_owner","type":"address"}],"name":"getProjectsByOwner","outputs":[{"name":"","type":"address[]"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"name":"_token","type":"address"}],"name":"getProjectInfo","outputs":[{"name":"owner","type":"address"},{"name":"tokenContract","type":"address"},{"name":"refundContract","type":"address"},{"name":"dividendContract","type":"address"},{"name":"isPlatformProject","type":"bool"},{"name":"active","type":"bool"},{"name":"launchTime","type":"uint256"}],"stateMutability":"view","type":"function"},
+  // write
+  {"inputs":[{"name":"_token","type":"address"}],"name":"emergencyPauseProject","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"name":"_token","type":"address"}],"name":"emergencyForceRefundProject","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+const TOKEN_ABI = [
+  // view
+  {"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"presaleActive","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"tradingEnabled","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"liquidityAdded","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"presaleFinalized","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"isPlatformProject","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"name":"","type":"address"}],"name":"whitelisted","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"getAllWhitelisted","outputs":[{"name":"","type":"address[]"}],"stateMutability":"view","type":"function"},
+  // write
+  {"inputs":[],"name":"enableTrading","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"emergencyPause","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"finalizePresale","outputs":[],"stateMutability":"payable","type":"function"},
+  {"inputs":[],"name":"processLiquidity","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"name":"_addr","type":"address"}],"name":"addToWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[{"name":"_addr","type":"address"}],"name":"removeFromWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+const REFUND_ABI = [
+  {"inputs":[],"name":"getAssetOverview","outputs":[{"name":"bnbBalance","type":"uint256"},{"name":"tokenBalance","type":"uint256"},{"name":"lpBalance","type":"uint256"},{"name":"emergencyEnabled","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"emergencyEnable","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"emergencyDisable","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+const DIVIDEND_ABI = [
+  // view
+  {"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"totalHolders","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"totalDividendProcessed","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"name":"_holder","type":"address"}],"name":"dividendBalances","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  // write
+  {"inputs":[],"name":"processDividend","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"claimDividend","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"pause","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"unpause","outputs":[],"stateMutability":"nonpayable","type":"function"}
+];
+
+// ★ 全局状态
+let currentAccount = null;
 let currentProject = null;
+let provider = null;
+let signer  = null;
 
-// ★ 连接钱包
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  WALLET
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 async function connectWallet(){
   if(!window.ethereum){
     alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
@@ -399,11 +463,12 @@ async function connectWallet(){
     const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
     onWalletConnected(accounts[0]);
   } catch(e){
-    alert('连接失败：' + (e.message || e));
+    log('[钱包] 连接失败: ' + (e.message||e), 'err');
   }
 }
 
 function onWalletConnected(addr){
+  currentAccount = addr;
   const box = document.getElementById('walletBox');
   box.className = 'wallet-bar wb-conn';
   const short = addr.slice(0,6) + '...' + addr.slice(-4);
@@ -412,130 +477,185 @@ function onWalletConnected(addr){
     '<span style="flex:1;font-size:0.86rem">已连接：' + short + ' (BSC)</span>' +
     '<button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
 
-  log('[钱包] 已连接 ' + short);
-
-  // 加载项目列表
+  log('[钱包] 已连接 ' + short, 'info');
   loadProjects(addr);
 }
 
-function disconnectWallet(){ location.reload(); }
+function disconnectWallet(){
+  currentAccount = null;
+  location.reload();
+}
 
-// ★ 日志
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  LOG
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 function log(msg, type=''){
   const el = document.getElementById('opLog');
   const ts = new Date().toLocaleTimeString();
-  const cls = type ? ' log-' + type : '';
+  const cls = type ? 'log-' + type : '';
   el.innerHTML += '\n<span class="' + cls + '">[' + ts + '] ' + msg + '</span>';
   el.scrollTop = el.scrollHeight;
 }
 
-// ★ 加载项目列表
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  LOAD PROJECTS — 真实调用 Factory
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 async function loadProjects(ownerAddress){
-  const listEl = document.getElementById('projectList');
-  const emptyEl = document.getElementById('emptyState');
+  const listEl   = document.getElementById('projectList');
+  const emptyEl  = document.getElementById('emptyState');
 
-  // 实际对接时：调用 Factory.getProjectsByOwner(ownerAddress)
-  // 这里用模拟数据展示 UI 结构
-  const mockProjects = [
-    {
-      name: 'DemoToken',
-      symbol: 'DTK',
-      tokenAddr: '0x1234567890abcdef1234567890abcdef12345678',
-      refundAddr: '0xabcd567890efabcd1234567890abcdef12345678',
-      dividendAddr: '',
-      totalSupply: '1,000,000,000',
-      status: 'presale',     // presale | live | paused | finalized
-      isPlatform: true,
-      phase: '预售中'
-    },
-    {
-      name: 'MoonRocket',
-      symbol: 'MRT',
-      tokenAddr: '0xfedcba0987654321fedcba0987654321fedcba09',
-      refundAddr: '0x9876543210abcdef9876543210abcdef98765432',
-      dividendAddr: '0xabcdef1234567890abcdef1234567890abcdef12',
-      totalSupply: '500,000,000',
-      status: 'live',
-      isPlatform: false,
-      phase: '交易中'
-    }
-  ];
-
-  if(mockProjects.length === 0){
-    listEl.style.display = 'none';
-    emptyEl.style.display = '';
+  if(!FACTORY_ADDRESS){
+    listEl.innerHTML = '<div class="info-box" style="margin:20px 0">⚠️ 请先在 owner.html 中填入 FACTORY_ADDRESS（部署后的工厂合约地址）</div>';
+    log('[错误] FACTORY_ADDRESS 未配置，请在 JS 顶部填入部署后的工厂地址', 'err');
     return;
   }
 
-  emptyEl.style.display = 'none';
-  listEl.innerHTML = '';
+  try {
+    const web3 = new Web3(ethereum);
+    const factory = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
 
-  mockProjects.forEach((p, i) => {
-    const statusMap = {
-      presale: ['预售中','ps-presale'],
-      live:   ['交易中','ps-live'],
-      paused:  ['已暂停','ps-paused'],
-      finalized: ['已完成','ps-finalized']
-    };
-    const [statusText, statusCls] = statusMap[p.status] || ['未知',''];
+    log('[查询] 正在从工厂合约读取项目列表...', 'info');
+    const tokenAddrs = await factory.methods.getProjectsByOwner(ownerAddress).call();
 
-    const card = document.createElement('div');
-    card.className = 'proj-card';
-    card.style.animationDelay = (i * 0.08) + 's';
-    card.innerHTML =
-      '<div class="proj-head">' +
-        '<div>' +
-          '<span class="proj-name">' + p.name + '</span>' +
-          '<span class="proj-symbol">' + p.symbol + '</span>' +
+    if(!tokenAddrs || tokenAddrs.length === 0){
+      listEl.style.display = 'none';
+      emptyEl.style.display = '';
+      log('[查询] 该钱包暂无项目', 'info');
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = '';
+    log('[查询] 找到 ' + tokenAddrs.length + ' 个项目，正在读取详情...', 'info');
+
+    // 并发读取所有项目信息
+    const projectInfos = await Promise.all(
+      tokenAddrs.map(addr => readProjectInfo(factory, addr))
+    );
+
+    projectInfos.forEach((p, i) => {
+      if(!p) return;
+      const card = document.createElement('div');
+      card.className = 'proj-card';
+      card.style.animationDelay = (i * 0.08) + 's';
+
+      let statusText = '未知', statusCls = '';
+      if(p.presaleActive && !p.presaleFinalized) {
+        statusText = '预售中'; statusCls = 'ps-presale';
+      } else if(p.tradingEnabled) {
+        statusText = '交易中'; statusCls = 'ps-live';
+      } else if(!p.presaleActive && p.presaleFinalized) {
+        statusText = '已完成'; statusCls = 'ps-finalized';
+      }
+
+      card.innerHTML =
+        '<div class="proj-head">' +
+          '<div>' +
+            '<span class="proj-name">' + p.name + '</span>' +
+            '<span class="proj-symbol">' + p.symbol + '</span>' +
+          '</div>' +
+          '<span class="proj-status ' + statusCls + '">' + statusText + '</span>' +
         '</div>' +
-        '<span class="proj-status ' + statusCls + '">' + statusText + '</span>' +
-      '</div>' +
-      '<div class="proj-meta">' +
-        '<div class="pm-item">供应量：<strong>' + p.totalSupply + '</strong></div>' +
-        '<div class="pm-item">阶段：<strong>' + p.phase + '</strong></div>' +
-        '<div class="pm-item">平台项目：<strong>' + (p.isPlatform ? '是 ✅' : '否') + '</strong></div>' +
-      '</div>';
-    card.onclick = () => selectProject(p);
-    listEl.appendChild(card);
-  });
+        '<div class="proj-meta">' +
+          '<div class="pm-item">供应量：<strong>' + formatAmount(p.totalSupply) + '</strong></div>' +
+          '<div class="pm-item">阶段：<strong>' + statusText + '</strong></div>' +
+          '<div class="pm-item">平台项目：<strong>' + (p.isPlatformProject ? '是 ✅' : '否') + '</strong></div>' +
+        '</div>';
+      card.onclick = () => selectProject(p);
+      listEl.appendChild(card);
+    });
 
-  log('加载了 ' + mockProjects.length + ' 个项目');
+    log('[查询] 项目列表加载完成（' + projectInfos.filter(Boolean).length + ' 个）', 'ok');
+
+  } catch(e) {
+    log('[错误] 读取项目列表失败: ' + (e.message||e), 'err');
+    listEl.innerHTML = '<div class="warn-box">读取失败：' + (e.message||e) + '</div>';
+  }
 }
 
-// ★ 选中项目
+// ★ 读取单个项目信息（并发优化）
+async function readProjectInfo(factoryContract, tokenAddr){
+  try {
+    const web3 = new Web3(ethereum);
+    // 先读 Factory 的项目记录
+    const info = await factoryContract.methods.getProjectInfo(tokenAddr).call();
+    // 再读 Token 基本信息
+    const token = new web3.eth.Contract(TOKEN_ABI, tokenAddr);
+    const [name, symbol, totalSupply, presaleActive, tradingEnabled, liquidityAdded, presaleFinalized, isPlatformProject] = await Promise.all([
+      token.methods.name().call().catch(()=>'??'),
+      token.methods.symbol().call().catch(()=>'??'),
+      token.methods.totalSupply().call().catch(()=>'0'),
+      token.methods.presaleActive().call().catch(()=>false),
+      token.methods.tradingEnabled().call().catch(()=>false),
+      token.methods.liquidityAdded().call().catch(()=>false),
+      token.methods.presaleFinalized().call().catch(()=>false),
+      token.methods.isPlatformProject().call().catch(()=>false)
+    ]);
+    return {
+      name, symbol,
+      tokenAddr,
+      refundAddr: info.refundContract,
+      dividendAddr: info.dividendContract,
+      totalSupply,
+      owner: info.owner,
+      isPlatformProject,
+      presaleActive,
+      tradingEnabled,
+      liquidityAdded,
+      presaleFinalized
+    };
+  } catch(e) {
+    log('[警告] 读取项目 ' + tokenAddr.slice(0,10) + '... 信息失败: ' + (e.message||e), 'warn');
+    return null;
+  }
+}
+
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  SELECT PROJECT
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 function selectProject(p){
   currentProject = p;
-
-  // 显示详情区域
   document.getElementById('projectListArea').style.display = 'none';
   document.getElementById('projectDetailArea').style.display = '';
 
-  // 填充数据
   document.getElementById('dName').textContent = p.name;
   document.getElementById('dSymbol').textContent = p.symbol;
-  document.getElementById('dTokenAddr').textContent = p.tokenAddr.slice(0,16) + '…';
-  document.getElementById('dRefundAddr').textContent = p.refundAddr.slice(0,16) + '…';
+
+  const shortTok = p.tokenAddr ? p.tokenAddr.slice(0,10) + '...' + p.tokenAddr.slice(-6) : '—';
+  document.getElementById('dTokenAddr').textContent = shortTok;
+
+  const shortRef = p.refundAddr ? p.refundAddr.slice(0,10) + '...' + p.refundAddr.slice(-6) : '—';
+  document.getElementById('dRefundAddr').textContent = shortRef;
 
   const divEl = document.getElementById('dDivAddr');
-  if(p.dividendAddr){
-    divEl.textContent = p.dividendAddr.slice(0,16) + '…';
-    divEl.parentElement.style.display = '';
-  } else {
-    divEl.textContent = '未配置';
-    divEl.parentElement.style.display = '';
-  }
+  const shortDiv = p.dividendAddr && p.dividendAddr !== '0x0000000000000000000000000000000000000000'
+    ? p.dividendAddr.slice(0,10) + '...' + p.dividendAddr.slice(-6) : '未配置';
+  divEl.textContent = shortDiv;
 
-  document.getElementById('dSupply').textContent = p.totalSupply;
-  document.getElementById('dPhase').textContent = p.phase;
-  document.getElementById('dIsPlatform').textContent = p.isPlatform ? '是（25%+75%）' : '否（全留LP）';
+  document.getElementById('dSupply').textContent = formatAmount(p.totalSupply);
 
-  const statusMap = { presale:'预售中', live:'交易中', paused:'已暂停', finalized:'已完成' };
+  let phase = '未知';
+  if(p.presaleActive && !p.presaleFinalized) phase = '预售中';
+  else if(p.tradingEnabled) phase = '交易中';
+  else if(p.presaleFinalized) phase = '预售已结束';
+  document.getElementById('dPhase').textContent = phase;
+
+  document.getElementById('dIsPlatform').textContent = p.isPlatformProject ? '是（25%+75%）' : '否（100%留LP）';
+
+  // 状态标签
+  let stText = '未知', stCls = '';
+  if(p.presaleActive && !p.presaleFinalized) { stText = '预售中'; stCls = 'ps-presale'; }
+  else if(p.tradingEnabled) { stText = '交易中'; stCls = 'ps-live'; }
+  else if(!p.presaleActive && p.presaleFinalized) { stText = '已完成'; stCls = 'ps-finalized'; }
   const stEl = document.getElementById('dStatus');
-  stEl.textContent = statusMap[p.status] || '未知';
-  stEl.className = 'proj-status ps-' + p.status;
+  stEl.textContent = stText;
+  stEl.className = 'proj-status ' + stCls;
 
   // 分红 tab 显示/隐藏
-  if(p.dividendAddr){
+  if(p.dividendAddr && p.dividendAddr !== '0x0000000000000000000000000000000000000000'){
     document.getElementById('dividendNoContract').style.display = 'none';
     document.getElementById('dividendHasContract').style.display = '';
   } else {
@@ -543,73 +663,143 @@ function selectProject(p){
     document.getElementById('dividendHasContract').style.display = 'none';
   }
 
-  // 查询合约状态
+  // 查询合约实时状态
   queryProjectStatus(p);
 
   log('[选择] 进入「' + p.name + '(' + p.symbol + ')」管理界面', 'info');
 }
 
-// ★ 返回列表
 function goBackToList(){
   currentProject = null;
   document.getElementById('projectListArea').style.display = '';
   document.getElementById('projectDetailArea').style.display = 'none';
 }
 
-// ★ Tab 切换
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  TAB SWITCH
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 function switchTab(tabName){
   document.querySelectorAll('.tab-panel').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
-
   const panelId = 'tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
   const panel = document.getElementById(panelId);
   if(panel) panel.style.display = '';
-
   event.target.classList.add('active');
-}
 
-// ★ 查询项目状态（模拟）
-async function queryProjectStatus(p){
-  // 实际对接时通过 Web3 调用合约读取
-  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
-
-  set('qPresaleActive', p.status === 'presale' ? '✅ 是' : '❌ 否');
-  set('qTradingEnabled', p.status === 'live' ? '✅ 是' : '❌ 否');
-  set('qLiquidityAdded', (p.status === 'live' || p.status === 'finalized') ? '✅ 已注入' : '❌ 未注入');
-  set('qPresaleFinalized', p.status === 'finalized' ? '✅ 已完成' : '❌ 未完成');
-  set('qBnbBalance', p.status === 'presale' ? '~12.5 BNB' : '0 BNB');
-  set('qTotalRaised', p.status === 'presale' ? '~50.0 BNB' : '50.0 BNB');
-
-  // 分红状态
-  if(p.dividendAddr){
-    set('qDivPaused', '❌ 否');
-    set('qDivPending', '125,000 DTK');
-    set('qDivHolders', '42 人');
-    set('qDivProcessed', '2.5 BNB');
-    set('qMyDividend', '0.012 BNB');
-
-    // 白名单列表（模拟）
-    document.getElementById('whitelistList').innerHTML =
-      '<span class="log-info">0x1234...5678</span>\n' +
-      '<span class="log-info">0xabcd...ef01</span>\n' +
-      '<span class="log-info">0x9876...1234</span>\n' +
-      '<span class="log-text3">(共 3 个地址)</span>';
+  // 切换到白名单 tab 时自动加载列表
+  if(tabName === 'whitelist' && currentProject){
+    loadWhitelist(currentProject.tokenAddr);
+  }
+  // 切换到预售 tab 时刷新状态
+  if(tabName === 'presale' && currentProject){
+    queryProjectStatus(currentProject);
   }
 }
 
-// ★ 调用合约
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  QUERY STATUS — 真实读取链上状态
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+async function queryProjectStatus(p){
+  if(!p || !p.tokenAddr) return;
+  try {
+    const web3  = new Web3(ethereum);
+    const token = new web3.eth.Contract(TOKEN_ABI, p.tokenAddr);
+
+    const [presaleActive, tradingEnabled, liquidityAdded, presaleFinalized, bnbBalance, totalRaised] = await Promise.all([
+      token.methods.presaleActive().call().catch(()=>false),
+      token.methods.tradingEnabled().call().catch(()=>false),
+      token.methods.liquidityAdded().call().catch(()=>false),
+      token.methods.presaleFinalized().call().catch(()=>false),
+      web3.eth.getBalance(p.tokenAddr).catch(()=>'0'),
+      // totalRaised 需要读 refund 合约，暂时留 —
+      Promise.resolve('—')
+    ]);
+
+    setText('qPresaleActive', presaleActive ? '✅ 是' : '❌ 否');
+    setText('qTradingEnabled', tradingEnabled ? '✅ 是' : '❌ 否');
+    setText('qLiquidityAdded', liquidityAdded ? '✅ 已注入' : '❌ 未注入');
+    setText('qPresaleFinalized', presaleFinalized ? '✅ 已完成' : '❌ 未完成');
+    setText('qBnbBalance', web3.utils.fromWei(bnbBalance) + ' BNB');
+    setText('qTotalRaised', totalRaised);
+
+    // 如果有分红合约，也读取分红状态
+    if(p.dividendAddr && p.dividendAddr !== '0x0000000000000000000000000000000000000000'){
+      queryDividendStatus(p.dividendAddr);
+    }
+
+  } catch(e) {
+    log('[状态] 读取合约状态失败: ' + (e.message||e), 'warn');
+  }
+}
+
+async function queryDividendStatus(dividendAddr){
+  try {
+    const web3 = new Web3(ethereum);
+    const div = new web3.eth.Contract(DIVIDEND_ABI, dividendaAddr);
+    const [paused, totalHolders, totalProcessed, myBalance] = await Promise.all([
+      div.methods.paused().call().catch(()=>false),
+      div.methods.totalHolders().call().catch(()=>'0'),
+      div.methods.totalDividendProcessed().call().catch(()=>'0'),
+      div.methods.dividendBalances(currentAccount).call().catch(()=>'0')
+    ]);
+    setText('qDivPaused', paused ? '✅ 是' : '❌ 否');
+    setText('qDivHolders', totalHolders);
+    setText('qDivProcessed', web3.utils.fromWei(totalProcessed) + ' BNB');
+    setText('qDivPending', '—');  // 需要读 token 余额，暂略
+    setText('qMyDividend', web3.utils.fromWei(myBalance) + ' BNB');
+  } catch(e) {
+    log('[分红] 读取分红状态失败: ' + (e.message||e), 'warn');
+  }
+}
+
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  WHITELIST
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+async function loadWhitelist(tokenAddr){
+  const el = document.getElementById('whitelistList');
+  el.innerHTML = '加载中...';
+  try {
+    const web3  = new Web3(ethereum);
+    const token = new web3.eth.Contract(TOKEN_ABI, tokenAddr);
+    // 注意：如果合约没有 getAllWhitelisted()，需要逐个查询或跳过
+    // 这里用 try-catch 兼容
+    let list = [];
+    try {
+      list = await token.methods.getAllWhitelisted().call();
+    } catch(e) {
+      el.innerHTML = '<span class="log-warn">⚠️ 该合约不支持批量查询白名单，请在 BSCScan 上查看</span>';
+      return;
+    }
+    if(list.length === 0){
+      el.innerHTML = '<span class="log-info">（空）</span>';
+    } else {
+      el.innerHTML = list.map(a => '<span class="log-info">' + a.slice(0,10) + '...' + a.slice(-6) + '</span>').join('\n');
+    }
+  } catch(e) {
+    el.innerHTML = '<span class="log-err">加载失败: ' + (e.message||e) + '</span>';
+  }
+}
+
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  CALL CONTRACT — 真实发送交易
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 async function callContract(action){
   if(!currentProject){ alert('请先选择一个项目'); return; }
-  if(!window.ethereum){ alert('请先连接钱包'); return; }
+  if(!window.ethereum || !currentAccount){ alert('请先连接钱包'); return; }
 
   const actions = {
-    enableTrading:       { label: '开启交易',         confirm: '确认开启交易？此操作不可撤销！' },
-    finalizePresale:     { label: '完成预售+注入LP',  confirm: '确认完成预售并注入流动性？\n\n这将：\n① 结束预售\n② BNB→LP 注入 PancakeSwap\n③ LP token 发给退款合约\n\n此操作不可撤销！' },
-    processLiquidity:    { label: '注入LP',           confirm: '确认注入流动性？' },
-    addToWhitelist:      { label: '添加白名单',       needInput: 'wlAddInput',   inputLabel: '地址' },
-    removeFromWhitelist: { label: '移除白名单',       needInput: 'wlRemoveInput',inputLabel: '地址' },
-    processDividend:     { label: '执行分红',         confirm: '确认执行分红分发？' },
-    claimMyDividend:     { label: '领取分红',         confirm: '确认领取自己的分红？' }
+    enableTrading:       { label:'开启交易',          confirm:'确认开启交易？\n\n此操作不可撤销！',                             abiKey:'token', method:'enableTrading', args:[] },
+    emergencyPause:       { label:'紧急暂停',          confirm:'确认暂停交易？\n\n仅平台 Guardian 可操作。',               abiKey:'token', method:'emergencyPause', args:[] },
+    finalizePresale:     { label:'完成预售+注入LP',  confirm:'确认完成预售并注入流动性？\n\n① 结束预售\n② BNB→LP 注入 PancakeSwap\n③ LP token 发给退款合约\n\n此操作不可撤销！', abiKey:'token', method:'finalizePresale', args:[], value:'0' },
+    processLiquidity:    { label:'注入LP',            confirm:'确认注入流动性？',                                   abiKey:'token', method:'processLiquidity', args:[] },
+    addToWhitelist:      { label:'添加白名单',        needInput:'wlAddInput',   confirm:'确认添加该地址到白名单？', abiKey:'token', method:'addToWhitelist', args:[null] },
+    removeFromWhitelist: { label:'移除白名单',        needInput:'wlRemoveInput',confirm:'确认从白名单移除该地址？',abiKey:'token', method:'removeFromWhitelist', args:[null] },
+    processDividend:     { label:'执行分红',          confirm:'确认执行分红分发？\n\n将消耗 gas 进行 swap + 分配',  abiKey:'dividend', method:'processDividend', args:[] },
+    claimMyDividend:     { label:'领取分红',          confirm:'确认领取自己的分红？',                         abiKey:'dividend', method:'claimDividend', args:[] }
   };
 
   const act = actions[action];
@@ -618,39 +808,77 @@ async function callContract(action){
   // 需要输入地址的操作
   if(act.needInput){
     const val = document.getElementById(act.needInput)?.value?.trim();
-    if(!val){ alert('请输入' + act.inputLabel); return; }
-    if(!val.startsWith('0x') || val.length !== 66){ alert('地址格式不正确'); return; }
+    if(!val){ alert('请输入地址'); return; }
+    if(!val.startsWith('0x') || val.length !== 42){ alert('地址格式不正确（需要 42 字符的 0x 地址）'); return; }
+    act.args = [val];
   }
 
-  // 确认弹窗
   if(act.confirm && !confirm(act.confirm)) return;
 
-  log('[请求] 正在调用 ' + act.label + '...', 'info');
+  log('[请求] 正在发送 ' + act.label + ' 交易...', 'info');
 
   try {
-    // ★ 实际对接代码示例：
-    //
-    // const web3 = new Web3(ethereum);
-    // const contract = new web3.eth.Contract(TOKEN_ABI, currentProject.tokenAddr);
-    // const tx = contract.methods[action]();
-    // const receipt = await tx.send({ from: accounts[0], gas: 300000 });
-    // log('[成功] ' + act.label + ' TX: ' + receipt.transactionHash, 'ok');
+    const web3 = new Web3(ethereum);
+    let contractAddr, abi;
+    if(act.abiKey === 'token'){
+      contractAddr = currentProject.tokenAddr;
+      abi = TOKEN_ABI;
+    } else if(act.abiKey === 'dividend'){
+      contractAddr = currentProject.dividendAddr;
+      abi = DIVIDEND_ABI;
+    }
 
-    // 模拟延迟
-    await new Promise(r => setTimeout(r, 1500));
+    const contract = new web3.eth.Contract(abi, contractAddr);
+    const method = contract.methods[act.method](...act.args);
+    const gas = await method.estimateGas({ from: currentAccount }).catch(() => 300000);
+    const tx = await method.send({
+      from: currentAccount,
+      gas: Math.floor(gas * 1.3),
+      value: act.value || undefined
+    });
 
-    log('[成功] ' + act.label + ' 已执行 ✓', 'ok');
-    log('(实际对接时这里会显示真实的 Transaction Hash)', '');
+    log('[成功] ' + act.label + ' ✓', 'ok');
+    log('[TX] ' + tx.transactionHash, 'info');
 
     // 刷新状态
-    if(currentProject) queryProjectStatus(currentProject);
-  } catch(e){
-    log('[失败] ' + act.label + ': ' + (e.message || e), 'err');
+    if(currentProject) {
+      queryProjectStatus(currentProject);
+      if(action === 'addToWhitelist' || action === 'removeFromWhitelist'){
+        loadWhitelist(currentProject.tokenAddr);
+      }
+    }
+  } catch(e) {
+    log('[失败] ' + act.label + ': ' + (e.message||e), 'err');
   }
 }
 
-// ★ 页面加载初始化
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  HELPERS
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+function setText(id, val){
+  const el = document.getElementById(id);
+  if(el) el.textContent = val;
+}
+
+function formatAmount(val){
+  if(!val) return '—';
+  try {
+    const web3 = new Web3(ethereum);
+    const n = Number(web3.utils.fromWei(val));
+    if(n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+    if(n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+    if(n >= 1e3) return (n/1e3).toFixed(2) + 'K';
+    return n.toString();
+  } catch(e){ return val; }
+}
+
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+//  INIT
+// ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
 (async function init(){
+  // 检查是否已连接
   if(window.ethereum && ethereum.selectedAddress){
     onWalletConnected(ethereum.selectedAddress);
   }
@@ -662,8 +890,17 @@ async function callContract(action){
       else disconnectWallet();
     });
   }
+
+  // 提示用户填入 Factory 地址
+  if(!FACTORY_ADDRESS){
+    log('[提示] 请先部署 Factory 合约，然后在 JS 顶部填入 FACTORY_ADDRESS', 'warn');
+  }
 })();
 </script>
+
+<!-- 引入 web3.js（通过 CDN，实际部署时本地引入） -->
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+<!-- 如果无法访问 CDN，改用本地文件：<script src="js/web3.min.js"></script> -->
 
 </body>
 </html>
