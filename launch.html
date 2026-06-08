@@ -1,884 +1,480 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SquidLaunch — 发射代币</title>
+  <title>SquidLaunch — 一键发射代币</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
     :root {
-      --bg:#060d1a;
-      --bg2:#0a1628;
-      --panel:rgba(10,20,40,0.85);
-      --border:rgba(0,200,255,0.1);
-      --border-h:rgba(0,200,255,0.32);
-      --cyan:#00c8ff; --cyan-glow:rgba(0,200,255,0.3);
-      --magenta:#d400ff; --mag-glow:rgba(212,0,255,0.22);
-      --green:#00ffb2; --green-dim:rgba(0,255,178,0.08);
-      --yellow:#ffd700; --red:#ff4757; --orange:#ff9f43;
-      --text:#e8f4ff; --text2:#5e7fa0; --text3:#2e4a62;
-      --r:14px; --rs:9px;
+      --bg:#0a0a0a; --bg2:#111; --bg3:#1a1a1a; --bg4:#242424;
+      --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.15);
+      --gold:#f5c842; --gold2:#e8a020; --amber:#ff8c00;
+      --danger:#ef4444; --success:#34d399; --text:#f0ede8; --muted:#888;
+      --focus:rgba(245,200,66,.35); --radius:10px;
+      --font:'Space Grotesk',system-ui,sans-serif; --mono:'Space Mono',monospace;
     }
-    html { font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; -webkit-font-smoothing:antialiased; }
-    body {
-      min-height:100vh;
-      background: radial-gradient(ellipse 120% 60% at 70% -5%, rgba(0,200,255,0.05) 0%, transparent 55%),
-                  radial-gradient(ellipse 80% 50% at -10% 80%, rgba(212,0,255,0.04) 0%, transparent 55%),
-                  var(--bg);
+    body { background:var(--bg); color:var(--text); font-family:var(--font); line-height:1.6; min-height:100vh; }
+    body::after { content:''; position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:.4;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
     }
-    ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.15);border-radius:2px}
-
-    /* ─── NAVBAR ─── */
-    .navbar { position:sticky;top:0;z-index:200; backdrop-filter:blur(20px); background:rgba(6,13,26,0.88); border-bottom:1px solid var(--border); }
-    .nb-inner { max-width:1280px;margin:0 auto;padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between; }
-    .logo { display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text);font-size:1.15rem;font-weight:800; }
-    .logo-ring { width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--cyan),var(--magenta));display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 0 16px var(--cyan-glow); }
-    .nb-back { color:var(--text2);font-size:0.84rem;text-decoration:none;transition:.2s; }
-    .nb-back:hover { color:var(--cyan); }
-
-    /* ─── LAYOUT ─── */
-    .layout { max-width:1200px;margin:0 auto;padding:32px 24px 80px;display:grid;grid-template-columns:240px 1fr;gap:28px;align-items:start; }
-    @media(max-width:900px){.layout{grid-template-columns:1fr}.sidebar{display:none}}
-
-    /* ─── SIDEBAR ─── */
-    .sidebar { position:sticky;top:78px; }
-    .sb-title { font-size:0.7rem;font-weight:700;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:14px;padding-left:4px; }
-    .sb-steps { display:flex;flex-direction:column;gap:2px; }
-    .sb-step { display:flex;align-items:center;gap:11px;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background .2s,color .2s;color:var(--text3);font-size:0.84rem;font-weight:500; }
-    .sb-step:hover { background:rgba(0,200,255,0.05);color:var(--text2); }
-    .sb-step.active { background:rgba(0,200,255,0.08);color:var(--cyan); }
-    .sb-step.done { color:var(--green); }
-    .sb-num { width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;border:1.5px solid currentColor;flex-shrink:0; }
-    .sb-step.active .sb-num { background:var(--cyan);border-color:var(--cyan);color:#000;box-shadow:0 0 12px var(--cyan-glow); }
-    .sb-step.done .sb-num { background:var(--green);border-color:var(--green);color:#000; }
-    .sb-divider { height:1px;background:var(--border);margin:14px 0; }
-    .sb-info { padding:14px;background:rgba(0,200,255,0.04);border:1px solid var(--border);border-radius:12px; }
-    .sb-info p { font-size:0.76rem;color:var(--text2);line-height:1.7; }
-    .sb-info strong { color:var(--cyan); }
-
-    /* ─── MAIN CONTENT ─── */
-    .content { min-width:0; }
-
-    /* ─── SECTION HEADING ─── */
-    .sec-h { display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:4px; }
-    .sec-badge { display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;font-size:0.95rem;background:linear-gradient(135deg,rgba(0,200,255,0.12),rgba(212,0,255,0.06));border:1px solid rgba(0,200,255,0.14); }
-    .sec-h h2 { font-size:1rem;font-weight:700;letter-spacing:-0.01em; }
-    .sec-h p { font-size:0.78rem;color:var(--text2); }
-
-    /* ─── PANEL ─── */
-    .panel { background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:20px;backdrop-filter:blur(12px);transition:border-color .25s; }
-    .panel:hover { border-color:rgba(0,200,255,0.18); }
-
-    /* ─── WALLET BAR ─── */
-    .wallet-bar { display:flex;align-items:center;gap:12px;padding:13px 18px;border-radius:12px;margin-bottom:20px; }
-    .wb-disc { background:rgba(255,71,87,0.07);border:1px solid rgba(255,71,87,0.15); }
-    .wb-conn { background:var(--green-dim);border:1px solid rgba(0,255,178,0.15); }
-    .wd { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
-    .wd-r { background:var(--red);animation:blink 1.8s infinite; }
-    .wd-g { background:var(--green);box-shadow:0 0 7px rgba(0,255,178,0.5); }
-    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
-
-    /* ─── FORM ─── */
+    header { position:sticky; top:0; z-index:200; background:rgba(10,10,10,.9); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+    nav { max-width:1100px; margin:0 auto; padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:68px; }
+    .logo { display:flex; align-items:center; gap:11px; text-decoration:none; }
+    .logo-icon { width:38px; height:38px; border-radius:9px; background:linear-gradient(135deg,var(--gold),var(--amber)); display:flex; align-items:center; justify-content:center; font-size:1.3rem; box-shadow:0 0 16px rgba(245,200,66,.25); }
+    .logo-name strong { font-size:1.05rem; font-weight:700; color:var(--gold); letter-spacing:1.5px; display:block; line-height:1.1; }
+    .logo-name span { font-size:.62rem; color:var(--muted); letter-spacing:2.5px; text-transform:uppercase; }
+    .nav-right { display:flex; align-items:center; gap:10px; }
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 20px; border-radius:8px; font-family:var(--font); font-weight:600; font-size:.875rem; cursor:pointer; text-decoration:none; border:none; transition:all .2s; }
+    .btn-gold { background:linear-gradient(135deg,var(--gold),var(--amber)); color:#0a0a0a; }
+    .btn-gold:hover { transform:translateY(-2px); box-shadow:0 4px 24px rgba(245,200,66,.35); }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border2); }
+    .btn-outline:hover { border-color:var(--gold); color:var(--gold); }
+    .wallet-chip { font-size:.8rem; color:var(--gold); font-family:var(--mono); background:rgba(245,200,66,.08); border:1px solid rgba(245,200,66,.2); padding:5px 14px; border-radius:50px; display:none; }
+    .page-hero { text-align:center; padding:60px 24px 44px; position:relative; z-index:1; }
+    .hero-label { display:inline-flex; align-items:center; gap:8px; border:1px solid rgba(245,200,66,.25); background:rgba(245,200,66,.04); padding:5px 16px; border-radius:50px; font-size:.72rem; letter-spacing:2.5px; color:var(--muted); text-transform:uppercase; margin-bottom:18px; }
+    .page-hero h1 { font-size:clamp(1.8rem,4vw,2.8rem); font-weight:700; letter-spacing:-1px; margin-bottom:10px; }
+    .page-hero h1 span { color:var(--gold); }
+    .page-hero p { color:var(--muted); font-size:.95rem; }
+    .form-container { max-width:680px; margin:0 auto; padding:0 24px 80px; position:relative; z-index:1; }
+    .card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:28px; margin-bottom:24px; }
+    .card-title { font-size:1rem; font-weight:600; color:var(--gold); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
     .field { margin-bottom:16px; }
-    .field label { display:block;font-size:0.8rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:0.01em; }
-    .req { color:var(--red);margin-left:2px; }
-    input[type=text],input[type=number],input[type=url],textarea,select {
-      width:100%;padding:11px 15px;border-radius:var(--rs);
-      border:1px solid var(--border);background:rgba(4,12,24,0.9);
-      color:var(--text);font-family:inherit;font-size:0.88rem;transition:all .22s;outline:none;
-    }
-    input:focus,textarea:focus,select:focus {
-      border-color:var(--border-h);
-      box-shadow:0 0 0 3px rgba(0,200,255,0.06);
-      background:rgba(4,12,24,0.97);
-    }
-    input::placeholder,textarea::placeholder { color:var(--text3);font-size:0.84rem; }
-    textarea { resize:vertical;min-height:68px; }
-
-    .row2 { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
-    .row3 { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
-    @media(max-width:560px){.row2,.row3{grid-template-columns:1fr}}
-    .hint { font-size:0.73rem;color:var(--text3);margin-top:5px;line-height:1.55; }
-
-    /* ─── NETWORK TAG ─── */
-    .net-tag { display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:var(--rs);border:1px solid rgba(0,200,255,0.2);background:rgba(0,200,255,0.04);font-size:0.86rem; }
-    .net-check { margin-left:auto;color:var(--green);font-weight:800; }
-
-    /* ─── UPLOAD ─── */
-    .upload-area { border:2px dashed rgba(0,200,255,0.14);border-radius:12px;padding:28px 18px;text-align:center;cursor:pointer;transition:all .25s; }
-    .upload-area:hover { border-color:rgba(0,200,255,0.4);background:rgba(0,200,255,0.025); }
-    .up-icon { font-size:2rem;display:block;margin-bottom:8px; }
-    .upload-area p { color:var(--text2);font-size:0.82rem; }
-    .upload-area .small { font-size:0.72rem;color:var(--text3);margin-top:4px; }
-
-    /* ─── CALC PANEL ─── */
-    .calc-box { background:rgba(0,200,255,0.03);border:1px solid rgba(0,200,255,0.1);border-radius:12px;padding:14px 18px;margin-top:14px; }
-    .calc-row { display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;padding:5px 0;color:var(--text2);border-bottom:1px solid rgba(0,200,255,0.06); }
-    .calc-row:last-child { border-bottom:none; }
-    .calc-row strong { color:var(--cyan);font-weight:700;font-family:'Fira Code','Courier New',monospace;font-size:0.85rem; }
-
-    /* ─── SUFFIX ─── */
-    .suffix-tag { display:inline-flex;align-items:center;gap:12px;padding:12px 18px;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.18);border-radius:10px; }
-    .suffix-num { font-family:'Fira Code','Courier New',monospace;font-size:1.6rem;font-weight:800;color:var(--cyan);letter-spacing:4px;text-shadow:0 0 18px var(--cyan-glow); }
-
-    /* ─── RANGE ─── */
-    .range-wrap { margin-bottom:14px; }
-    .range-top { display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:7px;color:var(--text2); }
-    .rv { color:var(--cyan);font-weight:700;font-family:'Fira Code',monospace; }
-    input[type=range] { width:100%;height:5px;cursor:pointer;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,0.06);border-radius:3px;outline:none; }
-    input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),#0088bb);box-shadow:0 0 8px var(--cyan-glow);cursor:pointer;transition:transform .18s; }
-    input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.25); }
-
-    /* ─── DIST MARKS ─── */
-    .dm { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle; }
-    .dm-w{background:var(--yellow)} .dm-b{background:#888} .dm-r{background:var(--red)} .dm-l{background:#3e8fff}
-    .dist-total { text-align:right;font-size:0.78rem;padding-top:8px;border-top:1px solid var(--border);margin-top:4px; }
-    .dt-ok{color:var(--green)} .dt-warn{color:var(--red)}
-
-    /* ─── TOGGLE ─── */
-    .toggle-row { display:flex;align-items:center;justify-content:space-between;gap:14px;padding:4px 0; }
-    .toggle-switch { position:relative;width:44px;height:24px;flex-shrink:0; }
-    .toggle-switch input { opacity:0;width:0;height:0; }
-    .ts-slider { position:absolute;inset:0;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:.3s; }
-    .ts-slider::before { content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--text3);top:3px;left:3px;transition:.3s; }
-    .toggle-switch input:checked ~ .ts-slider { background:rgba(0,200,255,0.22);border-color:rgba(0,200,255,0.4); }
-    .toggle-switch input:checked ~ .ts-slider::before { transform:translateX(20px);background:var(--cyan);box-shadow:0 0 8px var(--cyan-glow); }
-    .toggle-label { font-size:0.88rem;font-weight:600;cursor:pointer; }
-    .toggle-sub { font-size:0.74rem;color:var(--text2);margin-top:2px; }
-
-    /* ─── SOCIAL ─── */
-    .social-row { display:flex;align-items:center;gap:10px;margin-bottom:12px; }
-    .social-ico { width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,0.03);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;transition:border-color .2s; }
-    .social-row:focus-within .social-ico { border-color:rgba(0,200,255,0.28); }
-    .social-row input { padding:10px 13px; }
-
-    /* ─── WARN BOX ─── */
-    .warn-box { display:flex;gap:10px;padding:12px 16px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.14);border-radius:10px;font-size:0.8rem;line-height:1.65; }
-    .warn-box .wi { color:var(--red);flex-shrink:0;margin-top:1px; }
-
-    /* ─── BTNS ─── */
-    .btn { display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 24px;border-radius:var(--rs);font-weight:700;font-size:0.86rem;cursor:pointer;border:none;transition:all .22s;font-family:inherit;position:relative;overflow:hidden; }
-    .btn::after { content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:.22s; }
-    .btn:hover::after { background:rgba(255,255,255,0.06); }
-    .btn-primary { background:linear-gradient(135deg,var(--cyan),#007daa);color:#000;box-shadow:0 4px 20px var(--cyan-glow); }
-    .btn-primary:hover { transform:translateY(-2px);box-shadow:0 6px 32px var(--cyan-glow); }
-    .btn-outline { background:transparent;border:1.5px solid rgba(0,200,255,0.35);color:var(--cyan); }
-    .btn-outline:hover { background:rgba(0,200,255,0.07); }
-    .btn-sm { padding:7px 15px;font-size:0.78rem;border-radius:7px; }
-    .btn-launch { width:100%;padding:16px;font-size:1.05rem;border-radius:14px;letter-spacing:0.01em; }
-    .btn:disabled { opacity:0.32;cursor:not-allowed;transform:none!important;box-shadow:none!important; }
-    .btn-group { display:flex;gap:8px;flex-wrap:wrap;margin-top:10px; }
-
-    /* ─── RESULT CARD ─── */
-    .result-card { background:linear-gradient(135deg,rgba(0,255,178,0.04),rgba(0,200,255,0.02));border:1px solid rgba(0,255,178,0.15);border-radius:var(--r);padding:24px;margin:20px 0; }
-    .addr-box { background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--rs);padding:13px 16px;font-family:'Fira Code',monospace;font-size:0.86rem;word-break:break-all;color:var(--green);letter-spacing:0.3px; }
-    .param-box { background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--rs);padding:13px 16px;font-family:'Fira Code',monospace;font-size:0.76rem;word-break:break-all;color:var(--text2);max-height:120px;overflow-y:auto;line-height:1.7; }
-    .acc { border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:16px;background:rgba(4,12,24,0.6); }
-    .acc-h { display:flex;align-items:center;justify-content:space-between;padding:13px 18px;cursor:pointer;font-weight:700;font-size:0.88rem;transition:background .2s; }
-    .acc-h:hover { background:rgba(255,255,255,0.02); }
-    .acc-arr { transition:transform .3s;color:var(--text2);font-size:0.76rem; }
-    .acc.open .acc-arr { transform:rotate(180deg); }
-    .acc-b { display:none;padding:16px 18px;border-top:1px solid var(--border); }
-
-    /* ─── LAUNCH PROGRESS ─── */
-    .launch-steps { display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:24px; }
-    .ls { display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text3);font-weight:500; }
-    .ls-n { width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;border:1.5px solid var(--text3);flex-shrink:0;transition:.3s; }
-    .ls.active { color:var(--text); }
-    .ls.active .ls-n { background:var(--cyan);border-color:var(--cyan);color:#000;box-shadow:0 0 12px var(--cyan-glow);transform:scale(1.1); }
-    .ls.done { color:var(--green); }
-    .ls.done .ls-n { background:var(--green);border-color:var(--green);color:#000; }
-    .ls-line { width:40px;height:2px;background:var(--border);flex-shrink:0;border-radius:1px; }
-
-    /* ─── PAGE HERO ─── */
-    .hero { padding:28px 0 16px;animation:fu .5s ease-out; }
-    .hero h1 { font-size:clamp(1.5rem,3vw,2.1rem);font-weight:900;letter-spacing:-0.025em;line-height:1.25; }
-    .hero h1 .hl { background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
-    .hero p { color:var(--text2);font-size:0.88rem;margin-top:8px; }
-
-    /* ─── OPEN MODE SELECTOR ─── */
-    .open-mode-opt {
-      flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
-      padding:14px 10px;border-radius:12px;cursor:pointer;
-      background:rgba(255,255,255,0.02);border:2px solid var(--border);
-      transition:.25s;text-align:center;
-    }
-    .open-mode-opt:hover { border-color:rgba(0,200,255,0.3);background:rgba(0,200,255,0.04); }
-    .open-mode-opt.selected { border-color:var(--cyan);background:rgba(0,200,255,0.08);box-shadow:0 0 12px rgba(0,200,255,0.08); }
-    .open-mode-opt input[type=radio] { display:none; }
-    .om-icon { font-size:1.5rem;line-height:1; }
-    .om-label { font-size:0.85rem;font-weight:600;color:var(--text1); }
-    .om-desc { font-size:0.7rem;color:var(--text3); }
-    #scheduledTimeBox { margin-top:14px; }
-    #scheduledTimeBox label { font-size:0.86rem;font-weight:600;display:block;margin-bottom:6px; }
-    #scheduledTimeBox input[type=datetime-local] {
-      width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);
-      background:rgba(255,255,255,0.03);color:var(--text1);font-size:0.9rem;
-      outline:none;transition:.2s;box-sizing:border-box;font-family:inherit;
-    }
-    #scheduledTimeBox input[type=datetime-local]:focus { border-color:var(--cyan);box-shadow:0 0 8px rgba(0,200,255,0.15); }
-
-    /* ─── ANIM ─── */
-    @keyframes fu { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-    .panel,.wallet-bar,.calc-box { animation:fu .45s ease-out both; }
-
-    /* ─── SECTION DIVIDER ─── */
-    .sdiv { display:flex;align-items:center;gap:12px;margin:8px 0 20px; }
-    .sdiv-line { flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent); }
-    .sdiv-tag { font-size:0.7rem;font-weight:700;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap; }
-
+    .field label { display:block; font-size:.78rem; color:var(--muted); margin-bottom:6px; letter-spacing:.5px; text-transform:uppercase; }
+    .field input, .field select, .field textarea { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; color:var(--text); font-family:var(--font); font-size:.9rem; transition:border-color .2s; }
+    .field input:focus, .field select:focus { outline:none; border-color:var(--gold); box-shadow:var(--focus); }
+    .field .hint { font-size:.7rem; color:var(--muted); margin-top:4px; }
+    .row2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+    .checkbox-field { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .checkbox-field input[type=checkbox] { width:18px; height:18px; accent-color:var(--gold); }
+    .checkbox-field label { font-size:.85rem; color:var(--text); cursor:pointer; }
+    .radio-group { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+    .radio-item { position:relative; }
+    .radio-item input { position:absolute; opacity:0; pointer-events:none; }
+    .radio-item label { display:inline-block; padding:8px 18px; border-radius:50px; border:1px solid var(--border2); font-size:.8rem; cursor:pointer; transition:all .2s; }
+    .radio-item input:checked + label { border-color:var(--gold); color:var(--gold); background:rgba(245,200,66,.08); }
+    .slider-row { display:flex; align-items:center; gap:14px; }
+    .slider-row input[type=range] { flex:1; accent-color:var(--gold); }
+    .slider-val { font-family:var(--mono); font-size:.85rem; color:var(--gold); min-width:48px; text-align:right; }
+    .deploy-btn { width:100%; padding:16px; font-size:1.05rem; font-weight:700; border-radius:12px; margin-top:8px; }
+    .result-box { background:var(--bg3); border:1px solid var(--border2); border-radius:var(--radius); padding:20px; margin-top:24px; display:none; }
+    .result-box h3 { color:var(--success); margin-bottom:10px; }
+    .result-box code { font-size:.72rem; line-height:1.8; word-break:break-all; color:var(--muted); }
+    .result-box a { color:var(--gold); text-decoration:none; font-size:.82rem; }
+    /* Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); backdrop-filter:blur(6px); z-index:9998; display:none; align-items:center; justify-content:center; }
+    .modal-box { background:var(--bg2); border:1px solid var(--border2); border-radius:16px; padding:36px 44px; text-align:center; min-width:320px; max-width:90vw; }
+    .modal-icon { font-size:2.4rem; margin-bottom:12px; }
+    .modal-title { font-size:1.1rem; font-weight:600; margin-bottom:8px; }
+    .modal-desc { font-size:.82rem; color:var(--muted); }
+    .modal-bar { width:100%; height:4px; background:var(--bg4); border-radius:2px; margin-top:18px; overflow:hidden; }
+    .modal-bar-inner { height:100%; width:40%; background:var(--gold); border-radius:2px; animation:barPulse 1.2s ease-in-out infinite; }
+    @keyframes barPulse { 0%,100%{width:30%} 50%{width:70%} }
+    .hidden { display:none!important; }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 </head>
 <body>
 
-<!-- NAVBAR -->
-<nav class="navbar" id="navbar">
-  <div class="nb-inner">
-    <a href="index.html" class="logo">
-      <div class="logo-ring">🦑</div>
-      <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
+<header>
+  <nav>
+    <a class="logo" href="#">
+      <div class="logo-icon">🦑</div>
+      <div class="logo-name"><strong>SQUIDLAUNCH</strong><span>Token Launcher</span></div>
     </a>
-    <a href="index.html" class="nb-back">← 返回首页</a>
-  </div>
-</nav>
-
-<div class="layout">
-
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sb-title">部署步骤</div>
-    <nav class="sb-steps">
-      <div class="sb-step active"><div class="sb-num">1</div><span>连接钱包</span></div>
-      <div class="sb-step"><div class="sb-num">2</div><span>基本信息</span></div>
-      <div class="sb-step"><div class="sb-num">3</div><span>预售配置</span></div>
-      <div class="sb-step"><div class="sb-num">4</div><span>税费设置</span></div>
-      <div class="sb-step"><div class="sb-num">5</div><span>开盘模式</span></div>
-      <div class="sb-step"><div class="sb-num">6</div><span>社交链接</span></div>
-    </nav>
-    <div class="sb-divider"></div>
-    <div class="sb-info">
-      <p>📌 所有通过 <strong>SquidLaunch</strong> 发射的合约地址均以 <strong>0000</strong> 结尾</p>
-      <p style="margin-top:8px">⚡ 部署仅需 2-3 分钟，Gas 费约 <strong>0.002 BNB</strong></p>
+    <div class="nav-right">
+      <div class="wallet-chip" id="walletChip">未在连接</div>
+      <button class="btn btn-outline" id="btnConnect" onclick="connectWallet()">连接钱包</button>
     </div>
-  </aside>
+  </nav>
+</header>
 
-  <!-- MAIN -->
-  <main class="content">
+<section class="page-hero">
+  <div class="hero-label">🚀 FAIR LAUNCH PLATFORM</div>
+  <h1>发射你的 <span>代币</span></h1>
+  <p>一键部署代币合约到 BSC 链 — 支持 Mint 模式、开盘控制、白名单</p>
+</section>
 
-    <!-- HERO -->
-    <div class="hero">
-      <h1>🚀 发射你的<span class="hl">代币</span></h1>
-      <p>填写以下信息，一键在 BNB 链上部署 Meme 代币合约</p>
-    </div>
+<div class="form-container">
 
-    <!-- STEPS BAR (mobile) -->
-    <div class="launch-steps" style="display:none" id="mobileSteps">
-      <div class="ls active" id="ms1"><div class="ls-n">1</div></div>
-      <div class="ls-line"></div>
-      <div class="ls" id="ms2"><div class="ls-n">2</div></div>
-      <div class="ls-line"></div>
-      <div class="ls" id="ms3"><div class="ls-n">3</div></div>
-      <div class="ls-line"></div>
-      <div class="ls" id="ms4"><div class="ls-n">4</div></div>
-    </div>
-
-    <!-- WALLET -->
-    <div id="wallet-box" class="wallet-bar wb-disc">
-      <span class="wd wd-r"></span>
-      <span style="flex:1;font-size:0.86rem">请先连接钱包，才能部署代币</span>
-      <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包 🔗</button>
-    </div>
-
-    <!-- ── 基本信息 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">基本信息</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="row2">
-        <div class="field"><label>代币名称 <span class="req">*</span></label><input type="text" id="t_name" placeholder="例如：SquidCoin" /></div>
-        <div class="field"><label>代币符号 <span class="req">*</span></label><input type="text" id="t_symbol" placeholder="例如：SQUID" /></div>
-      </div>
-
-      <div class="field"><label>区块链网络</label>
-        <div class="net-tag"><span style="font-size:1.1rem">🟡</span><span>BNB Smart Chain (BSC)</span><span class="net-check" style="margin-left:auto">✓ 已选择</span></div>
-      </div>
-
-      <div class="field"><label>代币封面图</label>
-        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-          <span class="up-icon">🖼️</span>
-          <p>点击或拖拽上传</p>
-          <p class="small">PNG / JPG / GIF · 建议 200×200px</p>
-        </div>
-        <input type="file" id="fileInput" accept="image/*" style="display:none" />
-      </div>
-
-      <div class="field"><label>项目描述</label><textarea id="t_desc" placeholder="简要介绍你的项目理念..."></textarea></div>
-    </div>
-
-    <!-- ── 预售配置 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">预售配置</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="field"><label>代币总供应量 <span class="req">*</span></label><input type="number" id="t_supply" placeholder="1000000000" value="1000000000" oninput="calcPreview()" /></div>
-
-      <div class="row2">
-        <div class="field"><label>单次 Mint 费用 (BNB) <span class="req">*</span></label><input type="number" id="t_mintPrice" placeholder="0.001" value="0.001" step="any" oninput="calcPreview()" /></div>
-        <div class="field"><label>预售硬顶 (BNB) <span class="req">*</span></label><input type="number" id="t_hardCap" placeholder="10" value="10" step="any" oninput="calcPreview()" /></div>
-      </div>
-
-      <div class="field"><label>预售代币比例 (%) <span class="req">*</span></label>
-        <input type="number" id="t_presaleRatio" placeholder="50" value="50" min="1" max="99" oninput="calcPreview()" />
-        <div class="hint">剩余 <strong id="lpRatioDisplay">50%</strong> 自动做 LP（初始流动性池）</div>
-      </div>
-
-      <div class="calc-box">
-        <div class="calc-row"><span>📦 总 Mint 次数</span><strong id="calcMintCount">—</strong></div>
-        <div class="calc-row"><span>🎫 单次 Mint 份额</span><strong id="calcPerMint">—</strong></div>
-        <div class="calc-row"><span>💰 代币单价</span><strong id="calcUnitPrice">—</strong></div>
-      </div>
-    </div>
-
-    <!-- ── 合约尾号 ── -->
-    <div class="panel" style="display:flex;align-items:center;gap:18px;padding:18px 22px">
-      <div class="suffix-tag">
-        <span style="font-size:0.78rem;color:var(--text2)">合约地址尾号</span>
-        <span class="suffix-num">0000</span>
-      </div>
-      <p style="font-size:0.78rem;color:var(--text2);flex:1">所有通过 SquidLaunch 发射的合约均以 <strong style="color:var(--cyan);font-family:'Fira Code',monospace">0000</strong> 结尾，系统固定不可修改</p>
-    </div>
-
-    <!-- ── 自动流动性 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">自动流动性</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="hint" style="margin-bottom:14px">合约持有全部预售代币。每次 Mint → 一半加池子 + 一半发给买家。LP 归平台方。部署者无需出 BNB。</div>
+  <!-- 基础信息 -->
+  <div class="card">
+    <div class="card-title">🪙 代币基础信息</div>
+    <div class="row2">
       <div class="field">
-        <label>加池子 / 买家 分配比例</label>
-        <input type="number" id="t_liqPct" value="50" min="0" max="100" oninput="document.getElementById('liqPctVal').textContent=this.value+'%'; document.getElementById('buyerPctVal').textContent=(100-this.value)+'%';" />
-        <span class="rv" id="liqPctVal" style="margin-top:4px">50% → 池子（LP 归平台）</span>
-        <span class="rv" id="buyerPctVal" style="margin-top:4px;color:var(--green)">50% → 买家</span>
-        <div class="hint">设为 50 即每笔 Mint：50% BNB+代币进池子，50% 代币给买家。设为 0 则不加池子。</div>
+        <label>代币名称</label>
+        <input type="text" id="t_name" placeholder="e.g. Squid Token" />
+      </div>
+      <div class="field">
+        <label>代币符号</label>
+        <input type="text" id="t_symbol" placeholder="e.g. SQUID" maxlength="10" style="text-transform:uppercase" />
       </div>
     </div>
-
-    <!-- ── 税费设置 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">税费设置</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="row2">
-        <div class="range-wrap">
-          <div class="range-top"><span>买入税率</span><span class="rv" id="buyTaxVal">1%</span></div>
-          <input type="range" min="0" max="10" value="1" step="0.5" id="buyTaxSlider" oninput="document.getElementById('buyTaxVal').textContent=this.value+'%'" />
-        </div>
-        <div class="range-wrap">
-          <div class="range-top"><span>卖出税率</span><span class="rv" id="sellTaxVal">1%</span></div>
-          <input type="range" min="0" max="10" value="1" step="0.5" id="sellTaxSlider" oninput="document.getElementById('sellTaxVal').textContent=this.value+'%'" />
-        </div>
-      </div>
-
-      <div class="row2" style="margin-top:14px">
-        <div class="field">
-          <label>最大单笔交易 (%)</label>
-          <input type="number" id="t_maxTx" value="0" min="0" max="100" />
-          <div class="hint">占总量百分比，0 = 不限制</div>
-        </div>
-        <div class="field">
-          <label>最大持仓上限 (%)</label>
-          <input type="number" id="t_maxWallet" value="0" min="0" max="100" />
-          <div class="hint">占总量百分比，0 = 不限制</div>
-        </div>
-      </div>
-
-      <div class="range-wrap">
-        <div class="range-top"><span>🛡️ 反套利保护期</span><span class="rv" id="antiArbVal">3 天</span></div>
-        <input type="range" min="0" max="365" value="3" id="antiArbSlider" oninput="document.getElementById('antiArbVal').textContent=this.value+' 天'" />
-      </div>
-      <div class="hint">保护期内限制向 V3 池添加流动性 · 范围 0-365 天</div>
+    <div class="field">
+      <label>总供应量（代币个数，非 wei）</label>
+      <input type="number" id="t_supply" placeholder="e.g. 1000000" min="1" />
+      <div class="hint">合约自动 × 10^18</div>
     </div>
+  </div>
 
-    <!-- ── 开盘模式 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">开盘模式</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <!-- ★ 开盘模式三选一 -->
-      <div style="display:flex;gap:10px;margin-bottom:14px">
-        <label class="open-mode-opt" id="optAuto" onclick="selectOpenMode('auto')">
-          <input type="radio" name="openMode" value="auto" checked />
-          <span class="om-icon">⏰</span>
-          <span class="om-label">定时开盘</span>
-          <span class="om-desc">设好时间自动开</span>
-        </label>
-        <label class="open-mode-opt" id="optManual" onclick="selectOpenMode('manual')">
-          <input type="radio" name="openMode" value="manual" />
-          <span class="om-icon">🎮</span>
-          <span class="om-label">手动开盘</span>
-          <span class="om-desc">Owner 手动开启</span>
-        </label>
-        <label class="open-mode-opt" id="optFull" onclick="selectOpenMode('full')">
-          <input type="radio" name="openMode" value="full" />
-          <span class="om-icon">🚀</span>
-          <span class="om-label">满额开盘</span>
-          <span class="om-desc">Mint 满额自动开</span>
-        </label>
+  <!-- Mint 配置 -->
+  <div class="card">
+    <div class="card-title">💰 Mint 配置</div>
+    <div class="row2">
+      <div class="field">
+        <label>Mint 单价（BNB / 代币）</label>
+        <input type="number" id="t_mintPrice" placeholder="e.g. 0.001" step="any" min="0" />
       </div>
-
-      <!-- ★ 定时开盘时间选择器（仅 auto 模式显示） -->
-      <div id="scheduledTimeBox">
-        <label>⏰ 预售结束 & 自动开盘时间</label>
-        <input type="datetime-local" id="t_openTime" oninput="onOpenTimeChange()" />
-        <div class="hint" id="openTimeHint">选择时间后，到达该时刻合约将自动完成预售并开启交易</div>
-      </div>
-
-      <!-- ★ 满额开盘延迟设置（仅 full 模式显示） -->
-      <div id="fullOpenDelayBox" style="display:none">
-        <label>🚀 Mint 满额后延迟开盘</label>
-        <div style="display:flex;gap:10px;align-items:center;">
-          <input type="number" id="t_fullOpenDelay" value="5" min="0" max="1440" style="width:100px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text1);font-size:0.9rem;outline:none;" />
-          <span style="font-size:0.85rem;color:var(--text2)">分钟（0=立即开盘）</span>
-        </div>
-        <div class="hint">Mint 达到 Hard Cap 后，等待指定分钟再自动开启交易</div>
-      </div>
-
-      <!-- ★ Mint 资金分配规则：仅平台方钱包连接时显示 -->
-      <div class="calc-box" id="mintFundRule" style="margin-top:16px;display:none">
-        <div class="calc-row"><span style="font-size:0.78rem;color:var(--text3)">Mint 资金分配规则（固定不可修改）</span></div>
-        <div class="calc-row">
-          <span>25% → Owner 钱包</span>
-          <strong style="color:var(--yellow)">立即到账</strong>
-        </div>
-        <div class="calc-row">
-          <span>75% → 合约留存</span>
-          <strong style="color:var(--cyan)">等待开盘</strong>
-        </div>
+      <div class="field">
+        <label>硬顶（BNB）</label>
+        <input type="number" id="t_hardCap" placeholder="e.g. 100" step="any" min="0" />
       </div>
     </div>
-
-    <!-- ── 税费分配 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">税费分配</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="warn-box" style="margin-bottom:16px"><span class="wi">⚠️</span><span>四项分配合计必须等于 100%，否则无法部署</span></div>
-
-      <div class="range-wrap">
-        <div class="range-top"><span><span class="dm dm-w"></span>资金钱包（营销 / 捐赠）</span><span class="rv" id="distWalletVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distWallet" oninput="updateDist('distWallet')" />
+    <div class="row2">
+      <div class="field">
+        <label>预售占比（% 代币分配给 Mint 买家）</label>
+        <input type="number" id="t_presalePct" placeholder="50" min="0" max="100" />
+        <div class="hint">剩余代币归 Owner</div>
       </div>
-      <div class="range-wrap">
-        <div class="range-top"><span><span class="dm dm-b"></span>燃烧（减少供应）</span><span class="rv" id="distBurnVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distBurn" oninput="updateDist('distBurn')" />
-      </div>
-      <div class="range-wrap">
-        <div class="range-top"><span><span class="dm dm-r"></span>分红（持有者奖励）</span><span class="rv" id="distRewardVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distReward" oninput="updateDist('distReward')" />
-      </div>
-      <div class="range-wrap">
-        <div class="range-top"><span><span class="dm dm-l"></span>流动性（添加流动性）</span><span class="rv" id="distLiqVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distLiq" oninput="updateDist('distLiq')" />
-      </div>
-      <div class="dist-total" id="distTotal">总计 0% &nbsp; 未分配: <span class="dt-warn">100%</span></div>
-
-      <div class="field" style="margin-top:16px"><label>资金收款钱包地址</label><input type="text" id="t_fundWallet" placeholder="0x..." /></div>
-
-      <!-- ★ 分红配置（distReward > 0 时自动展开） -->
-      <div id="dividendConfig" style="display:none;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
-        <div class="row2" style="margin-top:0">
-          <div class="field"><label>分红代币地址</label><input type="text" id="t_rewardToken" placeholder="留空 = BNB" /><div class="hint">留空则分发 BNB，或填 USDT 等 ERC20 地址</div></div>
-        </div>
-
-          <div class="field" style="margin-top:10px"><label>📊 分红触发阈值</label>
-            <div style="display:flex;gap:10px;align-items:flex-end">
-              <div style="flex:1">
-                <input type="number" id="t_dividendPct" placeholder="0.01" value="0.01" step="0.001" min="0.001" max="100" oninput="calcPreview()" />
-                <div class="hint">占总供应量的百分比(%)。累积够数后 owner 可执行分红 swap+分发。</div>
-              </div>
-              <div style="text-align:center;min-width:130px;padding:8px 14px;border-radius:10px;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.12)">
-                <div style="font-size:0.7rem;color:var(--text3);margin-bottom:2px">≈ 绝对值</div>
-                <strong id="t_dividendAbs" style="font-size:1rem;color:var(--cyan)">—</strong>
-              </div>
-            </div>
-          </div>
-
-          <div class="info-box" style="margin-top:12px;font-size:0.78rem;color:var(--text3)">
-            <span class="wi" style="color:var(--cyan)">ℹ️</span>&nbsp;
-            分红由独立合约 SquidLaunchDividend 处理，平台方钱包拥有紧急暂停/提取权限。即使分红出问题不影响主代币正常交易。
-          </div>
-        </div><!-- /#dividendConfig -->
-      </div>
-
-    <!-- ── 白名单 ── -->
-    <div class="panel" style="padding:16px 22px">
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-label">仅白名单可 Mint</div>
-          <div class="toggle-sub">开启后只有管理员添加的地址才能参与 Mint</div>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="whitelistChk" />
-          <span class="ts-slider"></span>
-        </label>
+      <div class="field">
+        <label>加池子比例（% 每笔 Mint 中用于加池子的 BNB）</label>
+        <input type="number" id="t_liqPct" placeholder="50" min="0" max="100" />
+        <div class="hint">0 = 不加池子；推荐 30~60</div>
       </div>
     </div>
+  </div>
 
-    <!-- ── 社交链接 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">社交链接（选填）</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="social-row field"><div class="social-ico">🌐</div><input type="url" id="link_web" placeholder="官网 URL" /></div>
-      <div class="social-row field"><div class="social-ico">𝕏</div><input type="url" id="link_x" placeholder="X (Twitter) URL" /></div>
-      <div class="social-row field"><div class="social-ico">✈️</div><input type="url" id="link_tg" placeholder="Telegram URL" /></div>
-      <div class="social-row field"><div class="social-ico">💬</div><input type="url" id="link_dc" placeholder="Discord URL" /></div>
-    </div>
-
-    <!-- LAUNCH BTN -->
-    <button class="btn btn-primary btn-launch" id="launchBtn" disabled onclick="doLaunch()">
-      🚀 立即发射代币
-    </button>
-
-    <!-- DEPLOY RESULT -->
-    <div id="deployResult" style="display:none">
-      <div class="result-card">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <span style="font-size:1.5rem">✅</span>
-          <h3 style="font-size:1.1rem;font-weight:800">代币部署成功！</h3>
-        </div>
-        <p style="font-size:0.76rem;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Contract Address</p>
-        <div class="addr-box" id="contractAddr">—</div>
-        <p style="font-size:0.8rem;color:var(--text2);margin-top:10px">开盘模式：<strong id="resultOpenMode" style="color:var(--cyan)">—</strong></p>
-        <div id="dividendAddrRow" style="display:none;margin-top:8px;font-size:0.8rem;color:var(--text2)">
-          分红合约：<strong class="val" style="color:#a78bfa">—</strong>
-        </div>
-
-        <div class="acc open">
-          <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
-            <span>🔍 合约开源验证 (via-IR)</span><span class="acc-arr">▼</span>
-          </div>
-          <div class="acc-b">
-            <p style="font-size:0.8rem;color:var(--text2);margin-bottom:12px;line-height:1.65">⚠️ 本合约使用 via-IR 编译，须用 <strong style="color:var(--text)">Standard Json Input</strong> 方式验证。</p>
-            <div class="btn-group">
-              <button class="btn btn-primary btn-sm" onclick="alert('下载验证包 + 打开 BSCScan')">🚀 一键验证</button>
-              <button class="btn btn-outline btn-sm">📥 下载验证包</button>
-              <button class="btn btn-outline btn-sm">🌐 打开 BSCScan</button>
-              <button class="btn btn-outline btn-sm">📋 复制参数</button>
-              <button class="btn btn-outline btn-sm">📥 下载源码</button>
-            </div>
-            <div class="field" style="margin-top:12px"><label>构造函数参数</label><div class="param-box" id="constructorArgs">部署后显示...</div></div>
-          </div>
-        </div>
-
-        <div class="btn-group" style="margin-top:12px">
-          <button class="btn btn-outline btn-sm">📋 复制地址</button>
-          <button class="btn btn-outline btn-sm">View on BscScan ↗</button>
-        </div>
+  <!-- 税费 -->
+  <div class="card">
+    <div class="card-title">📊 税费 & 限制</div>
+    <div class="field">
+      <label>买入税（%）：<span id="buyTaxVal">0</span>%</label>
+      <div class="slider-row">
+        <input type="range" id="buyTaxSlider" min="0" max="25" value="0" oninput="buyTaxVal.textContent=this.value" />
       </div>
     </div>
-
-    <div style="text-align:center;padding:18px 0 0">
-      <a href="index.html" style="color:var(--text2);font-size:0.84rem;text-decoration:none;transition:.2s" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text2)'">← 返回 SquidLaunch 首页</a>
+    <div class="field">
+      <label>卖出税（%）：<span id="sellTaxVal">0</span>%</label>
+      <div class="slider-row">
+        <input type="range" id="sellTaxSlider" min="0" max="25" value="0" oninput="sellTaxVal.textContent=this.value" />
+      </div>
     </div>
+    <div class="row2">
+      <div class="field">
+        <label>单笔交易上限（% 总供应量）</label>
+        <input type="number" id="t_maxTx" placeholder="100" min="0" max="100" />
+      </div>
+      <div class="field">
+        <label>单钱包持仓上限（% 总供应量）</label>
+        <input type="number" id="t_maxWallet" placeholder="100" min="0" max="100" />
+      </div>
+    </div>
+  </div>
 
-  </main>
+  <!-- 开盘模式 -->
+  <div class="card">
+    <div class="card-title">🕐 开盘模式</div>
+    <div class="radio-group" id="openModeGroup">
+      <div class="radio-item">
+        <input type="radio" name="openMode" id="omAuto" value="auto" checked onchange="onOpenModeChange()" />
+        <label for="omAuto">⏱ 定时开盘</label>
+      </div>
+      <div class="radio-item">
+        <input type="radio" name="openMode" id="omManual" value="manual" onchange="onOpenModeChange()" />
+        <label for="omManual">✋ 手动开盘</label>
+      </div>
+      <div class="radio-item">
+        <input type="radio" name="openMode" id="omFull" value="full" onchange="onOpenModeChange()" />
+        <label for="omFull">🔥 满额开盘</label>
+      </div>
+    </div>
+    <div class="field hidden" id="fOpenTime">
+      <label>开盘时间</label>
+      <input type="datetime-local" id="t_openTime" />
+    </div>
+    <div class="field hidden" id="fFullDelay">
+      <label>达硬顶后延迟开盘（秒）</label>
+      <input type="number" id="t_fullOpenDelay" placeholder="300" min="0" />
+      <div class="hint">0 = 立即开盘</div>
+    </div>
+  </div>
+
+  <!-- 白名单 -->
+  <div class="card">
+    <div class="card-title">🛡️ 白名单</div>
+    <div class="checkbox-field">
+      <input type="checkbox" id="whitelistChk" />
+      <label for="whitelistChk">仅白名单地址可 Mint（部署后通过管理页面添加白名单）</label>
+    </div>
+  </div>
+
+  <!-- Vanity 地址 -->
+  <div class="card">
+    <div class="card-title">✨ 靓号地址（可选）</div>
+    <div class="field">
+      <label>尾号后缀（合约地址以该字符串结尾，空 = 随机地址）</label>
+      <input type="text" id="vanitySuffix" value="0000" placeholder="e.g. 6666" maxlength="8" />
+      <div class="hint">越长碰撞越慢；4 位约需 20 万次尝试，8 位可能需要数亿次</div>
+    </div>
+  </div>
+
+  <!-- 部署 -->
+  <button class="btn btn-gold deploy-btn" id="btnLaunch" onclick="deployToken()">🚀 立即发射代币</button>
+
+  <!-- 结果 -->
+  <div class="result-box" id="deployResult">
+    <h3>✅ 部署成功！</h3>
+    <div style="margin-bottom:10px">
+      <a href="#" id="bscLink" target="_blank">在 BscScan 查看合约 →</a>
+    </div>
+    <div id="constructorArgs" style="margin-top:10px"></div>
+  </div>
 </div>
 
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-icon" id="modalIcon">⏳</div>
+    <div class="modal-title" id="modalTitle">部署中...</div>
+    <div class="modal-desc" id="modalDesc"></div>
+    <div class="modal-bar"><div class="modal-bar-inner"></div></div>
+  </div>
+</div>
+
+<script src="ethers.umd.min.js"></script>
+<script src="contract_data.js"></script>
+<script src="vanity_deployer_data.js"></script>
 <script>
+/* ── Globals ── */
+var signer, userAddr;
+var currentOpenMode = 'auto';
 
-const PLATFORM_WALLET = '0x8fdb0a964beda0da705d2fe5af2fb9a7001cbb36';
-const PANCAKE_ROUTER  = '0x10ed43c718714eb63d5aa57b78b5c4bf50ebf4e7';
-const TOKEN_BYTECODE = '0x608060405234620005ae576200247980380380916200002082608062000a07565b608039608001610120806080830312620005ae5762000040608062000a2b565b916200004d60a062000a2b565b6200005960c062000a2b565b60e0519093906001600160401b038111620005ae5760800192610140938481830312620005ae576040519485016001600160401b03811186821017620008305760405280516001600160401b038111620005ae5782620000bb91830162000a40565b855260208101516001600160401b038111620005ae5782620000df91830162000a40565b602086015260408101516040860152606081015160608601526080810151608086015260a081015160a086015260c08101519060ff82168203620005ae57839160c087015260e081015160e08701526101008101516101008701520151908115158203620005ae578483019190915260a060ff1990910112620005ae576040519160a083016001600160401b03811184821017620008305760409081526101005184526101205160208501526101405190840152610160516060840152610180516080840152600c805460ff19166001179055835151158015620009f9575b620009e757604084015115620009d5576001600160a01b03861615620009c357606084015115620009b157606460a0850151116200099f5760648351116200098d57600260ff60c086015116116200097b57606460608401511180156200096c575b6200095a576109c4806020850151119081156200094b575b50620009395783518051906001600160401b038211620008305760005490600182811c921680156200092e575b60208310146200080f5781601f849311620008ce575b50602090601f8311600114620008525760009262000846575b50508160011b916000199060031b1c1916176000555b60208401518051906001600160401b038211620008305760015490600182811c9216801562000825575b60208310146200080f5781601f849311620007ae575b50602090601f8311600114620007305760009262000724575b50508160011b916000199060031b1c1916176001555b600580546001600160a01b038881166001600160a01b031992831617909255600680549390921692811683179091556007805490911690911790556040830151670de0b6b3a7640000808202829004811482151715620006db5702600281905560a08401516064916200038d919062000ab7565b04928360105583620006f1575b6002548085810311620006db5784608095820362000693575b50506060810151600d5583810151600e55825160125560c081015161ff006013549160081b169061ff0019161760135560e08101516014556101008101516015550151151560ff8019601654169116176016556020810151600855604081015160095560608101518062000678575b500151806200065d575b50601880546001600160a01b0319166001600160a01b0392909216918217905560405163c45a015560e01b815290602082600481845afa918215620005bc5760009262000614575b506020600491604051928380926315ab88c960e31b82525afa908115620005bc57600091620005c8575b506040516364e329cb60e11b81523060048201526001600160a01b0391821660248201529160209183916044918391600091165af1908115620005bc5760009162000575575b50601980546001600160a01b0319166001600160a01b039283161781559181166000818152601a60209081526040808320805460ff199081166001908117909255308086528386208054831684179055958552601b909352818420805484168217905593835280832080548316851790559454909316815283902080549092161790555161194d908162000acc8239f35b90506020813d602011620005b3575b81620005936020938362000a07565b81010312620005ae57620005a79062000a2b565b38620004e4565b600080fd5b3d915062000584565b6040513d6000823e3d90fd5b90506020813d6020116200060b575b81620005e66020938362000a07565b81010312620005ae5760009160446200060160209362000a2b565b925050916200049e565b3d9150620005d7565b9091506020813d60201162000654575b81620006336020938362000a07565b81010312620005ae5760206200064b60049262000a2b565b92915062000474565b3d915062000624565b6200066d60649160025462000ab7565b04600b55386200042c565b6200068860649160025462000ab7565b04600a553862000422565b60018060a01b038816600052600360205280820360406000205560405191038152600060008051602062002439833981519152602060018060a01b038a1693a33880620003b3565b634e487b7160e01b600052601160045260246000fd5b3060005260036020528360406000205560405184815260006000805160206200243983398151915260203093a36200039a565b01519050388062000303565b6001600090815293506000805160206200245983398151915291905b601f198416851062000792576001945083601f1981161062000778575b505050811b0160015562000319565b015160001960f88460031b161c1916905538808062000769565b818101518355602094850194600190930192909101906200074c565b600160005290915060008051602062002459833981519152601f840160051c81016020851062000807575b90849392915b601f830160051c82018110620007f7575050620002ea565b60008155859450600101620007df565b5080620007d9565b634e487b7160e01b600052602260045260246000fd5b91607f1691620002d4565b634e487b7160e01b600052604160045260246000fd5b01519050388062000294565b600080805293506000805160206200241983398151915291905b601f1984168510620008b2576001945083601f1981161062000898575b505050811b01600055620002aa565b015160001960f88460031b161c1916905538808062000889565b818101518355602094850194600190930192909101906200086c565b6000805290915060008051602062002419833981519152601f840160051c81016020851062000926575b90849392915b601f830160051c82018110620009165750506200027b565b60008155859450600101620008fe565b5080620008f8565b91607f169162000265565b604051632bc7b84d60e21b8152600490fd5b90506040840151113862000238565b604051635e0e2a1b60e11b8152600490fd5b50606460808401511162000220565b60405163eb1967ad60e01b8152600490fd5b604051632bf9788d60e01b8152600490fd5b6040516394a0c02560e01b8152600490fd5b604051637294708f60e11b8152600490fd5b604051631f05a2bf60e11b8152600490fd5b604051639fbba64f60e01b8152600490fd5b604051636bba512760e01b8152600490fd5b5060208401515115620001be565b601f909101601f19168101906001600160401b038211908210176200083057604052565b51906001600160a01b0382168203620005ae57565b919080601f84011215620005ae578251906001600160401b03821162000830576040519160209162000a7c601f8301601f191684018562000a07565b818452828287010111620005ae5760005b81811062000aa357508260009394955001015290565b858101830151848201840152820162000a8d565b81810292918115918404141715620006db5756fe6080604081815260049182361015610022575b505050361561002057600080fd5b005b600092833560e01c91826306fdde031461140957508163095ea7b31461139a5781630a09815c1461137b57816310acc0d41461135c5781631249c58b14610e8357816318160ddd14610e645781631d111d1314610d975781631f0c57fc14610d6e57816323b872dd14610ccf578163313ce56714610cb35781633582ad2314610c8f5781634812a3e814610c7057816348cebd6714610c515781634ada218b14610c2d5781634b4687b514610c095781634df8ccb114610be05781634f7041a514610bc15781635cce86cd14610b83578163667f652614610aea5781636817c76c14610acb57816370a0823114610a93578163735de9f714610a6a5781637f6497831461095857816386a35f251461093b57816389476069146107ff5781638a8c523c1461078b5781638ab1d681146107195781638c0b5e22146106fa5781638da5cb5b146106d157816395d89b41146105d15781639b19251a14610593578163a2309ff814610574578163a9059cbb14610543578163aa4bde2814610524578163b425688814610505578163c4590d3f14610454578163c816841b1461042b578163cb4ca631146103ed578163cc1776d3146103ce578163cebf2f9314610376578163dd62ed3e1461032d578163de11473e14610308578163ea05a8c614610286578163f928364c14610242575063fb86a404146102215780610012565b3461023e578160031936011261023e57602090600e549051908152f35b5080fd5b919050346102825782600319360112610282576005546001600160a01b03163303610275578260ff19600c5416600c5580f35b516330cd747160e01b8152fd5b8280fd5b9190503461028257602036600319011261028257813591821515809303610304576005546001600160a01b031633036102f657507f24ac03c65aa5b35d408db55b7afc7841e110f60c5275da79102e1d04aa9aa6cf9160209160ff196016541660ff83161760165551908152a180f35b90516330cd747160e01b8152fd5b8380fd5b50503461023e578160031936011261023e5760209060ff60135460081c169051908152f35b905034610282578160031936011261028257602092829161034c611543565b61035461155e565b6001600160a01b03918216845291865283832091168252845220549051908152f35b9050346102825760603660031901126102825780359160ff83168303610304576005546001600160a01b0316330361027557505061ff006013549160081b169061ff0019161760135560243560145560443560155580f35b50503461023e578160031936011261023e576020906009549051908152f35b50503461023e57602036600319011261023e5760209160ff9082906001600160a01b03610418611543565b168152601a855220541690519015158152f35b50503461023e578160031936011261023e5760195490516001600160a01b039091168152602090f35b9050346102825761046436611574565b600554919290916001600160a01b031633036104f7576064831180156104ed575b6104df57509060646104cc7f2a00ae88790916c355d74c47251101f6daa7fe1b163c26b2add418af558d80809493826104c160025495866115ad565b049384600a556115ad565b0480600b5582519182526020820152a180f35b8351635e0e2a1b60e11b8152fd5b5060648211610485565b83516330cd747160e01b8152fd5b50503461023e578160031936011261023e576020906014549051908152f35b50503461023e578160031936011261023e57602090600b549051908152f35b50503461023e578060031936011261023e5760209061056d610563611543565b602435903361161f565b5160018152f35b50503461023e578160031936011261023e57602090600f549051908152f35b50503461023e57602036600319011261023e5760209160ff9082906001600160a01b036105be611543565b1681526017855220541690519015158152f35b9190503461028257826003193601126102825780519183600180549182821c9282811680156106c7575b60209586861082146106b45750848852908115610692575060011461063a575b610636868661062c828b03836114c2565b51918291826114fa565b0390f35b9295508083527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf65b82841061067f57505050826106369461062c92820101943861061b565b8054868501880152928601928101610662565b60ff191687860152505050151560051b830101925061062c826106363861061b565b634e487b7160e01b845260229052602483fd5b93607f16936105fb565b50503461023e578160031936011261023e5760055490516001600160a01b039091168152602090f35b50503461023e578160031936011261023e57602090600a549051908152f35b90503461028257602036600319011261028257610734611543565b6005546001600160a01b039290831633036104f757507ff93f9a76c1bf3444d22400a00cb9fe990e6abe9dbb333fda48859cfee864543d9160209116928385526017825280852060ff19815416905551848152a280f35b91905034610282578260031936011261028257600554336001600160a01b03918216141590816107f0575b506102755782600160ff1960135416176013557f799663458a5ef2936f7fa0c99b3336c69c25890f82974f04e811e5bb359186c78180a180f35b905060065416331415386107b6565b9190503461028257602091826003193601126103045761081d611543565b6005546001600160a01b0391908216330361092b579080869493921690600754168351926370a0823160e01b845230818501528684602481865afa9384156109215790879493929187946108e8575b50855163a9059cbb60e01b81526001600160a01b03909216908201908152602081019390935294859283919082906040015b03925af19081156108df57506108b2578280f35b816108d192903d106108d8575b6108c981836114c2565b8101906115cd565b5038808280f35b503d6108bf565b513d85823e3d90fd5b8581969295503d831161091a575b61090081836114c2565b810103126109165792518693909261089e61086c565b8580fd5b503d6108f6565b85513d88823e3d90fd5b83516330cd747160e01b81528390fd5b50503461023e578160031936011261023e57602090516109c48152f35b8391503461023e57602090816003193601126102825780359067ffffffffffffffff94858311610a665736602384011215610a665782820135958611610a6657602493848401938536918960051b010111610916576005546001600160a01b03949085163303610a5757865b8881106109cf578780f35b887ff93f9a76c1bf3444d22400a00cb9fe990e6abe9dbb333fda48859cfee864543d8488610a2c610a0b868a8f85610a10610a0b858c8f6115e5565b61160b565b1681526017875220966001978860ff19825416179055896115e5565b16928751908152a26000198114610a45576001016109c4565b634e487b7160e01b8852601185528688fd5b5050516330cd747160e01b8152fd5b8480fd5b50503461023e578160031936011261023e5760185490516001600160a01b039091168152602090f35b50503461023e57602036600319011261023e5760209181906001600160a01b03610abb611543565b1681526003845220549051908152f35b50503461023e578160031936011261023e57602090600d549051908152f35b83833461023e57610afa36611574565b6005546001600160a01b03163303610b73576109c4808311908115610b69575b50610b59577f121fab07dc109278f0ccefdafee4cd1b1ceb9cc7370bc2edc4680c5a1c0355ff939450816008558060095582519182526020820152a180f35b8251632bc7b84d60e21b81528590fd5b9050811186610b1a565b82516330cd747160e01b81528590fd5b50503461023e57602036600319011261023e5760209160ff9082906001600160a01b03610bae611543565b168152601b855220541690519015158152f35b50503461023e578160031936011261023e576020906008549051908152f35b50503461023e578160031936011261023e5760065490516001600160a01b039091168152602090f35b50503461023e578160031936011261023e5760209060ff6016541690519015158152f35b50503461023e578160031936011261023e5760209060ff6013541690519015158152f35b50503461023e578160031936011261023e576020906011549051908152f35b50503461023e578160031936011261023e576020906012549051908152f35b50503461023e578160031936011261023e5760209060ff600c541690519015158152f35b50503461023e578160031936011261023e576020905160128152f35b83833461023e57606036600319011261023e57610cea611543565b610cf261155e565b6044359160018060a01b038116948581526020958787528582203383528752848683205410610d43579085969761056d969282528852818120338252885220610d3c8482546115c0565b905561161f565b855162461bcd60e51b8152808901889052600560248201526434b739bab360d91b6044820152606490fd5b50503461023e578160031936011261023e5760075490516001600160a01b039091168152602090f35b919050346102825782600319360112610282576005546001600160a01b039081163303610e565783808080936007541647905af13d15610e51573d67ffffffffffffffff8111610e3e57825190610df8601f8201601f1916602001836114c2565b81528460203d92013e5b15610e0b578280f35b906020606492519162461bcd60e51b8352820152600d60248201526c1d1c985b9cd9995c8819985a5b609a1b6044820152fd5b634e487b7160e01b855260418452602485fd5b610e02565b50516330cd747160e01b8152fd5b50503461023e578160031936011261023e576020906002549051908152f35b9190508260031936011261028257341561134f57610ea334600f5461158a565b600e541061131e5760ff6016541680611308575b6112d35760135460ff8160081c168015806112c7575b61129657600214908161128b575b5061125657670de0b6b3a7640000803402903482040361124357600d54908115611230570491610f0d8360115461158a565b6010541061120357601254906064610f3181610f2985346115ad565b0493866115ad565b0491801515806111fa575b611055575b5050610f6e7f4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f91846115c0565b913085526003602052808520610f858582546115c0565b90553385526003602052808520610f9d84825461158a565b9055805183815233907fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef60203092a3610fe8610fdb34600f5461158a565b9485600f5560115461158a565b60115580519234845260208401523392a260135490600260ff8360081c16149081611048575b50611017575080f35b60ff19166001176013557f799663458a5ef2936f7fa0c99b3336c69c25890f82974f04e811e5bb359186c78180a180f35b9050600e5411153861100e565b60018060a01b038060185416308852602093808552868920828a52855285878a2055610e1042018042116111e75760609060c48b878b51968794859363f305d71960e01b855230898601528d6024860152806044860152606485015230608485015260a48401525af19182156111dd57908592918a9261119f575b50601954600754895163a9059cbb60e01b81529086166001600160a01b0316928101928352602083019390935291938492169082908b9082906040015b03925af1801561119557610f6e937f4c209b5fc8ad50758f13e2e1088ba56a560dff690a1c6fef26394f4c03821c4f95937f38f8a0c92f4c5b0b6877f878cb4c0c8d348a47b76d716c8e78f425043df9515b938893611178575b50825191858352820152a191610f41565b61118e90833d85116108d8576108c981836114c2565b5038611167565b85513d89823e3d90fd5b925090506060823d82116111d5575b816111bb606093836114c2565b810103126111d15790860151849161110d6110d0565b8880fd5b3d91506111ae565b87513d8b823e3d90fd5b634e487b7160e01b8a526011825260248afd5b50821515610f3c565b6020606492519162461bcd60e51b835282015260086024820152671cdbdb19081bdd5d60c21b6044820152fd5b634e487b7160e01b855260128452602485fd5b634e487b7160e01b845260118352602484fd5b906020606492519162461bcd60e51b8352820152600f60248201526e1d1c98591a5b99c81cdd185c9d1959608a1b6044820152fd5b60ff91501638610edb565b825162461bcd60e51b8152602081860152600b60248201526a1b5a5b9d0818db1bdcd95960aa1b6044820152606490fd5b50601454421015610ecd565b906020606492519162461bcd60e51b8352820152600f60248201526e1b9bdd081dda1a5d195b1a5cdd1959608a1b6044820152fd5b50338352601760205260ff818420541615610eb7565b906020606492519162461bcd60e51b8352820152600b60248201526a18d85c081c995858da195960aa1b6044820152fd5b51637294708f60e11b8152fd5b50503461023e578160031936011261023e576020906015549051908152f35b50503461023e578160031936011261023e576020906010549051908152f35b9050346102825781600319360112610282576020926113b7611543565b918360243592839233825287528181209460018060a01b0316948582528752205582519081527f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925843392a35160018152f35b929150346103045783600319360112610304578354600181811c91869082811680156114b8575b60209586861082146106b45750848852908115610692575060011461146057610636868661062c828b03836114c2565b8080949750527f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5635b8284106114a557505050826106369461062c92820101943861061b565b8054868501880152928601928101611488565b93607f1693611430565b90601f8019910116810190811067ffffffffffffffff8211176114e457604052565b634e487b7160e01b600052604160045260246000fd5b6020808252825181830181905290939260005b82811061152f57505060409293506000838284010152601f8019910116010190565b81810186015184820160400152850161150d565b600435906001600160a01b038216820361155957565b600080fd5b602435906001600160a01b038216820361155957565b6040906003190112611559576004359060243590565b9190820180921161159757565b634e487b7160e01b600052601160045260246000fd5b8181029291811591840414171561159757565b9190820391821161159757565b90816020910312611559575180151581036115595790565b91908110156115f55760051b0190565b634e487b7160e01b600052603260045260246000fd5b356001600160a01b03811681036115595790565b9060018060a01b0380921690600090828252602091600383526040918683832054106118e75785600554168086141590816118da575b50806118d0575b611897575b60ff600c541661178d575b8195858352601a855260ff8484205416158061177a575b611729575b9484956116ae8883999a848752600389528787206116a78282546115c0565b90556115c0565b921691828452600386528484206116c682825461158a565b905584519081527fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef968791a385611700575b505050505050565b8190308152600384522061171586825461158a565b9055519384523093a33880808080806116f8565b8060195416808714611762575b81831603611688578596509484956116ae6127106117566009548c6115ad565b04985050909550611688565b96506127106117736008548a6115ad565b0496611736565b50808216835260ff848420541615611683565b848252601b845260ff83832054161580611884575b6117ac575b61166c565b8560195416868216818114158061187a575b611814575b50851461166c57600a54808811908161180a575b50156117a757825162461bcd60e51b815260048101859052600660248201526507478206361760d41b6044820152606490fd5b90501515386117d7565b835260038552611827888585205461158a565b600b548091119081611870575b5061183f57386117c3565b835162461bcd60e51b815260048101869052600a602482015269077616c6c6574206361760b41b6044820152606490fd5b9050151538611834565b50308114156117be565b50858116825260ff8383205416156117a2565b60ff6013541661166157825162461bcd60e51b81526004810185905260086024820152673737ba1037b832b760c11b6044820152606490fd5b503085141561165c565b9050868216141538611655565b825162461bcd60e51b81526004810185905260096024820152681a5b9cdd598818985b60ba1b6044820152606490fdfea2646970667358221220b60412f326bf49c502eea8ba2d69496a7963125eee90426b657fdfe4f9debb0164736f6c63430008140033290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3efb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6';
-const TOKEN_ABI = [{"inputs":[{"internalType":"address","name":"_owner","type":"address"},{"internalType":"address","name":"_platformOwner","type":"address"},{"internalType":"address","name":"_routerAddress","type":"address"},{"components":[{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"symbol","type":"string"},{"internalType":"uint256","name":"totalSupply","type":"uint256"},{"internalType":"uint256","name":"mintPrice","type":"uint256"},{"internalType":"uint256","name":"hardCap","type":"uint256"},{"internalType":"uint256","name":"presalePct","type":"uint256"},{"internalType":"uint8","name":"openMode","type":"uint8"},{"internalType":"uint256","name":"openTime","type":"uint256"},{"internalType":"uint256","name":"fullOpenDelay","type":"uint256"},{"internalType":"bool","name":"whitelistOnly","type":"bool"}],"internalType":"struct SimpleToken.TokenConfig","name":"_tc","type":"tuple"},{"components":[{"internalType":"uint256","name":"liquidityPct","type":"uint256"},{"internalType":"uint256","name":"buyTax","type":"uint256"},{"internalType":"uint256","name":"sellTax","type":"uint256"},{"internalType":"uint256","name":"maxTxPct","type":"uint256"},{"internalType":"uint256","name":"maxWalletPct","type":"uint256"}],"internalType":"struct SimpleToken.FeeConfig","name":"_fc","type":"tuple"}],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"BadMode","type":"error"},{"inputs":[],"name":"EmptyNameSym","type":"error"},{"inputs":[],"name":"LimitOver100","type":"error"},{"inputs":[],"name":"LiqPctOver100","type":"error"},{"inputs":[],"name":"NotOwner","type":"error"},{"inputs":[],"name":"OwnerZero","type":"error"},{"inputs":[],"name":"PresaleOver100","type":"error"},{"inputs":[],"name":"PriceZero","type":"error"},{"inputs":[],"name":"SupplyZero","type":"error"},{"inputs":[],"name":"TaxTooHigh","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"maxTx","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"maxWallet","type":"uint256"}],"name":"LimitsSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"tokenAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bnbAmount","type":"uint256"}],"name":"LiquidityAdded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"buyer","type":"address"},{"indexed":false,"internalType":"uint256","name":"bnbIn","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"tokenOut","type":"uint256"}],"name":"Mint","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"buyTax","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"sellTax","type":"uint256"}],"name":"TaxSet","type":"event"},{"anonymous":false,"inputs":[],"name":"TradingEnabled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"bool","name":"enabled","type":"bool"}],"name":"WhitelistModeSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"addr","type":"address"},{"indexed":false,"internalType":"bool","name":"added","type":"bool"}],"name":"WhitelistUpdated","type":"event"},{"inputs":[],"name":"MAX_TAX","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address[]","name":"addrs","type":"address[]"}],"name":"addToWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"address","name":"","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"buyTax","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"disableLimits","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"enableTrading","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"fullOpenDelay","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"hardCap","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"isExcludedFromLimits","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"isExcludedFromTax","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"limitsEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"liquidityPct","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"lpReceiver","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxTxAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxWalletAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"mint","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[],"name":"mintPrice","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"openMode","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"openTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"platformOwner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"presaleSold","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"presaleTokens","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"addr","type":"address"}],"name":"removeFromWhitelist","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"sellTax","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_maxTxPct","type":"uint256"},{"internalType":"uint256","name":"_maxWalletPct","type":"uint256"}],"name":"setLimits","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint8","name":"_mode","type":"uint8"},{"internalType":"uint256","name":"_openTime","type":"uint256"},{"internalType":"uint256","name":"_delay","type":"uint256"}],"name":"setOpenConfig","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_buyTax","type":"uint256"},{"internalType":"uint256","name":"_sellTax","type":"uint256"}],"name":"setTax","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bool","name":"_enabled","type":"bool"}],"name":"setWhitelistOnly","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalMinted","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"tradingEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"uniswapPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"uniswapRouter","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"whitelist","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"whitelistOnly","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawBNB","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"tkn","type":"address"}],"name":"withdrawToken","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}];
+var PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36';
+var PANCAKE_ROUTER   = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
 
+/* ── Open mode toggle ── */
+function onOpenModeChange() {
+  currentOpenMode = document.querySelector('input[name="openMode"]:checked').value;
+  document.getElementById('fOpenTime').classList.toggle('hidden', currentOpenMode !== 'auto');
+  document.getElementById('fFullDelay').classList.toggle('hidden', currentOpenMode !== 'full');
+}
 
+/* ── Modal ── */
+function openModal()  { document.getElementById('modal').style.display = 'flex'; }
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+function setModalStatus(title, desc, icon) {
+  if (title) document.getElementById('modalTitle').textContent = title;
+  if (desc)  document.getElementById('modalDesc').textContent  = desc;
+  if (icon)  document.getElementById('modalIcon').textContent  = icon;
+}
 
-async function connectWallet(){
-  if(!window.ethereum){
-    alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
-    return;
-  }
+/* ── Wallet ── */
+async function connectWallet() {
+  if (!window.ethereum) { alert('请安装 MetaMask！'); return; }
   try {
-    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-    const addr = accounts[0];
-    onWalletConnected(addr);
-  } catch(e){
-    console.error('连接钱包失败', e);
-    alert('连接钱包失败：' + (e.message || e));
-  }
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    var provider = new ethers.providers.Web3Provider(window.ethereum);
+    signer   = provider.getSigner();
+    userAddr = await signer.getAddress();
+    document.getElementById('walletChip').textContent = userAddr.slice(0,6) + '...' + userAddr.slice(-4);
+    document.getElementById('walletChip').style.display = 'inline-block';
+    document.getElementById('btnConnect').textContent = '已连接';
+    document.getElementById('btnConnect').disabled = true;
+  } catch(e) { console.error(e); alert('连接钱包失败：' + e.message); }
 }
 
-function onWalletConnected(addr){
-  const box = document.getElementById('wallet-box');
-  box.className = 'wallet-bar wb-conn';
-  const shortAddr = addr.slice(0,6) + '...' + addr.slice(-4);
-  box.innerHTML =
-    '<span class="wd wd-g"></span>' +
-    '<span style="flex:1;font-size:0.86rem">已连接：' + shortAddr + ' (BSC)</span>' +
-    '<button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
+/* ═══════════ Vanity Deployer (CREATE2) ═══════════ */
+var VANITY_FACTORY_ADDR = localStorage.getItem('vanity_factory_addr') || '';
 
-  document.getElementById('launchBtn').disabled = false;
-  const steps = document.querySelectorAll('.sb-step');
-  steps[0].classList.add('done'); steps[0].classList.remove('active');
-  if(steps[1]) steps[1].classList.add('active');
-
-  checkPlatformWallet(addr);
+async function ensureVanityFactory(signer) {
+  if (VANITY_FACTORY_ADDR) return VANITY_FACTORY_ADDR;
+  setModalStatus('🚀 部署 CREATE2 工厂合约...', '请确认钱包交易', '🚀');
+  try {
+    var factoryFactory = new ethers.ContractFactory(VANITY_DEPLOYER_ABI, VANITY_DEPLOYER_BYTECODE, signer);
+    var factoryContract = await factoryFactory.deploy();
+    setModalStatus('等待工厂合约确认...', '区块确认中', '⏳');
+    await factoryContract.deployTransaction.wait(1);
+    VANITY_FACTORY_ADDR = factoryContract.address;
+    localStorage.setItem('vanity_factory_addr', VANITY_FACTORY_ADDR);
+    return VANITY_FACTORY_ADDR;
+  } catch(e) { throw new Error('部署 Vanity 工厂失败：' + (e.reason || e.message)); }
 }
 
-function checkPlatformWallet(addr){
-  const isPlatform = (addr.toLowerCase() === PLATFORM_WALLET);
-  const mfr = document.getElementById('mintFundRule');
-  if(mfr) mfr.style.display = isPlatform ? '' : 'none';
-}
-
-(async function autoConnect(){
-  // Set default open time = 24h later
-  const defTime = new Date(Date.now() + 24*3600000);
-  const pad2 = n => String(n).padStart(2,'0');
-  const timeInput = document.getElementById('t_openTime');
-  if(timeInput) {
-    timeInput.value =
-      defTime.getFullYear() + '-' + pad2(defTime.getMonth()+1) + '-' + pad2(defTime.getDate()) + 'T' +
-      pad2(defTime.getHours()) + ':' + pad2(defTime.getMinutes());
-    onOpenTimeChange();
-  }
-
-  // Initialize open mode UI
-  if(document.getElementById('optAuto')) selectOpenMode('auto');
-
-  if(window.ethereum && ethereum.selectedAddress){
-    onWalletConnected(ethereum.selectedAddress);
-  }
-  if(window.ethereum){
-    ethereum.on('accountsChanged', (accounts) => {
-      if(accounts.length > 0){
-        onWalletConnected(accounts[0]);
-      } else {
-        disconnectWallet();
-      }
-    });
-  }
-})();
-
-function disconnectWallet(){
-  location.reload();
-}
-
-function onOpenTimeChange(){
-  const val = document.getElementById('t_openTime').value;
-  const hint = document.getElementById('openTimeHint');
-  if(!val){
-    hint.textContent = '选择时间后，到达该时刻合约将自动完成预售并开启交易';
-    hint.style.color = '';
-    return;
-  }
-  const d = new Date(val);
-  const now = Date.now();
-  const diffMs = d.getTime() - now;
-  if(diffMs <= 0){
-    hint.textContent = '⚠️ 开盘时间必须晚于当前时间';
-    hint.style.color = '#ff4757';
-  } else {
-    const hours = Math.floor(diffMs / 3600000);
-    const mins = Math.floor((diffMs % 3600000) / 60000);
-    if(hours > 48){
-      hint.textContent = d.toLocaleString() + '（距现在 ' + hours + ' 小时）';
-      hint.style.color = '';
-    } else {
-      hint.textContent = d.toLocaleString() + '（约 ' + hours + 'h' + mins + 'm 后开盘）';
-      hint.style.color = '';
+async function findSaltForSuffix(suffix, creationCode, factoryAddr) {
+  suffix = suffix.toLowerCase();
+  var salt = ethers.utils.randomBytes(32);
+  var maxAttempts = suffix.length <= 3 ? 50000 : (suffix.length <= 4 ? 200000 : 800000);
+  var codeHash = ethers.utils.keccak256(creationCode);
+  var attempts = 0;
+  setModalStatus('🔍 碰撞靓号尾号 0x...' + suffix, '尝试次数：0', '🔍');
+  while (attempts < maxAttempts) {
+    var saltHex = ethers.utils.hexlify(salt);
+    var encoded = ethers.utils.solidityPack(['bytes1','address','bytes32','bytes32'],['0xff',factoryAddr,saltHex,codeHash]);
+    var addr = '0x' + ethers.utils.keccak256(encoded).slice(26);
+    if (addr.toLowerCase().endsWith(suffix)) {
+      return { salt: saltHex, address: addr };
+    }
+    var saltBN = ethers.BigNumber.from(saltHex);
+    salt = ethers.utils.arrayify(saltBN.add(1).toHexString());
+    if (salt.length < 32) salt = ethers.utils.zeroPad(salt, 32);
+    attempts++;
+    if (attempts % 10000 === 0) {
+      setModalStatus('🔍 碰撞靓号 0x...' + suffix, '尝试次数：' + attempts, '🔍');
+      await new Promise(r => setTimeout(r, 0));
     }
   }
+  throw new Error('靓号尾号「' + suffix + '」在 ' + maxAttempts + ' 次尝试内未找到，请缩短尾号');
 }
 
-let currentOpenMode = 'auto';
-function selectOpenMode(mode){
-  currentOpenMode = mode;
-
-  const optAuto = document.getElementById('optAuto');
-  const optManual = document.getElementById('optManual');
-  const optFull = document.getElementById('optFull');
-  if(optAuto) optAuto.classList.toggle('selected', mode === 'auto');
-  if(optManual) optManual.classList.toggle('selected', mode === 'manual');
-  if(optFull) optFull.classList.toggle('selected', mode === 'full');
-
-  const stb = document.getElementById('scheduledTimeBox');
-  const fodb = document.getElementById('fullOpenDelayBox');
-  if(stb) stb.style.display = (mode === 'auto') ? '' : 'none';
-  if(fodb) fodb.style.display  = (mode === 'full') ? '' : 'none';
-
-  const radio = document.querySelector('input[name="openMode"][value="' + mode + '"]');
-  if(radio) radio.checked = true;
-}
-
-function formatTokenPrice(v){
-  if(!v) return '0';
-  if(v >= 0.0001) return v.toFixed(8).replace(/0+$/,'').replace(/\.$/,'');
-  const s = v.toExponential();
-  const parts = s.split('e');
-  const mantissa = parts[0];
-  const exp = parseInt(parts[1]);
-  if(exp >= 0) return v.toFixed(8);
-  const digits = mantissa.replace('.','').replace(/^0+/g,'') || '0';
-  return '0.' + '0'.repeat(-exp - 1) + digits;
-}
-
-function calcPreview(){
-  const supply   = parseFloat(document.getElementById('t_supply').value)    || 0;
-  const price    = parseFloat(document.getElementById('t_mintPrice').value)  || 0;
-  const hardCap  = parseFloat(document.getElementById('t_hardCap').value)    || 0;
-  const ratio    = parseFloat(document.getElementById('t_presaleRatio').value)||0;
-  const lpDisplay = document.getElementById('lpRatioDisplay');
-  if(lpDisplay) lpDisplay.textContent = (100 - ratio) + '%';
-  const mintCount = price > 0 && hardCap > 0 ? Math.floor(hardCap / price) : 0;
-  const perMint   = supply > 0 && ratio > 0 && mintCount > 0 ? Math.floor((supply * ratio / 100) / mintCount) : 0;
-  const unitPrice = perMint > 0 && price > 0 ? formatTokenPrice(price / perMint) : '—';
-  const cmc = document.getElementById('calcMintCount');
-  const cpm = document.getElementById('calcPerMint');
-  const cup = document.getElementById('calcUnitPrice');
-  if(cmc) cmc.textContent = mintCount ? mintCount.toLocaleString() : '—';
-  if(cpm) cpm.textContent   = perMint  ? perMint.toLocaleString()   : '—';
-  if(cup) cup.textContent = unitPrice;
-
-  const divPct   = parseFloat(document.getElementById('t_dividendPct').value) || 0;
-  const divAbs   = supply > 0 && divPct > 0 ? Math.floor(supply * divPct / 100) : 0;
-  const divAbsEl = document.getElementById('t_dividendAbs');
-  if(divAbsEl){
-    if(divAbs > 0){
-      divAbsEl.textContent = Number(divAbs).toLocaleString('fullwide', {maximumFractionDigits: 0});
-      divAbsEl.style.color = 'var(--cyan)';
-    } else {
-      divAbsEl.textContent = '—';
+async function deployWithCreate2(creationCode, saltHex, factoryAddr, signer) {
+  var factoryABI = [{"inputs":[{"name":"bytecode","type":"bytes"},{"name":"salt","type":"bytes32"}],"name":"deploy","outputs":[{"name":"addr","type":"address"}],"stateMutability":"nonpayable","type":"function"}];
+  var factory = new ethers.Contract(factoryAddr, factoryABI, signer);
+  setModalStatus('🚀 通过 CREATE2 部署中...', '请在钱包中确认交易', '🚀');
+  var tx = await factory.deploy(creationCode, saltHex, { value: 0 });
+  setModalStatus('等待确认...', '区块确认中', '⏳');
+  var receipt = await tx.wait(1);
+  var deployedAddr = null;
+  for (var i = 0; i < receipt.logs.length; i++) {
+    var log = receipt.logs[i];
+    if (log.address.toLowerCase() === factoryAddr.toLowerCase() && log.topics.length >= 2) {
+      deployedAddr = '0x' + log.topics[1].slice(26);
+      break;
     }
   }
+  if (!deployedAddr) {
+    var codeHash = ethers.utils.keccak256(creationCode);
+    var encoded = ethers.utils.solidityPack(['bytes1','address','bytes32','bytes32'],['0xff',factoryAddr,saltHex,codeHash]);
+    deployedAddr = '0x' + ethers.utils.keccak256(encoded).slice(26);
+  }
+  return deployedAddr;
 }
 
-function updateDist(changedId){
-  const ids = ['distWallet','distBurn','distReward','distLiq'];
-  const valIds = ['distWalletVal','distBurnVal','distRewardVal','distLiqVal'];
+/* ═══════════ Deploy ═══════════ */
+async function deployToken() {
+  if (!signer) { alert('请先连接钱包！'); return; }
 
-  const current = {};
-  ids.forEach(id => { current[id] = +document.getElementById(id).value; });
+  // ── Read form ──
+  var name    = (document.getElementById('t_name')?.value || '').trim();
+  var symbol  = (document.getElementById('t_symbol')?.value || '').trim().toUpperCase();
+  var supply  = parseInt(document.getElementById('t_supply')?.value) || 0;
+  var mintPrice = parseFloat(document.getElementById('t_mintPrice')?.value) || 0;
+  var hardCap   = parseFloat(document.getElementById('t_hardCap')?.value) || 0;
+  var presalePct = parseInt(document.getElementById('t_presalePct')?.value) || 0;
+  var liqPct     = parseInt(document.getElementById('t_liqPct')?.value) || 0;
+  var buyTaxBps  = Math.round(parseFloat(document.getElementById('buyTaxSlider').value) * 100);
+  var sellTaxBps = Math.round(parseFloat(document.getElementById('sellTaxSlider').value) * 100);
+  var maxTxPct   = parseInt(document.getElementById('t_maxTx')?.value) || 0;
+  var maxWalletPct = parseInt(document.getElementById('t_maxWallet')?.value) || 0;
 
-  if(changedId){
-    const others = ids.filter(id => id !== changedId);
-    const otherSum = others.reduce((s, id) => s + current[id], 0);
-    const maxVal = Math.max(0, 100 - otherSum);
-    if(current[changedId] > maxVal){
-      current[changedId] = maxVal;
-      document.getElementById(changedId).value = maxVal;
-    }
+  // Open mode
+  var openModeNum = currentOpenMode === 'auto' ? 0 : currentOpenMode === 'manual' ? 1 : 2;
+  var openTimeTs = 0, fullOpenDelay = 0;
+  if (openModeNum === 0) {
+    var v = document.getElementById('t_openTime')?.value;
+    if (v) openTimeTs = Math.floor(new Date(v).getTime() / 1000);
+  } else if (openModeNum === 2) {
+    var d = document.getElementById('t_fullOpenDelay')?.value;
+    fullOpenDelay = d ? parseInt(d) : 300;
   }
 
-  ids.forEach((id, i) => {
-    document.getElementById(valIds[i]).textContent = current[id] + '%';
-  });
-
-  const total = ids.reduce((s, id) => s + current[id], 0);
-  const remain = 100 - total;
-  document.getElementById('distTotal').innerHTML =
-    '总计 ' + total + '% &nbsp; 未分配: <span class="' + (remain === 0 ? 'dt-ok' : 'dt-warn') + '">' + remain + '%</span>';
-
-  const divCfg = document.getElementById('dividendConfig');
-  if(divCfg){
-    if(current['distReward'] > 0){
-      divCfg.style.display = '';
-    } else {
-      divCfg.style.display = 'none';
-    }
-  }
-}
-
-async function doLaunch(){
-  var btn = document.getElementById('launchBtn');
-  if(!window.ethereum){ alert('请安装 MetaMask'); return; }
-
-  var name      = document.getElementById('t_name').value.trim();
-  var sym       = document.getElementById('t_symbol').value.trim().toUpperCase();
-  var supply    = document.getElementById('t_supply').value.trim();
-  var mintPrice = document.getElementById('t_mintPrice').value.trim();
-  var hardCap   = document.getElementById('t_hardCap').value.trim();
-  if(!name || !sym || !supply || !mintPrice || !hardCap){ alert('请填写代币名称、符号、供应量、铸造价格、硬顶'); return; }
-
-  btn.textContent = '准备部署...'; btn.disabled = true;
-  // ★ 前端参数预校验（避免无效交易浪费 Gas）
-  if(!name)              { alert('请填写代币名称'); btn.textContent='立即发射代币'; btn.disabled=false; return; }
-  if(!sym || sym.length<1){ alert('请填写代币符号'); btn.textContent='立即发射代币'; btn.disabled=false; return; }
-  if(!supply || parseFloat(supply)<=0){ alert('供应量必须大于 0'); btn.textContent='立即发射代币'; btn.disabled=false; return; }
-
-  var mintPrice    = document.getElementById('t_mintPrice').value.trim();
-  var hardCap      = document.getElementById('t_hardCap').value.trim();
-  var presaleRatio = +document.getElementById('t_presaleRatio').value || 0;
-  var liqPct       = +document.getElementById('t_liqPct').value || 0;
-  var buyTax       = +document.getElementById('buyTaxSlider').value || 0;
-  var sellTax      = +document.getElementById('sellTaxSlider').value || 0;
-  var maxTxPct     = +(document.getElementById('t_maxTx').value) || 0;
-  var maxWalletPct = +(document.getElementById('t_maxWallet').value) || 0;
   var whitelistOnly = document.getElementById('whitelistChk')?.checked || false;
 
-  if(!mintPrice || parseFloat(mintPrice)<=0){ alert('Mint 单价必须大于 0'); btn.textContent='立即发射代币'; btn.disabled=false; return; }
-  if(!hardCap   || parseFloat(hardCap)<=0)  { alert('硬顶必须大于 0'); btn.textContent='立即发射代币'; btn.disabled=false; return; }
+  // ── Validate ──
+  if (!name || !symbol)     { alert('请填写代币名称和符号！'); return; }
+  if (supply <= 0)           { alert('总供应量必须大于 0！'); return; }
+  if (mintPrice <= 0)      { alert('Mint 单价必须大于 0！'); return; }
+  if (hardCap <= 0)          { alert('硬顶必须大于 0！'); return; }
+  if (presalePct < 0 || presalePct > 100)  { alert('预售占比必须在 0~100 之间！'); return; }
+  if (liqPct < 0 || liqPct > 100)          { alert('加池子比例必须在 0~100 之间！'); return; }
+  if (openModeNum === 0 && openTimeTs === 0)  { alert('定时模式请设置开盘时间！'); return; }
+
+  var supplyWei    = ethers.utils.parseUnits(supply.toString(), 18);
+  var mintPriceWei = ethers.utils.parseEther(mintPrice.toString());
+  var hardCapWei   = ethers.utils.parseEther(hardCap.toString());
+
+  openModal();
+  setModalStatus('📦 编码构造函数参数...', '', '📦');
 
   try {
-    var web3 = new Web3(window.ethereum);
-    var acc = await ethereum.request({method:'eth_requestAccounts'});
-    var userAddr = acc[0];
+    var ABI      = CONTRACT_DATA.ABI;
+    var BYTECODE = CONTRACT_DATA.BYTECODE;
 
-    var presalePct   = +(document.getElementById('t_presaleRatio')?.value) || 0;
-    var liqPct       = +(document.getElementById('t_liqPct')?.value) || 0;
-    var buyTaxBps    = Math.round(parseFloat(document.getElementById('buyTaxSlider').value) * 100);
-    var sellTaxBps   = Math.round(parseFloat(document.getElementById('sellTaxSlider').value) * 100);
-    var maxTxPct     = +(document.getElementById('t_maxTx')?.value) || 0;
-    var maxWalletPct = +(document.getElementById('t_maxWallet')?.value) || 0;
+    // Encode 18 flat constructor arguments
+    var iface = new ethers.utils.Interface(ABI);
+    var encodedArgs = iface.encodeDeploy([
+      name,
+      symbol,
+      supplyWei,
+      userAddr,
+      PLATFORM_WALLET,
+      PANCAKE_ROUTER,
+      mintPriceWei,
+      hardCapWei,
+      ethers.BigNumber.from(presalePct.toString()),
+      ethers.BigNumber.from(liqPct.toString()),
+      ethers.BigNumber.from(buyTaxBps.toString()),
+      ethers.BigNumber.from(sellTaxBps.toString()),
+      ethers.BigNumber.from(maxTxPct.toString()),
+      ethers.BigNumber.from(maxWalletPct.toString()),
+      openModeNum,
+      ethers.BigNumber.from(openTimeTs.toString()),
+      ethers.BigNumber.from(fullOpenDelay.toString()),
+      whitelistOnly
+    ]).slice(2);
 
-    var supplyWei    = web3.utils.toWei(supply,    'ether');  // 1 token = 1e18
-    var mintPriceWei = web3.utils.toWei(mintPrice, 'ether');
-    var hardCapWei   = web3.utils.toWei(hardCap,   'ether');
+    var creationCode = BYTECODE + encodedArgs;
+    var suffix = (document.getElementById('vanitySuffix')?.value || '').trim().toLowerCase().replace(/^0x/, '');
+    var deployedAddr = null;
 
-    // Open mode config
-    var openModeNum = currentOpenMode === 'auto' ? 0 : currentOpenMode === 'manual' ? 1 : 2;
-    var openTimeTs  = 0;
-    var fullOpenDelay = 0;
-    if (openModeNum === 0) {
-      var openTimeVal = document.getElementById('t_openTime')?.value;
-      if (openTimeVal) openTimeTs = Math.floor(new Date(openTimeVal).getTime() / 1000);
-    } else if (openModeNum === 2) {
-      var delayVal = document.getElementById('t_fullOpenDelay')?.value;
-      fullOpenDelay = delayVal ? parseInt(delayVal) * 60 : 300;
+    if (suffix.length >= 1 && suffix.length <= 8) {
+      try {
+        var factoryAddr = await ensureVanityFactory(signer);
+        setModalStatus('🔍 碰撞靓号尾号 0x...' + suffix, '计算中...', '🔍');
+        var vanityResult = await findSaltForSuffix(suffix, creationCode, factoryAddr);
+        deployedAddr = await deployWithCreate2(creationCode, vanityResult.salt, factoryAddr, signer);
+      } catch(e) {
+        if (confirm('靓号碰撞失败：' + e.message + '\n\n是否用随机地址继续部署？')) {
+          suffix = '';
+        } else { closeModal(); return; }
+      }
     }
 
-    var whitelistOnly = document.getElementById('whitelistChk')?.checked || false;
+    if (!deployedAddr) {
+      setModalStatus('🚀 部署代币合约...', '请在钱包中确认交易', '🚀');
+      var factory = new ethers.ContractFactory(ABI, BYTECODE, signer);
+      var contract = await factory.deploy(
+        name, symbol,
+        supplyWei,
+        userAddr, PLATFORM_WALLET, PANCAKE_ROUTER,
+        mintPriceWei, hardCapWei,
+        ethers.BigNumber.from(presalePct.toString()),
+        ethers.BigNumber.from(liqPct.toString()),
+        ethers.BigNumber.from(buyTaxBps.toString()),
+        ethers.BigNumber.from(sellTaxBps.toString()),
+        ethers.BigNumber.from(maxTxPct.toString()),
+        ethers.BigNumber.from(maxWalletPct.toString()),
+        openModeNum,
+        ethers.BigNumber.from(openTimeTs.toString()),
+        ethers.BigNumber.from(fullOpenDelay.toString()),
+        whitelistOnly
+      );
+      setModalStatus('⏳ 等待确认...', '区块确认中', '⏳');
+      await contract.deployTransaction.wait(1);
+      deployedAddr = contract.address;
+    }
 
-    var tc = [name, sym, supplyWei, mintPriceWei, hardCapWei,
-              String(presalePct), openModeNum, String(openTimeTs), String(fullOpenDelay), whitelistOnly];
-    var fc = [String(liqPct), String(buyTaxBps), String(sellTaxBps),
-              String(maxTxPct), String(maxWalletPct)];
-
-    // Deploy (1 tx = everything configured)
-    btn.textContent = '部署代币合约...';
-    var tcContract = new web3.eth.Contract(TOKEN_ABI);
-    var depTx = tcContract.deploy({
-      data: TOKEN_BYTECODE,
-      arguments: [userAddr, PLATFORM_WALLET, PANCAKE_ROUTER, tc, fc]
-    });
-
-    var gas = await depTx.estimateGas({ from: userAddr });
-    btn.textContent = '请在钱包中确认交易...';
-    var dep = await depTx.send({
-      from: userAddr,
-      gas: Math.floor(gas * 1.2),
-      gasPrice: web3.utils.toWei('3', 'gwei')
-    });
-    var tokenAddr = dep.options.address;
-    console.log('Token deployed:', tokenAddr);
-
-    // Show result
+    // ── Success ──
+    closeModal();
     document.getElementById('deployResult').style.display = 'block';
-    document.getElementById('contractAddr').textContent = tokenAddr;
-
-    var modeText = openModeNum === 0 ? '定时开盘（' + (document.getElementById('t_openTime')?.value || '未设置') + '）' :
-      openModeNum === 1 ? '手动开盘（部署后需调用 enableTrading）' :
-      '满额开盘（硬顶达 ' + hardCap + ' BNB 后自动开）';
-    document.getElementById('resultOpenMode').textContent = modeText;
-
+    document.getElementById('bscLink').href = 'https://bscscan.com/address/' + deployedAddr;
+    var modeText = openModeNum === 0 ? '定时开盘（' + (document.getElementById('t_openTime')?.value || '') + '）' :
+                  openModeNum === 1 ? '手动开盘（部署后需调用 enableTrading）' :
+                  '满额开盘（硬顶达 ' + hardCap + ' BNB 后自动开盘）';
     document.getElementById('constructorArgs').innerHTML =
-      '<code style="font-size:0.72rem;line-height:1.8;word-break:break-all;display:block;color:var(--text2)">' +
-      'Token: ' + tokenAddr + '<br>' +
+      '<code style="font-size:.72rem;line-height:1.8;word-break:break-all;display:block;color:var(--muted)">' +
+      'Token: ' + deployedAddr + '<br>' +
       'Owner: ' + userAddr + '<br>' +
       'Platform: ' + PLATFORM_WALLET + '<br>' +
       'OpenMode: ' + ['定时','手动','满额'][openModeNum] + '<br>' +
@@ -887,12 +483,16 @@ async function doLaunch(){
       'HardCap: ' + hardCap + ' BNB' +
       '</code>';
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
-    btn.textContent = '部署成功 ✓';
+    document.getElementById('btnLaunch').textContent = '部署成功 ✓';
+    document.getElementById('btnLaunch').disabled = true;
+
   } catch(e) {
+    closeModal();
     console.error(e);
     var raw = e.message || String(e);
+    var msg = '';
 
-    // ★ 尝试解码 custom error selector（viaIR + optimizer 会保留 4-byte selector）
+    // Custom error selectors
     var errMap = {
       '0x6bba5127': '代币名称或符号为空',
       '0x9fbba64f': '供应量必须大于 0',
@@ -904,39 +504,25 @@ async function doLaunch(){
       '0xbc1c5436': '交易限制不能超过 100%',
       '0xaf1ee134': '买入/卖出税率不能超过 25%'
     };
-    var msg = '';
-    // 从错误信息中提取 4-byte selector
     var allHex = (e.data || '') + raw;
     for (var sel in errMap) {
       if (allHex.indexOf(sel) >= 0) { msg = errMap[sel]; break; }
     }
 
     if (!msg) {
-      if(raw.indexOf('user rejected') >= 0) msg = '用户在钱包中取消';
-      else if(raw.indexOf('insufficient funds') >= 0) msg = '余额不足';
-      else if(raw.indexOf('execution reverted') >= 0) msg = '交易执行失败 — 请检查所有参数（Mint单价、预售占比、供应量等）是否填写正确';
-      else if(raw.indexOf('nonce too low') >= 0) msg = 'Nonce 冲突，请刷新页面重试';
-      else if(raw.indexOf('replacement fee') >= 0 || raw.indexOf('underpriced') >= 0) msg = 'Gas 太低，请提高 Gas 设置';
-      else msg = raw.substring(0, 200);
+      if (raw.indexOf('user rejected') >= 0) msg = '用户在钱包中取消';
+      else if (raw.indexOf('insufficient funds') >= 0) msg = '余额不足';
+      else if (raw.indexOf('execution reverted') >= 0) msg = '交易执行失败 — 请检查所有参数是否填写正确';
+      else if (raw.indexOf('nonce too low') >= 0) msg = 'Nonce 冲突，请刷新页面重试';
+      else if (raw.indexOf('replacement fee') >= 0 || raw.indexOf('underpriced') >= 0) msg = 'Gas 太低，请提高 Gas 设置';
+      else msg = raw.substring(0, 300);
     }
 
-    alert('部署失败：' + msg + '\n\n原始错误：' + raw.substring(0, 200));
-    btn.textContent = '立即发射代币'; btn.disabled = false;
+    alert('部署失败：' + msg + '\n\n原始错误：' + raw.substring(0, 300));
+    document.getElementById('btnLaunch').textContent = '🚀 立即发射代币';
+    document.getElementById('btnLaunch').disabled = false;
   }
 }
-
-
-
-
-document.getElementById('fileInput')?.addEventListener('change', function(){
-  if(this.files[0]){
-    document.getElementById('uploadArea').innerHTML = '<span class="up-icon">✅</span><p>图片已上传 ✓</p><p class="small">点击更换</p>';
-  }
-});
-
-window.addEventListener('scroll', ()=>{
-  document.getElementById('navbar').style.borderBottomColor = window.scrollY > 10 ? 'rgba(0,200,255,0.15)' : 'rgba(0,200,255,0.1)';
-});
-
-calcPreview();
 </script>
+</body>
+</html>
