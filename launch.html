@@ -347,6 +347,26 @@
       <p style="font-size:0.78rem;color:var(--text2);flex:1">所有通过 SquidLaunch 发射的合约均以 <strong style="color:var(--cyan);font-family:'Fira Code',monospace">0000</strong> 结尾，系统固定不可修改</p>
     </div>
 
+    <!-- ── 初始流动性 ── -->
+    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">初始流动性</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
+
+    <div class="panel">
+      <div class="hint" style="margin-bottom:14px">部署时自动用部分代币 + 发送的 BNB 添加初始流动性，LP 自动发送至平台方钱包。设为 0 则跳过。</div>
+      <div class="row2">
+        <div class="field">
+          <label>流动性代币比例 (%)</label>
+          <input type="number" id="t_liqPct" value="50" min="0" max="100" oninput="document.getElementById('liqPctVal').textContent=this.value+'%'" />
+          <span class="rv" id="liqPctVal">50%</span>
+          <div class="hint">多少百分比的代币用于初始流动性（0 = 不加池子）</div>
+        </div>
+        <div class="field">
+          <label>流动性 BNB 数量</label>
+          <input type="number" id="t_liqBNB" value="0.1" step="any" min="0" placeholder="0.1" />
+          <div class="hint">部署时随交易发送，用于添加流动性</div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── 税费设置 ── -->
     <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">税费设置</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
 
@@ -362,7 +382,7 @@
         </div>
       </div>
 
-      <div class="row2" style="margin-top:18px">
+      <div class="row2" style="margin-top:14px">
         <div class="field">
           <label>最大单笔交易 (%)</label>
           <input type="number" id="t_maxTx" value="0" min="0" max="100" />
@@ -375,31 +395,11 @@
         </div>
       </div>
 
-      <div class="range-wrap" style="margin-top:12px">
+      <div class="range-wrap">
         <div class="range-top"><span>🛡️ 反套利保护期</span><span class="rv" id="antiArbVal">3 天</span></div>
         <input type="range" min="0" max="365" value="3" id="antiArbSlider" oninput="document.getElementById('antiArbVal').textContent=this.value+' 天'" />
       </div>
       <div class="hint">保护期内限制向 V3 池添加流动性 · 范围 0-365 天</div>
-    </div>
-
-    <!-- ── 初始流动性 ── -->
-    <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">初始流动性</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
-
-    <div class="panel">
-      <div class="hint" style="margin-bottom:14px">部署时自动用部分代币 + 发送的 BNB 添加初始流动性，LP 自动发送至平台方钱包。设为 0 则跳过。</div>
-      <div class="row2">
-        <div class="field">
-          <label>🧪 流动性代币比例 (%)</label>
-          <input type="number" id="t_liqPct" value="50" min="0" max="100" oninput="document.getElementById('liqPctVal').textContent=this.value+'%'" />
-          <span class="rv" id="liqPctVal">50%</span>
-          <div class="hint">多少百分比的代币用于初始流动性（0 = 不加池子）</div>
-        </div>
-        <div class="field">
-          <label>💰 流动性 BNB 数量</label>
-          <input type="number" id="t_liqBNB" value="0.1" step="any" min="0" placeholder="0.1" />
-          <div class="hint">部署时随交易发送，用于添加流动性</div>
-        </div>
-      </div>
     </div>
 
     <!-- ── 开盘模式 ── -->
@@ -591,24 +591,7 @@ const PLATFORM_WALLET = '0x8fdb0a964beda0da705d2fe5af2fb9a7001cbb36';
 const PANCAKE_ROUTER  = '0x10ed43c718714eb63d5aa57b78b5c4bf50ebf4e7';
 const TOKEN_BYTECODE = '0x60808060405262001c2d80380380916200001a828562000a73565b83398101610160828203126200056e5781516001600160401b0381116200056e57816200004991840162000a97565b602083015190916001600160401b0382116200056e576200006c91840162000a97565b604083015192620000806060820162000b0c565b916200008f6080830162000b0c565b946200009e60a0840162000b0c565b60c08401519060e085015192610100988987015195610140610120890151980151996101f480600855600955600160ff19600c541617600c55805115158062000a68575b1562000a3b57831562000a08576001600160a01b038a1615620009d65760648b11620009a7578051906001600160401b038211620008a7575f5490600182811c921680156200099c575b6020831014620008885781601f8493116200093f575b50602090601f8311600114620008c7575f92620008bb575b50508160011b915f199060031b1c1916175f555b8051906001600160401b038211620008a75760015490600182811c921680156200089c575b6020831014620008885781601f8493116200082a575b50602090601f8311600114620007af575f92620007a3575b50508160011b915f199060031b1c1916176001555b600580546001600160a01b038a81166001600160a01b03199283161790925560068054939092169281168317909155600780549091169091179055670de0b6b3a7640000978189028290048903620005c3576200023e6064918a84026002558a840262000b21565b049781810289810311620005c357808980928402036200075c575b5090506200072d575b600f80546001600160a01b0319166001600160a01b03831690811790915560405163c45a015560e01b81529190602090839060049082905afa9182156200057b575f92620006e4575b506040516315ab88c960e31b815290602090829060049082906001600160a01b03165afa9081156200057b575f9162000699575b506040516364e329cb60e11b81523060048201526001600160a01b03918216602482015291602091839160449183915f91165af19081156200057b575f9162000657575b50601080546001600160a01b0319166001600160a01b03929092169190911790556109c48082111590816200064b575b5015620006175760085560095580620005fc575b5080620005e1575b506001600160a01b039081165f8181526011602090815260408083208054600160ff1991821681179092553080865283862080548316841790559585526012909352818420805484168217905593835280832080548316851790556010549094168252929020805490921617905580151581620005d7575b620003fd575b604051611097908162000b368239f35b60018060a01b03600f541691305f52600460205260405f20835f526020528160405f2055610e104201804211620005c35760609060c46040518096819363f305d71960e01b83523060048401528760248401525f60448401525f606484015230608484015260a483015234905af19283156200057b575f9362000586575b5060105460075460405163a9059cbb60e01b81526001600160a01b0391821660048201526024810186905291602091839160449183915f91165af180156200057b5762000534575b50907fd7f28048575eead8851d024ead087913957dfb4fd1a02b4d1573f5352a5a2be39260609261ff0019600c541617600c55604051917f799663458a5ef2936f7fa0c99b3336c69c25890f82974f04e811e5bb359186c75f80a182523460208301526040820152a15f80620003ed565b6020929192813d60201162000572575b81620005536020938362000a73565b810103126200056e5751801515036200056e57905f620004c3565b5f80fd5b3d915062000544565b6040513d5f823e3d90fd5b9092506060813d606011620005ba575b81620005a56060938362000a73565b810103126200056e5760400151915f6200047b565b3d915062000596565b634e487b7160e01b5f52601160045260245ffd5b50341515620003e7565b620005f160649160025462000b21565b04600b555f6200036f565b6200060c60649160025462000b21565b04600a555f62000367565b60405162461bcd60e51b815260206004820152600c60248201526b0e8c2f040e8dede40d0d2ced60a31b6044820152606490fd5b90508211155f62000353565b90506020813d60201162000690575b81620006756020938362000a73565b810103126200056e57620006899062000b0c565b5f62000323565b3d915062000666565b90506020813d602011620006db575b81620006b76020938362000a73565b810103126200056e575f916044620006d160209362000b0c565b92505091620002df565b3d9150620006a8565b9091506020813d60201162000724575b81620007036020938362000a73565b810103126200056e5760206200071b60049262000b0c565b929150620002ab565b3d9150620006f4565b305f5260036020528660405f20556040518781525f5f8051602062001bed83398151915260203093a362000262565b6001600160a01b0389165f818152600360209081526040808320949096029490940392839055935191825292915f8051602062001bed83398151915291a35f878162000259565b015190505f80620001c1565b60015f90815293505f8051602062001c0d83398151915291905b601f19841685106200080e576001945083601f19811610620007f5575b505050811b01600155620001d6565b01515f1960f88460031b161c191690555f8080620007e6565b81810151835560209485019460019093019290910190620007c9565b60015f529091505f8051602062001c0d833981519152601f840160051c81016020851062000880575b90849392915b601f830160051c8201811062000871575050620001a9565b5f815585945060010162000859565b508062000853565b634e487b7160e01b5f52602260045260245ffd5b91607f169162000193565b634e487b7160e01b5f52604160045260245ffd5b015190505f806200015a565b5f80805293505f8051602062001bcd83398151915291905b601f198416851062000923576001945083601f198116106200090a575b505050811b015f556200016e565b01515f1960f88460031b161c191690555f8080620008fc565b81810151835560209485019460019093019290910190620008df565b5f80529091505f8051602062001bcd833981519152601f840160051c81016020851062000994575b90849392915b601f830160051c820181106200098557505062000142565b5f81558594506001016200096d565b508062000967565b91607f16916200012c565b60405162461bcd60e51b815260206004820152600760248201526607063743e3130360cc1b6044820152606490fd5b60405162461bcd60e51b815260206004820152600a6024820152693d32b9379037bbb732b960b11b6044820152606490fd5b60405162461bcd60e51b815260206004820152600b60248201526a7a65726f20737570706c7960a81b6044820152606490fd5b60405162461bcd60e51b8152602060048201526005602482015264656d70747960d81b6044820152606490fd5b5081511515620000e2565b601f909101601f19168101906001600160401b03821190821017620008a757604052565b919080601f840112156200056e578251906001600160401b038211620008a7576040519160209162000ad3601f8301601f191684018562000a73565b8184528282870101116200056e575f5b81811062000af85750825f9394955001015290565b858101830151848201840152820162000ae3565b51906001600160a01b03821682036200056e57565b81810292918115918404141715620005c35756fe604060808152600480361015610013575f80fd5b5f91823560e01c918263068acf6c14610ae557826306fdde0314610a29578263095ea7b3146109b957826318160ddd1461099a5782631f0c57fc1461097157826323b872dd146108c1578263313ce567146108a55782633582ad2314610881578263484ed334146107f95782634ada218b146107d25782634df8ccb1146107a95782634f7041a51461078a5782635cce86cd1461074c578263667f65261461069b57826370a0823114610663578263735de9f71461063a57826386a35f251461061d5782638a8c523c146105c15782638c0b5e22146105a25782638da5cb5b146105795782638e8a4a2f1461052057826395d89b4114610421578263a9059cbb146103f0578263aa4bde28146103d1578263ad8f346714610381578263b425688814610362578263c4590d3f146102e7578263c816841b146102be578263cb4ca63114610280578263cc1776d314610261578263d5c786d514610242578263dd62ed3e146101f457508163de11473e146101cb575063f928364c14610196575f80fd5b346101c857806003193601126101c8576101bb60018060a01b03600554163314611029565b60ff19600c5416600c5580f35b80fd5b9050346101f057816003193601126101f05760209060ff600c5460101c169051908152f35b5080fd5b9091503461023e578160031936011261023e576020928291610214610c03565b61021c610c1d565b6001600160a01b03918216845291865283832091168252845220549051908152f35b8280fd5b8382346101f057816003193601126101f057602090600e549051908152f35b8382346101f057816003193601126101f0576020906009549051908152f35b8382346101f05760203660031901126101f05760209160ff9082906001600160a01b036102ab610c03565b1681526011855220541690519015158152f35b8382346101f057816003193601126101f05760105490516001600160a01b039091168152602090f35b8382346101f0577f2a00ae88790916c355d74c47251101f6daa7fe1b163c26b2add418af558d80809061034f606461031e36610cb0565b61033660018060a09694961b03600554163314611029565b826103446002549586610cf4565b049384600a55610cf4565b0480600b5582519182526020820152a180f35b8382346101f057816003193601126101f057602090600d549051908152f35b83346101c85760203660031901126101c85761039b610c03565b6005546001600160a01b0391906103b59083163314611029565b166bffffffffffffffffffffffff60a01b600754161760075580f35b8382346101f057816003193601126101f057602090600b549051908152f35b8382346101f057806003193601126101f05760209061041a610410610c03565b6024359033610d07565b5160018152f35b91503461023e578260031936011261023e5780519183600180549182821c928281168015610516575b602095868610821461050357508488529081156104e15750600114610489575b610485868661047b828b0383610c33565b5191829182610c69565b0390f35b9295508083527fb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf65b8284106104ce57505050826104859461047b92820101945f61046a565b80548685018801529286019281016104b1565b60ff191687860152505050151560051b830101925061047b826104855f61046a565b634e487b7160e01b845260229052602483fd5b93607f169361044a565b8390346101f05760603660031901126101f0573560ff811681036101f05761055360018060a01b03600554163314611029565b62ff0000600c549160101b169062ff0000191617600c55602435600d55604435600e5580f35b8382346101f057816003193601126101f05760055490516001600160a01b039091168152602090f35b8382346101f057816003193601126101f057602090600a549051908152f35b83346101c857806003193601126101c8576105e760018060a01b03600554163314611029565b61010061ff0019600c541617600c557f799663458a5ef2936f7fa0c99b3336c69c25890f82974f04e811e5bb359186c78180a180f35b8382346101f057816003193601126101f057602090516109c48152f35b8382346101f057816003193601126101f057600f5490516001600160a01b039091168152602090f35b8382346101f05760203660031901126101f05760209181906001600160a01b0361068b610c03565b1681526003845220549051908152f35b8382346101f0576106ab36610cb0565b936106c160018060a01b03600554163314611029565b6109c4808311159081610741575b501561070f57507f121fab07dc109278f0ccefdafee4cd1b1ceb9cc7370bc2edc4680c5a1c0355ff9293816008558060095582519182526020820152a180f35b606490602084519162461bcd60e51b8352820152600c60248201526b0e8c2f040e8dede40d0d2ced60a31b6044820152fd5b9050851115866106cf565b8382346101f05760203660031901126101f05760209160ff9082906001600160a01b03610777610c03565b1681526012855220541690519015158152f35b8382346101f057816003193601126101f0576020906008549051908152f35b8382346101f057816003193601126101f05760065490516001600160a01b039091168152602090f35b8382346101f057816003193601126101f05760209060ff600c5460081c1690519015158152f35b8382346101f057816003193601126101f0578180808060018060a01b0361082581600554163314611029565b6007541647905af1903d15610878573d67ffffffffffffffff81116108655761085d92939450602090601f8019910116019051610c33565b156101c85780f35b634e487b7160e01b845260418552602484fd5b5090915061085d565b8382346101f057816003193601126101f05760209060ff600c541690519015158152f35b8382346101f057816003193601126101f0576020905160128152f35b8382346101f05760603660031901126101f0576108dc610c03565b6108e4610c1d565b6044359160018060a01b038116948581526020958787528582203383528752848683205410610935579085969761041a96928252885281812033825288522061092e848254610cc6565b9055610d07565b855162461bcd60e51b81528089018890526016602482015275696e73756666696369656e7420616c6c6f77616e636560501b6044820152606490fd5b8382346101f057816003193601126101f05760075490516001600160a01b039091168152602090f35b8382346101f057816003193601126101f0576020906002549051908152f35b9091503461023e578160031936011261023e576020926109d7610c03565b918360243592839233825287528181209460018060a01b0316948582528752205582519081527f8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925843392a35160018152f35b91503461023e578260031936011261023e578051918380549060019082821c928281168015610adb575b602095868610821461050357508488529081156104e15750600114610a8357610485868661047b828b0383610c33565b8080949750527f290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e5635b828410610ac857505050826104859461047b92820101945f61046a565b8054868501880152928601928101610aab565b93607f1693610a53565b91503461023e5760209081600319360112610bee57610b02610c03565b6005546001600160a01b0394918591610b1e9083163314611029565b60075484516370a0823160e01b81523081860152961692918791168587602481845afa968715610bf9578297610bbd575b50916044918694938651988995869463a9059cbb60e01b865285015260248401525af1908115610bb45750610b82578280f35b81813d8311610bad575b610b968183610c33565b810103126101f05751801515036101c8575f808280f35b503d610b8c565b513d85823e3d90fd5b9193929096508582813d8311610bf2575b610bd88183610c33565b81010312610bee57905195919290916044610b4f565b8380fd5b503d610bce565b85513d84823e3d90fd5b600435906001600160a01b0382168203610c1957565b5f80fd5b602435906001600160a01b0382168203610c1957565b90601f8019910116810190811067ffffffffffffffff821117610c5557604052565b634e487b7160e01b5f52604160045260245ffd5b602080825282518183018190529093925f5b828110610c9c57505060409293505f838284010152601f8019910116010190565b818101860151848201604001528501610c7b565b6040906003190112610c19576004359060243590565b91908203918211610cd357565b634e487b7160e01b5f52601160045260245ffd5b91908201809211610cd357565b81810292918115918404141715610cd357565b9060018060a01b03809216905f9082825260209160038352604091868383205410610fee578560055416808614159081610fe1575b5080610fd7575b610f90575b60ff600c5416610e74575b81958583526011855260ff84842054161580610e61575b610e10575b948495610d958883999a84875260038952878720610d8e828254610cc6565b9055610cc6565b92169182845260038652848420610dad828254610ce7565b905584519081527fddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef968791a385610de7575b505050505050565b81903081526003845220610dfc868254610ce7565b9055519384523093a35f8080808080610ddf565b8060105416808714610e49575b81831603610d6f57859650948495610d95612710610e3d6009548c610cf4565b04985050909550610d6f565b9650612710610e5a6008548a610cf4565b0496610e1d565b50808216835260ff848420541615610d6a565b8482526012845260ff83832054161580610f7d575b610e93575b610d53565b85601054168682168181141580610f73575b610f03575b508514610d5357600a5480881190811591610efa575b50610e8e57825162461bcd60e51b815260048101859052600e60248201526d0caf0c6cacac8e640dac2f040e8f60931b6044820152606490fd5b9050155f610ec0565b835260038552610f168885852054610ce7565b600b5480911190811591610f6a575b5015610f31575f610eaa565b835162461bcd60e51b8152600481018690526012602482015271195e18d959591cc81b585e081dd85b1b195d60721b6044820152606490fd5b9050155f610f25565b5030811415610ea5565b50858116825260ff838320541615610e89565b60ff600c5460081c16610d4857825162461bcd60e51b81526004810185905260136024820152721d1c98591a5b99c81b9bdd08195b98589b1959606a1b6044820152606490fd5b5030851415610d43565b905086821614155f610d3c565b825162461bcd60e51b8152600481018590526014602482015273696e73756666696369656e742062616c616e636560601b6044820152606490fd5b1561103057565b60405162461bcd60e51b81526020600482015260096024820152683737ba1037bbb732b960b91b6044820152606490fdfea2646970667358221220416616f4e81ec97f22806ec804d65226bfe61246008d679ed3fb68c7a680dadc64736f6c63430008140033290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3efb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6';
 const TOKEN_ABI = [{"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_symbol","type":"string"},{"internalType":"uint256","name":"_totalSupply","type":"uint256"},{"internalType":"address","name":"_owner","type":"address"},{"internalType":"address","name":"_platformOwner","type":"address"},{"internalType":"address","name":"_routerAddress","type":"address"},{"internalType":"uint256","name":"_buyTax","type":"uint256"},{"internalType":"uint256","name":"_sellTax","type":"uint256"},{"internalType":"uint256","name":"_maxTxPct","type":"uint256"},{"internalType":"uint256","name":"_maxWalletPct","type":"uint256"},{"internalType":"uint256","name":"_initialLiquidityPct","type":"uint256"}],"stateMutability":"payable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"maxTx","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"maxWallet","type":"uint256"}],"name":"LimitsSet","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"tokenAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"bnbAmount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"lpTokens","type":"uint256"}],"name":"LiquidityAdded","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint256","name":"buyTax","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"sellTax","type":"uint256"}],"name":"TaxSet","type":"event"},{"anonymous":false,"inputs":[],"name":"TradingEnabled","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"MAX_TAX","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"address","name":"","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"buyTax","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"disableLimits","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"enableTrading","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"hardCapBNB","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"isExcludedFromLimits","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"isExcludedFromTax","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"limitsEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"lpReceiver","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxTxAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxWalletAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"openMode","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"openTime","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"platformOwner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"sellTax","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"_maxTxPct","type":"uint256"},{"internalType":"uint256","name":"_maxWalletPct","type":"uint256"}],"name":"setLimits","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_lpReceiver","type":"address"}],"name":"setLpReceiver","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint8","name":"_mode","type":"uint8"},{"internalType":"uint256","name":"_time","type":"uint256"},{"internalType":"uint256","name":"_cap","type":"uint256"}],"name":"setOpenMode","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint256","name":"_buyTax","type":"uint256"},{"internalType":"uint256","name":"_sellTax","type":"uint256"}],"name":"setTax","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"tradingEnabled","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"uniswapPair","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"uniswapRouter","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdrawStuckBNB","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"withdrawStuckToken","outputs":[],"stateMutability":"nonpayable","type":"function"}];
-// ★ 平台方钱包地址（硬编码）
-const PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36'.toLowerCase();
 
-// ★══════════════════════════════════════════════════════
-//  Factory 合约配置（部署后填入真实地址）
-// ════════════════════════════════════════════════════════
-const FACTORY_ADDRESS = '0xE991B1e86b879e972Dd120F13d1CC5F7518C0E19'; // ✅ 新部署 Factory
-const PANCAKE_ROUTER  = '0x10ed43C718714Eb63d5aa57B78b5c4bF50eBF4E7'; // BSC 主网 PancakeSwap V2 Router (EIP-55)
-
-// Factory 最小 ABI（仅包含 launch 相关）
-
-// Token 最小 ABI（用于验证代币）
-const TOKEN_ABI = [
-  {"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"stateMutability":"view","type":"function"},
-  {"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"stateMutability":"view","type":"function"},
-  {"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-  {"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"stateMutability":"view","type":"function"},
-];
 async function connectWallet(){
   if(!window.ethereum){
     alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
@@ -638,32 +621,33 @@ function onWalletConnected(addr){
   steps[0].classList.add('done'); steps[0].classList.remove('active');
   if(steps[1]) steps[1].classList.add('active');
 
-  // ★ 检测是否是平台方钱包
   checkPlatformWallet(addr);
 }
 
 function checkPlatformWallet(addr){
   const isPlatform = (addr.toLowerCase() === PLATFORM_WALLET);
-  document.getElementById('mintFundRule').style.display = isPlatform ? '' : 'none';
+  const mfr = document.getElementById('mintFundRule');
+  if(mfr) mfr.style.display = isPlatform ? '' : 'none';
 }
 
-// ★ 页面加载时检测是否已连接（用户刷新页面不丢失）
 (async function autoConnect(){
-  // 初始化开盘模式默认选中
-  selectOpenMode('auto');
-
-  // 设置默认开盘时间 = 24小时后
+  // Set default open time = 24h later
   const defTime = new Date(Date.now() + 24*3600000);
   const pad2 = n => String(n).padStart(2,'0');
-  document.getElementById('t_openTime').value =
-    `${defTime.getFullYear()}-${pad2(defTime.getMonth()+1)}-${pad2(defTime.getDate())}T` +
-    `${pad2(defTime.getHours())}:${pad2(defTime.getMinutes())}`;
-  onOpenTimeChange();
+  const timeInput = document.getElementById('t_openTime');
+  if(timeInput) {
+    timeInput.value =
+      defTime.getFullYear() + '-' + pad2(defTime.getMonth()+1) + '-' + pad2(defTime.getDate()) + 'T' +
+      pad2(defTime.getHours()) + ':' + pad2(defTime.getMinutes());
+    onOpenTimeChange();
+  }
+
+  // Initialize open mode UI
+  if(document.getElementById('optAuto')) selectOpenMode('auto');
 
   if(window.ethereum && ethereum.selectedAddress){
     onWalletConnected(ethereum.selectedAddress);
   }
-  // 监听钱包切换账户
   if(window.ethereum){
     ethereum.on('accountsChanged', (accounts) => {
       if(accounts.length > 0){
@@ -697,39 +681,42 @@ function onOpenTimeChange(){
     const hours = Math.floor(diffMs / 3600000);
     const mins = Math.floor((diffMs % 3600000) / 60000);
     if(hours > 48){
-      hint.textContent = `⏰ ${d.toLocaleString()}（距现在 ${hours} 小时）`;
+      hint.textContent = d.toLocaleString() + '（距现在 ' + hours + ' 小时）';
       hint.style.color = '';
     } else {
-      hint.textContent = `⏰ ${d.toLocaleString()}（约 ${hours}h${mins}m 后开盘）`;
+      hint.textContent = d.toLocaleString() + '（约 ' + hours + 'h' + mins + 'm 后开盘）';
       hint.style.color = '';
     }
   }
 }
 
-// ★ 开盘模式切换
 let currentOpenMode = 'auto';
 function selectOpenMode(mode){
   currentOpenMode = mode;
 
-  // 更新选中样式
-  document.getElementById('optAuto').classList.toggle('selected', mode === 'auto');
-  document.getElementById('optManual').classList.toggle('selected', mode === 'manual');
-  document.getElementById('optFull').classList.toggle('selected', mode === 'full');
+  const optAuto = document.getElementById('optAuto');
+  const optManual = document.getElementById('optManual');
+  const optFull = document.getElementById('optFull');
+  if(optAuto) optAuto.classList.toggle('selected', mode === 'auto');
+  if(optManual) optManual.classList.toggle('selected', mode === 'manual');
+  if(optFull) optFull.classList.toggle('selected', mode === 'full');
 
-  // 显示/隐藏时间选择器 & 满额延迟框
-  document.getElementById('scheduledTimeBox').style.display = (mode === 'auto') ? '' : 'none';
-  document.getElementById('fullOpenDelayBox').style.display  = (mode === 'full') ? '' : 'none';
+  const stb = document.getElementById('scheduledTimeBox');
+  const fodb = document.getElementById('fullOpenDelayBox');
+  if(stb) stb.style.display = (mode === 'auto') ? '' : 'none';
+  if(fodb) fodb.style.display  = (mode === 'full') ? '' : 'none';
 
-  // 设置 radio
-  document.querySelector(`input[name="openMode"][value="${mode}"]`).checked = true;
+  const radio = document.querySelector('input[name="openMode"][value="' + mode + '"]');
+  if(radio) radio.checked = true;
 }
 
 function formatTokenPrice(v){
   if(!v) return '0';
   if(v >= 0.0001) return v.toFixed(8).replace(/0+$/,'').replace(/\.$/,'');
   const s = v.toExponential();
-  const [mantissa, expStr] = s.split('e');
-  const exp = parseInt(expStr);
+  const parts = s.split('e');
+  const mantissa = parts[0];
+  const exp = parseInt(parts[1]);
   if(exp >= 0) return v.toFixed(8);
   const digits = mantissa.replace('.','').replace(/^0+/g,'') || '0';
   return '0.' + '0'.repeat(-exp - 1) + digits;
@@ -740,23 +727,28 @@ function calcPreview(){
   const price    = parseFloat(document.getElementById('t_mintPrice').value)  || 0;
   const hardCap  = parseFloat(document.getElementById('t_hardCap').value)    || 0;
   const ratio    = parseFloat(document.getElementById('t_presaleRatio').value)||0;
-  document.getElementById('lpRatioDisplay').textContent = (100 - ratio) + '%';
+  const lpDisplay = document.getElementById('lpRatioDisplay');
+  if(lpDisplay) lpDisplay.textContent = (100 - ratio) + '%';
   const mintCount = price > 0 && hardCap > 0 ? Math.floor(hardCap / price) : 0;
   const perMint   = supply > 0 && ratio > 0 && mintCount > 0 ? Math.floor((supply * ratio / 100) / mintCount) : 0;
   const unitPrice = perMint > 0 && price > 0 ? formatTokenPrice(price / perMint) : '—';
-  document.getElementById('calcMintCount').textContent = mintCount ? mintCount.toLocaleString() : '—';
-  document.getElementById('calcPerMint').textContent   = perMint  ? perMint.toLocaleString()   : '—';
-  document.getElementById('calcUnitPrice').textContent = unitPrice;
+  const cmc = document.getElementById('calcMintCount');
+  const cpm = document.getElementById('calcPerMint');
+  const cup = document.getElementById('calcUnitPrice');
+  if(cmc) cmc.textContent = mintCount ? mintCount.toLocaleString() : '—';
+  if(cpm) cpm.textContent   = perMint  ? perMint.toLocaleString()   : '—';
+  if(cup) cup.textContent = unitPrice;
 
-  // 分红阈值：百分比 → 绝对值
   const divPct   = parseFloat(document.getElementById('t_dividendPct').value) || 0;
   const divAbs   = supply > 0 && divPct > 0 ? Math.floor(supply * divPct / 100) : 0;
   const divAbsEl = document.getElementById('t_dividendAbs');
-  if(divAbs > 0){
-    divAbsEl.textContent = Number(divAbs).toLocaleString('fullwide', {maximumFractionDigits: 0});
-    divAbsEl.style.color = 'var(--cyan)';
-  } else {
-    divAbsEl.textContent = '—';
+  if(divAbsEl){
+    if(divAbs > 0){
+      divAbsEl.textContent = Number(divAbs).toLocaleString('fullwide', {maximumFractionDigits: 0});
+      divAbsEl.style.color = 'var(--cyan)';
+    } else {
+      divAbsEl.textContent = '—';
+    }
   }
 }
 
@@ -764,11 +756,9 @@ function updateDist(changedId){
   const ids = ['distWallet','distBurn','distReward','distLiq'];
   const valIds = ['distWalletVal','distBurnVal','distRewardVal','distLiqVal'];
 
-  // 当前拖动的滑块值
   const current = {};
   ids.forEach(id => { current[id] = +document.getElementById(id).value; });
 
-  // 如果四项之和超过100，把当前拖动的那项压回去
   if(changedId){
     const others = ids.filter(id => id !== changedId);
     const otherSum = others.reduce((s, id) => s + current[id], 0);
@@ -779,7 +769,6 @@ function updateDist(changedId){
     }
   }
 
-  // 更新显示值
   ids.forEach((id, i) => {
     document.getElementById(valIds[i]).textContent = current[id] + '%';
   });
@@ -787,14 +776,15 @@ function updateDist(changedId){
   const total = ids.reduce((s, id) => s + current[id], 0);
   const remain = 100 - total;
   document.getElementById('distTotal').innerHTML =
-    `总计 ${total}% &nbsp; 未分配: <span class="${remain === 0 ? 'dt-ok' : 'dt-warn'}">${remain}%</span>`;
+    '总计 ' + total + '% &nbsp; 未分配: <span class="' + (remain === 0 ? 'dt-ok' : 'dt-warn') + '">' + remain + '%</span>';
 
-  // ★ 自动联动：distReward > 0 → 显示分红配置；= 0 → 隐藏
   const divCfg = document.getElementById('dividendConfig');
-  if(current['distReward'] > 0){
-    divCfg.style.display = '';
-  } else {
-    divCfg.style.display = 'none';
+  if(divCfg){
+    if(current['distReward'] > 0){
+      divCfg.style.display = '';
+    } else {
+      divCfg.style.display = 'none';
+    }
   }
 }
 
@@ -805,9 +795,8 @@ async function doLaunch(){
   var name    = document.getElementById('t_name').value.trim();
   var sym     = document.getElementById('t_symbol').value.trim().toUpperCase();
   var supply  = document.getElementById('t_supply').value.trim();
-  var hardCapStr = document.getElementById('t_hardCap').value.trim();
-  var liqPct  = +document.getElementById('t_liqPct').value || 0;
-  var liqBNB  = document.getElementById('t_liqBNB').value.trim();
+  var liqPct  = +(document.getElementById('t_liqPct')?.value) || 0;
+  var liqBNB  = (document.getElementById('t_liqBNB')?.value || '').trim();
 
   if(!name || !sym || !supply){ alert('请填写代币名称、符号、供应量'); return; }
 
@@ -819,10 +808,10 @@ async function doLaunch(){
 
     var buyTaxBps  = Math.round(parseFloat(document.getElementById('buyTaxSlider').value) * 100);
     var sellTaxBps = Math.round(parseFloat(document.getElementById('sellTaxSlider').value) * 100);
-    var maxTxPct     = +(document.getElementById('t_maxTx').value) || 0;
-    var maxWalletPct = +(document.getElementById('t_maxWallet').value) || 0;
+    var maxTxPct     = +(document.getElementById('t_maxTx')?.value) || 0;
+    var maxWalletPct = +(document.getElementById('t_maxWallet')?.value) || 0;
 
-    // 1. 部署 SimpleToken（payable）
+    // 1. Deploy SimpleToken (payable)
     btn.textContent = '部署代币合约...';
     var tc = new web3.eth.Contract(TOKEN_ABI);
     var depValue = (liqBNB && parseFloat(liqBNB) > 0) ? web3.utils.toWei(liqBNB, 'ether') : '0';
@@ -841,33 +830,13 @@ async function doLaunch(){
     var tokenAddr = dep.options.address;
     console.log('Token:', tokenAddr);
 
-    // 2. 设置开盘模式
-    btn.textContent = '设置开盘模式...';
-    var ti = new web3.eth.Contract(TOKEN_ABI, tokenAddr);
-    var openModeId, openTimeVal;
-    if(currentOpenMode === 'auto'){
-      openModeId = 2;
-      var ots = document.getElementById('t_openTime').value;
-      openTimeVal = ots ? Math.floor(new Date(ots).getTime() / 1000) : Math.floor(Date.now() / 1000) + 86400;
-    } else if(currentOpenMode === 'manual'){
-      openModeId = 0; openTimeVal = 0;
-    } else if(currentOpenMode === 'full'){
-      openModeId = 3; openTimeVal = (+(document.getElementById('t_fullOpenDelay').value) || 5) * 60;
-    }
-    var hardCapWei = hardCapStr ? web3.utils.toWei(hardCapStr, 'ether') : '0';
-
-    var og = await ti.methods.setOpenMode(openModeId, openTimeVal, hardCapWei).estimateGas({ from: userAddr });
-    await ti.methods.setOpenMode(openModeId, openTimeVal, hardCapWei).send({
-      from: userAddr, gas: Math.floor(og * 1.3), gasPrice: web3.utils.toWei('3', 'gwei')
-    });
-
-    // 3. 显示结果
+    // 2. Show result
     document.getElementById('deployResult').style.display = 'block';
     document.getElementById('contractAddr').textContent = tokenAddr;
 
-    var modeText = currentOpenMode === 'auto' ? '定时开盘（' + (document.getElementById('t_openTime').value || '未设置') + '）' :
+    var modeText = currentOpenMode === 'auto' ? '定时开盘（' + (document.getElementById('t_openTime')?.value || '未设置') + '）' :
       currentOpenMode === 'manual' ? '手动开盘（需 Owner 调用 enableTrading）' :
-      '满额开盘（达 Hard Cap 后 ' + (document.getElementById('t_fullOpenDelay').value || '5') + ' 分钟自动开）';
+      '满额开盘（达 Hard Cap 后 ' + (document.getElementById('t_fullOpenDelay')?.value || '5') + ' 分钟自动开）';
     document.getElementById('resultOpenMode').textContent = modeText;
 
     var divRow = document.getElementById('dividendAddrRow');
@@ -894,7 +863,6 @@ async function doLaunch(){
 }
 
 
-
 document.getElementById('fileInput')?.addEventListener('change', function(){
   if(this.files[0]){
     document.getElementById('uploadArea').innerHTML = '<span class="up-icon">✅</span><p>图片已上传 ✓</p><p class="small">点击更换</p>';
@@ -907,5 +875,3 @@ window.addEventListener('scroll', ()=>{
 
 calcPreview();
 </script>
-</body>
-</html>
