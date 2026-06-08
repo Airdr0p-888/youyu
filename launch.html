@@ -559,7 +559,7 @@ const PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36'.toLowerCase
 // ★══════════════════════════════════════════════════════
 //  Factory 合约配置（部署后填入真实地址）
 // ════════════════════════════════════════════════════════
-const FACTORY_ADDRESS = '0x4F184A53BA5A82a49bFe87b49206208e9980EC3c'; // ✅ 已部署
+const FACTORY_ADDRESS = '0xE991B1e86b879e972Dd120F13d1CC5F7518C0E19'; // ✅ 新部署 Factory
 const PANCAKE_ROUTER  = '0x10ed43C718714Eb63d5aa57B78b5c4bF50eBF4E7'; // BSC 主网 PancakeSwap V2 Router (EIP-55)
 
 // Factory 最小 ABI（仅包含 launch 相关）
@@ -856,18 +856,95 @@ async function doLaunch(){
     }
 
     // 发送交易
+    console.log('[Launch] 发送交易...');
     const result = await factory.methods.launch(
       name, symbol, supply, PANCAKE_ROUTER, enableDividend, rewardToken, dividendThreshold
     ).send({
       from: userAddr,
       value: launchFee,
       gas: Math.floor(gasEstimate * 1.2)
+    }).on('receipt', (receipt) => {
+      console.log('[Launch] 交易回执:', receipt);
+      console.log('[Launch] events:', receipt.events);
+    }).on('error', (err) => {
+      console.error('[Launch] 交易失败:', err);
     });
 
-    // ★ 解析结果
-    const tokenAddr = result.events.ProjectLaunched.returnValues.token;
-    const refundAddr = result.events.ProjectLaunched.returnValues.refund;
-    const dividendAddr = result.events.ProjectLaunched.returnValues.dividend;
+    console.log('[Launch] 完整 result:', result);
+    console.log('[Launch] result.events:', result.events);
+
+    // ★ 解析结果：优先从 events，不可用则从 logs 手动解码
+    let tokenAddr, refundAddr, dividendAddr;
+
+    // 统一从链上获取回执（更可靠）
+    const txHash = result.transactionHash || result.tx;
+    const receipt = await web3.eth.getTransactionReceipt(txHash);
+    console.log('[Launch] 链上回执 status:', receipt.status, 'logs 数量:', (receipt.logs||[]).length);
+
+    // 方法1：尝试直接从 result.events 读（某些节点会填充）
+    if(result.events && result.events.ProjectLaunched && result.events.ProjectLaunched.returnValues){
+      tokenAddr    = result.events.ProjectLaunched.returnValues.token;
+      refundAddr   = result.events.ProjectLaunched.returnValues.refund;
+      dividendAddr = result.events.ProjectLaunched.returnValues.dividend;
+      console.log('[Launch] 从 result.events 解析成功');
+    }
+
+    // 方法2：从 receipt.logs 手动解码 ProjectLaunched 事件
+    if(!tokenAddr && receipt && receipt.logs){
+      console.warn('[Launch] events 为空，从 receipt.logs 手动解码...');
+      const projLaunchedAbi = FACTORY_ABI.find(a => a.name === 'ProjectLaunched' && a.type === 'event');
+      if(projLaunchedAbi){
+        for(const log of receipt.logs){
+          try {
+            const decoded = web3.eth.abi.decodeLog(
+              projLaunchedAbi.inputs,
+              log.data,
+              log.topics.slice(1)  // topics[0] 是事件签名
+            );
+            if(decoded && decoded.token){
+              tokenAddr    = decoded.token;
+              refundAddr   = decoded.refund;
+              dividendAddr = decoded.dividend;
+              console.log('[Launch] decodeLog 解析成功:', decoded);
+              break;
+            }
+          } catch(e) { console.log('[Launch] decodeLog 跳过一条日志:', e.message); }
+        }
+      }
+    }
+
+    // 方法3：从 result.logs 再试一次
+    if(!tokenAddr && result.logs){
+      console.warn('[Launch] 从 result.logs 尝试...');
+      const projLaunchedAbi = FACTORY_ABI.find(a => a.name === 'ProjectLaunched' && a.type === 'event');
+      if(projLaunchedAbi){
+        for(const log of result.logs){
+          try {
+            const decoded = web3.eth.abi.decodeLog(
+              projLaunchedAbi.inputs,
+              log.data,
+              log.topics.slice(1)
+            );
+            if(decoded && decoded.token){
+              tokenAddr    = decoded.token;
+              refundAddr   = decoded.refund;
+              dividendAddr = decoded.dividend;
+              console.log('[Launch] result.logs decodeLog 解析成功');
+              break;
+            }
+          } catch(e) { /* not this event */ }
+        }
+      }
+    }
+
+    if(!tokenAddr){
+      alert('⚠️ 交易已发送，但无法解析合约地址。\n请查看浏览器控制台（F12）的日志，或到 BSCScan 查看交易回执。\n\n交易Hash: ' + (result.transactionHash || result.tx || '未知'));
+      btn.textContent = '🚀 立即发射代币';
+      btn.disabled = false;
+      return;
+    }
+
+    console.log('[Launch] 解析结果:', { tokenAddr, refundAddr, dividendAddr });
 
     // ★ 显示结果
     document.getElementById('deployResult').style.display = 'block';
