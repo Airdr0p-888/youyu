@@ -5,13 +5,21 @@ interface IUniswapV2Factory { function createPair(address a, address b) external
 interface IUniswapV2Router02 {
     function factory() external view returns (address);
     function WETH() external view returns (address);
-    function addLiquidityETH(address,uint,uint,uint,address,uint) external payable returns (uint,uint,uint);
+    function addLiquidityETH(address,uint,uint,uint,address,uint)
+        external payable returns (uint,uint,uint);
+}
+
+interface IDistributor {
+    function updateHolder(address addr, uint256 balance) external;
+    function distribute() external;
+    function holdersCount() external view returns (uint256);
 }
 
 /**
- * @title SimpleToken — Mint 版（扁平参数，兼容 ethers.js CREATE2 部署）
- * @notice 18 个平铺构造函数参数（无 struct，避免 ABI 编码问题）
- *         用户通过 mint() 用 BNB 购买代币 → 自动加池子 → LP 归平台方
+ * @title SimpleToken — Mint + 独立分红版
+ * @notice 18(+1) 个平铺构造函数参数（兼容 ethers.js CREATE2 部署）
+ *         税费代币直接转给外部 DividendDistributor 合约处理
+ *         持币人追踪由 Token 合约推送给 Distributor
  */
 contract SimpleToken {
     string public name;
@@ -42,7 +50,6 @@ contract SimpleToken {
     uint256 public totalMinted;
     uint256 public presaleTokens;
     uint256 public presaleSold;
-    uint256 public liquidityPct;
 
     // ── 开盘控制 ──
     bool    public tradingEnabled;
@@ -53,6 +60,9 @@ contract SimpleToken {
     // ── 白名单 ──
     bool    public whitelistOnly;
     mapping(address => bool) public whitelist;
+
+    // ── 分红合约 ──
+    address public distributor;
 
     // ── Uniswap ──
     address public uniswapRouter;
@@ -71,14 +81,17 @@ contract SimpleToken {
     event LimitsSet(uint256 maxTx, uint256 maxWallet);
     event WhitelistUpdated(address indexed addr, bool added);
     event WhitelistModeSet(bool enabled);
+    event DistributorSet(address indexed distributor);
 
-    // ── Custom errors ──
+    address public pendingOwner;
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferPending(address indexed currentOwner, address indexed pendingOwner);
+
+    // ── Custom Errors ──
     error EmptyNameSym();
     error SupplyZero();
     error OwnerZero();
     error PriceZero();
-    error PresaleOver100();
-    error LiqPctOver100();
     error BadMode();
     error LimitOver100();
     error TaxTooHigh();
@@ -86,24 +99,34 @@ contract SimpleToken {
 
     modifier onlyOwner() { if (msg.sender != owner) revert NotOwner(); _; }
 
-    /// @param _name           代币名称
-    /// @param _symbol         代币符号
-    /// @param _totalSupply    总供应量（如 1000000，自动×10^18）
-    /// @param _owner          Owner 地址
-    /// @param _platformOwner  平台方钱包（收 LP）
-    /// @param _routerAddress  PancakeSwap Router
-    /// @param _mintPrice      Mint 单价（wei，如 0.001 ether = 1000000000000000）
-    /// @param _hardCap        硬顶（wei）
-    /// @param _presalePct     预售占比（%）
-    /// @param _liqPct         每笔 mint 加池子比例（%）
-    /// @param _buyTax         买入税（bps）
-    /// @param _sellTax        卖出税（bps）
-    /// @param _maxTxPct       单笔交易上限（%）
-    /// @param _maxWalletPct   单钱包持仓上限（%）
-    /// @param _openMode       开盘模式 0=定时 1=手动 2=满额
-    /// @param _openTime       定时模式开盘时间戳（秒，其他模式传 0）
-    /// @param _fullOpenDelay  满额模式达硬顶后延迟秒数（传 0 用默认 300）
-    /// @param _whitelistOnly  是否仅白名单可 mint
+    modifier onlyPendingOwner() {
+        if (msg.sender != pendingOwner) revert NotOwner();
+        _;
+    }
+
+    // ── Fair Launch 硬编码参数（不可篡改） ──
+    // presalePct = 50 → 50% 代币用于 mint 发放，50% 留作加池消耗
+    // 每次 mint tokenAmount：用户得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
+    uint256 public constant presalePct = 50;
+    uint256 public constant liqPct      = 100;   // 100% BNB 用于加池，平台不抽 BNB
+
+    /// @param _name          代币名称
+    /// @param _symbol       代币符号
+    /// @param _totalSupply  总供应量（如 1000000，自动 ×10^18）
+    /// @param _owner        Owner 地址
+    /// @param _platformOwner 平台方钱包（收 LP 和手续费）
+    /// @param _routerAddress PancakeSwap Router
+    /// @param _mintPrice    Mint 单价（wei）
+    /// @param _hardCap      硬顶（wei）
+    /// @param _buyTax       买入税（bps）
+    /// @param _sellTax      卖出税（bps）
+    /// @param _maxTxPct     单笔交易上限（%）
+    /// @param _maxWalletPct 单钱包持仓上限（%）
+    /// @param _openMode     开盘模式 0=定时 1=手动 2=满额
+    /// @param _openTime     定时模式开盘时间戳（秒）
+    /// @param _fullOpenDelay 满额模式达硬顶后延迟秒数
+    /// @param _whitelistOnly 是否仅白名单可 mint
+    /// @param _distributor   分红合约地址（可选，0x0=税费留在合约里）
     constructor(
         string  memory _name,
         string  memory _symbol,
@@ -113,8 +136,6 @@ contract SimpleToken {
         address         _routerAddress,
         uint256         _mintPrice,
         uint256         _hardCap,
-        uint256         _presalePct,
-        uint256         _liqPct,
         uint256         _buyTax,
         uint256         _sellTax,
         uint256         _maxTxPct,
@@ -122,14 +143,13 @@ contract SimpleToken {
         uint8           _openMode,
         uint256         _openTime,
         uint256         _fullOpenDelay,
-        bool            _whitelistOnly
+        bool            _whitelistOnly,
+        address         _distributor
     ) {
         if (bytes(_name).length == 0 || bytes(_symbol).length == 0) revert EmptyNameSym();
         if (_totalSupply == 0) revert SupplyZero();
         if (_owner == address(0)) revert OwnerZero();
         if (_mintPrice == 0) revert PriceZero();
-        if (_presalePct > 100) revert PresaleOver100();
-        if (_liqPct > 100) revert LiqPctOver100();
         if (_openMode > 2) revert BadMode();
         if (_maxTxPct > 100 || _maxWalletPct > 100) revert LimitOver100();
         if (_buyTax > MAX_TAX || _sellTax > MAX_TAX) revert TaxTooHigh();
@@ -139,38 +159,30 @@ contract SimpleToken {
         owner         = _owner;
         platformOwner = _platformOwner;
         lpReceiver    = _platformOwner;
+        distributor   = _distributor;
 
         totalSupply   = _totalSupply * 10**decimals;
 
-        // 代币分配
-        presaleTokens = totalSupply * _presalePct / 100;
-        if (presaleTokens > 0) {
-            balanceOf[address(this)] = presaleTokens;
-            emit Transfer(address(0), address(this), presaleTokens);
-        }
-        uint256 ownerTokens = totalSupply - presaleTokens;
-        if (ownerTokens > 0) {
-            balanceOf[_owner] = ownerTokens;
-            emit Transfer(address(0), _owner, ownerTokens);
-        }
+        // 公平发射：50% 代币用于 mint 发放，50% 留作加池消耗
+        // 每次 mint tokenAmount：用户得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
+        presaleTokens = totalSupply * presalePct / 100;   // = totalSupply * 50%
 
-        mintPrice    = _mintPrice;
-        hardCap      = _hardCap;
-        liquidityPct = _liqPct;
+        mintPrice     = _mintPrice;
+        hardCap       = _hardCap;
 
-        // 开盘模式
+        // 100% 代币留在合约（50% 发给用户 + 50% 加池消耗）
+        balanceOf[address(this)] = totalSupply;
+        emit Transfer(address(0), address(this), totalSupply);
+
         openMode      = _openMode;
         openTime      = _openTime;
         fullOpenDelay = _fullOpenDelay;
 
-        // 白名单
         whitelistOnly = _whitelistOnly;
 
-        // 税费
         buyTax  = _buyTax;
         sellTax = _sellTax;
 
-        // 交易限制
         if (_maxTxPct > 0)     maxTxAmount    = totalSupply * _maxTxPct / 100;
         if (_maxWalletPct > 0) maxWalletAmount = totalSupply * _maxWalletPct / 100;
 
@@ -185,9 +197,11 @@ contract SimpleToken {
         isExcludedFromLimits[_owner] = true;
         isExcludedFromLimits[address(this)] = true;
         isExcludedFromLimits[uniswapPair] = true;
+
+        emit DistributorSet(_distributor);
     }
 
-    // ═══════════ Mint ═══════════
+    // ╍═══════ Mint ╍═══════
 
     function mint() external payable {
         if (msg.value == 0) revert PriceZero();
@@ -197,24 +211,29 @@ contract SimpleToken {
         if (openMode == 2 && tradingEnabled) revert("trading started");
 
         uint256 tokenAmount = _calcTokenAmount(msg.value);
-        if (presaleSold + tokenAmount > presaleTokens) revert("sold out");
+        // 每次 mint 消耗 2x：tokenAmount 给用户 + tokenAmount 加池
+        // 只检查合约余额，presaleTokens 仅用于前端展示
+        if (balanceOf[address(this)] < tokenAmount * 2) revert("insufficient contract balance");
 
-        uint256 liqBNB    = msg.value * liquidityPct / 100;
-        uint256 liqTokens = tokenAmount * liquidityPct / 100;
+        uint256 liqBNB    = msg.value;                     // liqPct=100 → 100% BNB 加池
+        uint256 liqTokens = tokenAmount;                    // liqPct=100 → 等量代币加池
 
         if (liqBNB > 0 && liqTokens > 0) {
             _addLiquidity(liqTokens, liqBNB);
         }
 
-        uint256 buyAmount = tokenAmount - liqTokens;
-        balanceOf[address(this)] -= tokenAmount;
-        balanceOf[msg.sender] += buyAmount;
-        emit Transfer(address(this), msg.sender, buyAmount);
+        // 用户获得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
+        balanceOf[address(this)] -= tokenAmount * 2;
+        balanceOf[msg.sender] += tokenAmount;
+        emit Transfer(address(this), msg.sender, tokenAmount);
 
         totalMinted += msg.value;
-        presaleSold += tokenAmount;
+        presaleSold += tokenAmount;  // 只记录发给用户的量
 
-        emit Mint(msg.sender, msg.value, buyAmount);
+        emit Mint(msg.sender, msg.value, tokenAmount);
+
+        // 通知 distributor 更新持仓
+        _notifyDistributor(msg.sender);
 
         if (openMode == 2 && totalMinted >= hardCap) {
             tradingEnabled = true;
@@ -236,7 +255,7 @@ contract SimpleToken {
         emit LiquidityAdded(tokenAmount, bnbAmount);
     }
 
-    // ═══════════ 开盘控制 ═══════════
+    // ╍═══════ 开盘控制 ╍═══════
 
     function enableTrading() external {
         if (msg.sender != owner && msg.sender != platformOwner) revert NotOwner();
@@ -245,12 +264,12 @@ contract SimpleToken {
     }
 
     function setOpenConfig(uint8 _mode, uint256 _openTime, uint256 _delay) external onlyOwner {
-        openMode      = _mode;
-        openTime      = _openTime;
+        openMode  = _mode;
+        openTime  = _openTime;
         fullOpenDelay = _delay;
     }
 
-    // ═══════════ 管理员 ═══════════
+    // ╍═══════ 管理员 ╍═══════
 
     function setTax(uint256 _buyTax, uint256 _sellTax) external onlyOwner {
         if (_buyTax > MAX_TAX || _sellTax > MAX_TAX) revert TaxTooHigh();
@@ -270,7 +289,26 @@ contract SimpleToken {
         limitsEnabled = false;
     }
 
-    // ═══════════ 白名单管理 ═══════════
+    function setDistributor(address _distributor) external onlyOwner {
+        distributor = _distributor;
+        emit DistributorSet(_distributor);
+    }
+
+    // ╍═══════ 所有权转移（两阶段，防止转错地址） ╍═══════
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert OwnerZero();
+        pendingOwner = newOwner;
+        emit OwnershipTransferPending(owner, newOwner);
+    }
+
+    function acceptOwnership() external onlyPendingOwner {
+        address oldOwner = owner;
+        owner = pendingOwner;
+        pendingOwner = address(0);
+        emit OwnershipTransferred(oldOwner, owner);
+    }
+
+    // ╍═══════ 白名单管理 ╍═══════
 
     function addToWhitelist(address[] calldata addrs) external onlyOwner {
         for (uint i = 0; i < addrs.length; i++) {
@@ -289,7 +327,7 @@ contract SimpleToken {
         emit WhitelistModeSet(_enabled);
     }
 
-    // ═══════════ 转账 ═══════════
+    // ╍═══════ 转账 ╍═══════
 
     function transfer(address to, uint256 amount) external returns (bool) {
         _transfer(msg.sender, to, amount);
@@ -326,11 +364,12 @@ contract SimpleToken {
             }
         }
 
+        bool isSell = (to == uniswapPair);
+
         uint256 tax = 0;
         if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
-            bool isBuy  = from == uniswapPair;
-            bool isSell = to == uniswapPair;
-            if (isBuy)  tax = amount * buyTax  / 10000;
+            bool isBuy = from == uniswapPair;
+            if (isBuy)  tax = amount * buyTax / 10000;
             if (isSell) tax = amount * sellTax / 10000;
         }
 
@@ -340,20 +379,47 @@ contract SimpleToken {
         emit Transfer(from, to, sendAmount);
 
         if (tax > 0) {
-            balanceOf[address(this)] += tax;
-            emit Transfer(from, address(this), tax);
+            // 税费：转给 distributor 或留在合约
+            if (distributor != address(0)) {
+                balanceOf[distributor] += tax;
+                emit Transfer(from, distributor, tax);
+            } else {
+                balanceOf[address(this)] += tax;
+                emit Transfer(from, address(this), tax);
+            }
+        }
+
+        // 通知 distributor 更新持仓
+        _notifyDistributor(from);
+        _notifyDistributor(to);
+
+        // 卖出后触发分红检查
+        if (isSell && distributor != address(0)) {
+            try IDistributor(distributor).distribute() {} catch {}
         }
     }
 
-    // ═══════════ 提取 ═══════════
+    /// @dev 通知 distributor 更新某地址的持仓
+    function _notifyDistributor(address addr) internal {
+        if (distributor == address(0)) return;
+        if (addr == address(0) || addr == address(this) || addr == uniswapPair) return;
+        try IDistributor(distributor).updateHolder(addr, balanceOf[addr]) {} catch {}
+    }
+
+    // ╍═══════ 提取（若未设置 distributor，税费留在合约里可提取） ╍═══════
 
     function withdrawBNB() external onlyOwner {
-        (bool sent,) = lpReceiver.call{value: address(this).balance}("");
+        (bool sent,) = platformOwner.call{value: address(this).balance}("");
         if (!sent) revert("transfer fail");
     }
 
-    function withdrawToken(address tkn) external onlyOwner {
-        IERC20(tkn).transfer(lpReceiver, IERC20(tkn).balanceOf(address(this)));
+    function withdrawToken(address tkn, uint256 amount) external onlyOwner {
+        IERC20(tkn).transfer(platformOwner, amount);
+    }
+
+    function holdersCount() external view returns (uint256) {
+        if (distributor == address(0)) return 0;
+        return IDistributor(distributor).holdersCount();
     }
 
     receive() external payable {}
@@ -363,4 +429,6 @@ interface IERC20 {
     function totalSupply() external view returns (uint256);
     function balanceOf(address) external view returns (uint256);
     function transfer(address,uint256) external returns (bool);
+    function approve(address,uint256) external returns (bool);
+    function transferFrom(address,address,uint256) external returns (bool);
 }
