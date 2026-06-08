@@ -505,30 +505,65 @@
 // ★ 平台方钱包地址（硬编码）
 const PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36'.toLowerCase();
 
-function connectWallet(){
+// ★ 实际连接钱包（MetaMask / TP Wallet / OKX 等注入式钱包）
+async function connectWallet(){
+  if(!window.ethereum){
+    alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
+    return;
+  }
+  try {
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+    const addr = accounts[0];
+    onWalletConnected(addr);
+  } catch(e){
+    console.error('连接钱包失败', e);
+    alert('连接钱包失败：' + (e.message || e));
+  }
+}
+
+function onWalletConnected(addr){
   const box = document.getElementById('wallet-box');
   box.className = 'wallet-bar wb-conn';
-  box.innerHTML = '<span class="wd wd-g"></span><span style="flex:1;font-size:0.86rem">已连接：0x1234...abcd (BSC)</span><button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
+  const shortAddr = addr.slice(0,6) + '...' + addr.slice(-4);
+  box.innerHTML =
+    '<span class="wd wd-g"></span>' +
+    '<span style="flex:1;font-size:0.86rem">已连接：' + shortAddr + ' (BSC)</span>' +
+    '<button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
+
   document.getElementById('launchBtn').disabled = false;
   const steps = document.querySelectorAll('.sb-step');
   steps[0].classList.add('done'); steps[0].classList.remove('active');
   if(steps[1]) steps[1].classList.add('active');
 
-  // ★ 连接后检测是否是平台方钱包
-  checkPlatformWallet();
+  // ★ 检测是否是平台方钱包
+  checkPlatformWallet(addr);
 }
 
-function checkPlatformWallet(){
-  // 模拟：实际应读取当前连接地址，这里用硬编码演示
-  // 实际对接 Web3 时，用 ethereum.selectedAddress 对比
-  const mockConnectedAddress = '0x1234567890abcdef1234567890abcdef12345678'.toLowerCase();
-  const isPlatform = (mockConnectedAddress === PLATFORM_WALLET);
-
-  // 显示/隐藏 Mint 资金分配规则
+function checkPlatformWallet(addr){
+  const isPlatform = (addr.toLowerCase() === PLATFORM_WALLET);
   document.getElementById('mintFundRule').style.display = isPlatform ? '' : 'none';
 }
 
-function disconnectWallet(){ location.reload(); }
+// ★ 页面加载时检测是否已连接（用户刷新页面不丢失）
+(async function autoConnect(){
+  if(window.ethereum && ethereum.selectedAddress){
+    onWalletConnected(ethereum.selectedAddress);
+  }
+  // 监听钱包切换账户
+  if(window.ethereum){
+    ethereum.on('accountsChanged', (accounts) => {
+      if(accounts.length > 0){
+        onWalletConnected(accounts[0]);
+      } else {
+        disconnectWallet();
+      }
+    });
+  }
+})();
+
+function disconnectWallet(){
+  location.reload();
+}
 
 function onToggleManual(chk){
   document.getElementById('openModeHint').textContent = chk.checked
