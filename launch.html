@@ -5,178 +5,363 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SquidLaunch — 发射代币 | Web3 代币发射平台</title>
   <style>
+    /* ===== RESET & ROOT ===== */
     *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
     :root {
-      --bg-deep:#030812; --bg-card:rgba(6,30,50,0.65); --bg-input:rgba(3,15,28,0.9);
-      --border:rgba(0,212,255,0.15); --border-focus:rgba(0,212,255,0.5);
-      --cyan:#00d4ff; --cyan-glow:#00d4ff88; --magenta:#ff2daa;
-      --magenta-glow:#ff2daa66; --green:#00ffb2; --yellow:#ffe600;
-      --red:#ff4757; --orange:#ff9f43;
-      --text-primary:#eaf6ff; --text-secondary:#7eb8d8; --radius:14px;
-      --wallet:rgba(0,255,178,0.08); --danger:rgba(255,71,87,0.12);
+      --bg-deep:#030812; --bg-card:rgba(6,30,50,0.72); --bg-input:rgba(3,15,28,0.92);
+      --border:rgba(0,212,255,0.13); --border-focus:rgba(0,212,255,0.55);
+      --cyan:#00d4ff; --cyan-glow:rgba(0,212,255,0.35); --cyan-dim:rgba(0,212,255,0.08);
+      --magenta:#ff2daa; --magenta-glow:rgba(255,45,170,0.25);
+      --green:#00ffb2; --green-dim:rgba(0,255,178,0.08);
+      --yellow:#ffe600; --red:#ff4757; --orange:#ff9f43;
+      --text-primary:#eaf6ff; --text-secondary:#6a8fa8; --text-muted:#3d5a6e;
+      --radius:16px; --radius-sm:10px;
     }
-    html{font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg-deep);color:var(--text-primary);line-height:1.6;}
-    body{min-height:100vh;background:radial-gradient(ellipse at top, rgba(0,20,40,1) 0%, var(--bg-deep) 60%);}
-    a{color:var(--cyan);text-decoration:none;}
+    html{font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg-deep);color:var(--text-primary);line-height:1.6;-webkit-font-smoothing:antialiased;}
+    body{
+      min-height:100vh;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,212,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(255,45,170,0.04) 0%, transparent 60%),
+        var(--bg-deep);
+    }
+    a{color:var(--cyan);text-decoration:none;transition:color .2s}
+    a:hover{color:#fff}
 
-    /* Navbar */
-    .navbar{ position:sticky;top:0;z-index:50; backdrop-filter:blur(18px); background:rgba(3,8,18,0.85); border-bottom:1px solid var(--border); }
-    .navbar .container{ display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 24px;max-width:1100px;margin:0 auto; }
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar{width:5px;}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.18);border-radius:3px}
+    ::-webkit-scrollbar-thumb:hover{background:rgba(0,212,255,0.35)}
+
+    /* ===== NAVBAR ===== */
+    .navbar{
+      position:sticky;top:0;z-index:100;
+      backdrop-filter:blur(20px) saturate(1.6);
+      background:rgba(3,8,18,0.82);
+      border-bottom:1px solid var(--border);
+      transition:box-shadow .3s;
+    }
+    .navbar.scrolled{box-shadow:0 4px 30px rgba(0,0,0,0.3)}
+    .navbar .container{display:flex;align-items:center;justify-content:space-between;height:62px;padding:0 28px;max-width:1120px;margin:0 auto}
     .logo{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:800;text-decoration:none;color:var(--text-primary)}
-    .logo-icon{ width:34px;height:34px;border-radius:10px; background:linear-gradient(135deg,var(--cyan),var(--magenta)); display:flex;align-items:center;justify-content:center;font-size:1.15rem; box-shadow:0 0 16px var(--cyan-glow); animation:tpulse 2.5s ease-in-out infinite; }
-    @keyframes tpulse{ 0%,100%{box-shadow:0 0 16px var(--cyan-glow);} 50%{box-shadow:0 0 32px var(--magenta-glow),0 0 56px var(--cyan-glow);} }
+    .logo-icon{
+      width:34px;height:34px;border-radius:10px;
+      background:linear-gradient(135deg,var(--cyan),var(--magenta));
+      display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+      box-shadow:0 0 16px var(--cyan-glow);
+      animation:tpulse 2.8s ease-in-out infinite;
+    }
+    @keyframes tpulse{0%,100%{box-shadow:0 0 14px var(--cyan-glow)}50%{box-shadow:0 0 28px var(--cyan-glow),0 0 50px var(--magenta-glow)}}
 
-    .nav-links{display:flex;gap:16px;list-style:none}
-    .nav-links a{color:var(--text-secondary);font-size:0.88rem;font-weight:500;transition:.2s}
+    .nav-links{display:flex;gap:18px;align-items:center;list-style:none}
+    .nav-links a{color:var(--text-secondary);font-size:0.86rem;font-weight:500;transition:.2s;position:relative}
     .nav-links a:hover{color:var(--cyan)}
+    .nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--cyan);border-radius:1px;transition:width .25s}
+    .nav-links a:hover::after{width:100%}
 
-    /* Main */
-    .main{max-width:720px;margin:0 auto;padding:32px 20px 80px}
+    /* ===== MAIN LAYOUT ===== */
+    .main{max-width:680px;margin:0 auto;padding:0 20px 100px}
 
-    /* Page Title */
-    .page-title{text-align:center;padding:36px 0 12px}
-    .page-title h1{font-size:clamp(1.6rem,3vw,2.2rem);font-weight:900}
-    .page-title h1 .gt{background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-    .page-title p{color:var(--text-secondary);font-size:0.92rem;margin-top:6px}
+    /* ===== PAGE TITLE ===== */
+    .page-title{text-align:center;padding:48px 0 20px;animation:fadeUp .6s ease-out both}
+    .page-title h1{font-size:clamp(1.7rem,3.2vw,2.4rem);font-weight:900;letter-spacing:-0.02em;line-height:1.2}
+    .page-title h1 .gt{background:linear-gradient(90deg,var(--cyan),var(--magenta),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .page-title p{color:var(--text-secondary);font-size:0.92rem;margin-top:10px}
 
-    /* Steps */
-    .steps{display:flex;justify-content:center;gap:0;margin-bottom:28px}
-    .step{display:flex;align-items:center;gap:10px;font-size:0.82rem;color:var(--text-secondary)}
-    .step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.78rem;font-weight:700;border:2px solid var(--border);flex-shrink:0;transition:.3s}
-    .step.active .step-num{background:linear-gradient(135deg,var(--cyan),var(--magenta));border-color:transparent;color:#000;box-shadow:0 0 16px var(--cyan-glow)}
-    .step.done .step-num{background:var(--green);border-color:transparent;color:#000}
-    .step-line{width:48px;height:2px;background:var(--border);margin:-4px -6px 0}
-    .step.done+.step-line,.step.active+.step-line{background:linear-gradient(90deg,var(--green),var(--border))}
+    /* ===== STEPS ===== */
+    .steps{display:flex;align-items:center;justify-content:center;gap:0;margin:32px 0 40px;animation:fadeUp .6s ease-out .1s both}
+    .step{display:flex;align-items:center;gap:10px;font-size:0.8rem;color:var(--text-muted);font-weight:500;transition:.35s}
+    .step-num{
+      width:30px;height:30px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:0.75rem;font-weight:800;
+      border:2px solid var(--border);background:transparent;
+      color:var(--text-muted);flex-shrink:0;transition:.35s;
+    }
+    .step.active .step-num{
+      background:linear-gradient(135deg,var(--cyan),#0099cc);
+      border-color:transparent;color:#000;
+      box-shadow:0 0 18px var(--cyan-glow);
+      transform:scale(1.1);
+    }
+    .step.done .step-num{background:var(--green);border-color:transparent;color:#000;box-shadow:0 0 14px rgba(0,255,178,0.3)}
+    .step.done{color:var(--green)}
+    .step.active{color:var(--text-primary);font-weight:600}
+    .step-line{width:44px;height:2px;background:var(--border);margin:0 -2px;transition:.4s;border-radius:1px}
+    .step.done+.step-line,.step.active+.step-line{background:linear-gradient(90deg,var(--green),var(--cyan))}
 
-    /* Cards / Sections */
-    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:18px}
-    .card-header{display:flex;align-items:center;gap:10px;margin-bottom:18px}
-    .card-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;background:rgba(0,212,255,0.08)}
-    .card h3{font-size:1rem;font-weight:700}
-    .card p.sub{color:var(--text-secondary);font-size:0.82rem;margin-top:4px}
+    /* ===== CARD ===== */
+    .card{
+      background:var(--bg-card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:26px 28px;
+      margin-bottom:20px;
+      backdrop-filter:blur(8px);
+      transition:border-color .3s, box-shadow .3s;
+      animation:fadeUp .5s ease-out both;
+    }
+    .card:hover{border-color:rgba(0,212,255,0.22)}
+    .card:nth-child(1){animation-delay:.05s}
+    .card:nth-child(2){animation-delay:.1s}
+    .card:nth-child(3){animation-delay:.15s}
+    .card:nth-child(4){animation-delay:.2s}
+    .card:nth-child(5){animation-delay:.25s}
+    .card:nth-child(6){animation-delay:.3s}
+    .card:nth-child(7){animation-delay:.35s}
+    .card:nth-child(8){animation-delay:.4s}
 
-    /* Form Elements */
-    .field{margin-bottom:16px}
-    .field label{display:block;font-size:0.86rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+    .card-header{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+    .card-icon{
+      width:42px;height:42px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1.25rem;
+      background:linear-gradient(135deg,rgba(0,212,255,0.1),rgba(255,45,170,0.06));
+      border:1px solid rgba(0,212,255,0.12);
+      flex-shrink:0;
+    }
+    .card h3{font-size:1.02rem;font-weight:700;letter-spacing:-0.01em}
+    .card p.sub{color:var(--text-secondary);font-size:0.8rem;margin-top:3px}
+
+    /* ===== FORM ELEMENTS ===== */
+    .field{margin-bottom:18px}
+    .field label{display:block;font-size:0.84rem;font-weight:600;color:var(--text-secondary);margin-bottom:7px;letter-spacing:0.01em}
     .field label .req{color:var(--red);margin-left:2px}
     input[type=text],input[type=number],input[type=url],textarea,select{
-      width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);
+      width:100%;padding:12px 16px;border-radius:var(--radius-sm);
+      border:1px solid var(--border);
       background:var(--bg-input);color:var(--text-primary);
-      font-family:inherit;font-size:0.92rem;transition:.25s;outline:none;
+      font-family:inherit;font-size:0.9rem;transition:all .25s;
+      outline:none;
     }
-    input:focus,textarea:focus,select:focus{border-color:var(--border-focus);box-shadow:0 0 0 3px rgba(0,212,255,0.08)}
-    textarea{resize:vertical;min-height:70px}
+    input:focus,textarea:focus,select:focus{
+      border-color:var(--border-focus);
+      box-shadow:0 0 0 3px rgba(0,212,255,0.07),inset 0 0 0 1px rgba(0,212,255,0.05);
+      background:rgba(3,15,28,0.97);
+    }
+    input::placeholder,textarea::placeholder{color:var(--text-muted);font-size:0.86rem}
+    textarea{resize:vertical;min-height:72px}
     select{cursor:pointer;appearance:auto}
 
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
     .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .hint{font-size:0.76rem;color:var(--text-muted);margin-top:6px;line-height:1.55}
 
-    .hint{font-size:0.76rem;color:var(--text-secondary);margin-top:4px;line-height:1.5}
+    /* ===== FIXED SUFFIX DISPLAY ===== */
+    .suffix-display{
+      font-size:1.5rem;font-weight:800;letter-spacing:3px;
+      color:var(--cyan);
+      padding:10px 0;
+      text-shadow:0 0 20px var(--cyan-glow);
+      font-family:'Fira Code','Courier New',monospace;
+    }
 
-    /* Upload Area */
-    .upload-area{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:.25s}
+    /* ===== UPLOAD AREA ===== */
+    .upload-area{
+      border:2px dashed rgba(0,212,255,0.18);
+      border-radius:14px;padding:36px 20px;text-align:center;
+      cursor:pointer;transition:all .3s;position:relative;overflow:hidden;
+    }
+    .upload-area::before{
+      content:'';position:absolute;inset:0;
+      background:radial-gradient(ellipse at center, rgba(0,212,255,0.04) 0%, transparent 70%);
+      opacity:0;transition:opacity .3s;
+    }
     .upload-area:hover{border-color:var(--cyan);background:rgba(0,212,255,0.03)}
-    .upload-area .up-icon{font-size:2.2rem;margin-bottom:8px}
+    .upload-area:hover::before{opacity:1}
+    .upload-area .up-icon{font-size:2.4rem;margin-bottom:10px;display:block;filter:grayscale(0.3)}
     .upload-area p{color:var(--text-secondary);font-size:0.85rem}
-    .upload-area .small{font-size:0.76rem;color:var(--text-secondary);opacity:0.7;margin-top:4px}
+    .upload-area .small{font-size:0.75rem;color:var(--text-muted);margin-top:5px}
 
-    /* Network Select */
-    .net-option{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid var(--border);cursor:pointer;transition:.2s;margin-bottom:8px}
-    .net-option:hover{background:rgba(255,255,255,0.02)}
-    .net-option.selected{border-color:var(--cyan);background:rgba(0,212,255,0.05)}
-    .net-option.disabled{opacity:0.35;cursor:not-allowed}
-    .net-check{margin-left:auto;color:var(--green);font-weight:800;font-size:1.1rem}
+    /* ===== NETWORK OPTION ===== */
+    .net-option{
+      display:flex;align-items:center;gap:12px;
+      padding:12px 16px;border-radius:var(--radius-sm);
+      border:1px solid var(--border);cursor:pointer;transition:all .25s;
+    }
+    .net-option:hover{background:rgba(255,255,255,0.015)}
+    .net-option.selected{border-color:rgba(0,212,255,0.35);background:var(--cyan-dim)}
+    .net-option.disabled{opacity:0.3;cursor:not-allowed}
+    .net-option .net-check{margin-left:auto;color:var(--green);font-weight:800;font-size:1.1rem}
 
-    /* Calc Panel */
-    .calc-panel{background:linear-gradient(135deg,rgba(0,212,255,0.06),rgba(255,45,170,0.04));border:1px solid var(--border);border-radius:12px;padding:18px 22px}
-    .calc-row{display:flex;justify-content:space-between;font-size:0.88rem;padding:6px 0}
-    .calc-row strong{color:var(--cyan);font-weight:700}
+    /* ===== CALC PANEL ===== */
+    .calc-panel{
+      background:linear-gradient(135deg,rgba(0,212,255,0.05),rgba(255,45,170,0.03));
+      border:1px solid var(--border);border-radius:14px;
+      padding:18px 22px;
+    }
+    .calc-row{display:flex;justify-content:space-between;font-size:0.86rem;padding:7px 0;color:var(--text-secondary)}
+    .calc-row strong{color:var(--cyan);font-weight:700;font-family:'Fira Code',monospace;font-size:0.9rem}
 
-    /* Range Slider */
-    .range-wrap{margin-bottom:14px}
-    .range-label{display:flex;justify-content:space-between;font-size:0.84rem;margin-bottom:6px}
-    .range-val{color:var(--cyan);font-weight:700}
-    input[type=range]{width:100%;accent-color:var(--cyan);height:6px;cursor:pointer}
+    /* ===== RANGE SLIDER ===== */
+    .range-wrap{margin-bottom:16px}
+    .range-label{display:flex;justify-content:space-between;font-size:0.84rem;margin-bottom:8px;color:var(--text-secondary)}
+    .range-val{color:var(--cyan);font-weight:700;font-family:'Fira Code',monospace}
+    input[type=range]{
+      width:100%;height:6px;cursor:pointer;
+      -webkit-appearance:none;appearance:none;
+      background:rgba(255,255,255,0.06);border-radius:3px;outline:none;
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+      background:linear-gradient(135deg,var(--cyan),#0099cc);
+      box-shadow:0 0 10px var(--cyan-glow);cursor:pointer;transition:transform .2s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.2)}
+    input[type=range]::-moz-range-thumb{
+      width:18px;height:18px;border-radius:50%;border:none;
+      background:linear-gradient(135deg,var(--cyan),#0099cc);
+      box-shadow:0 0 10px var(--cyan-glow);cursor:pointer;
+    }
 
-    /* Tax Distribution Colors */
-    .dist-mark{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+    /* ===== TAX DISTRIBUTION ===== */
+    .dist-mark{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle;flex-shrink:0}
     .d-wallet{background:var(--yellow)} .d-burn{background:#aaa} .d-reward{background:var(--red)} .d-liq{background:#4a9eff}
-    .dist-total{text-align:right;font-size:0.82rem;margin-top:8px}
+    .dist-total{text-align:right;font-size:0.82rem;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
     .dist-ok{color:var(--green)}.dist-warn{color:var(--red)}
 
-    /* Toggle Switch */
-    .toggle{display:flex;align-items:center;gap:12px;cursor:pointer}
-    .toggle-box{width:44px;height:24px;border-radius:12px;background:rgba(255,255,255,0.08);position:relative;transition:.3s;flex-shrink:0}
-    .toggle-box::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:var(--text-secondary);top:3px;left:3px;transition:.3s}
-    .toggle.on .toggle-box{background:var(--cyan)}
-    .toggle.on .toggle-box::after{left:23px;background:#000}
-    .toggle span{font-size:0.88rem;font-weight:600}
+    /* ===== TOGGLE SWITCH ===== */
+    .toggle{display:flex;align-items:center;gap:14px;cursor:pointer;padding:4px 0}
+    .toggle-box{
+      width:46px;height:26px;border-radius:13px;
+      background:rgba(255,255,255,0.06);position:relative;transition:.35s;flex-shrink:0;
+      border:1px solid var(--border);
+    }
+    .toggle-box::after{
+      content:'';position:absolute;width:18px;height:18px;border-radius:50%;
+      background:var(--text-muted);top:3px;left:3px;transition:.35s;
+    }
+    .toggle.on .toggle-box{background:rgba(0,212,255,0.25);border-color:rgba(0,212,255,0.4)}
+    .toggle.on .toggle-box::after{left:23px;background:var(--cyan);box-shadow:0 0 10px var(--cyan-glow)}
+    .toggle span{font-size:0.9rem;font-weight:600;color:var(--text-primary)}
 
-    /* Social Links */
-    .social-field{display:flex;align-items:center;gap:10px}
-    .social-icon{width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,0.04);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0}
-    .social-field input{padding:10px 12px}
+    /* ===== SOCIAL FIELD ===== */
+    .social-field{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .social-icon{
+      width:38px;height:38px;border-radius:10px;
+      background:rgba(255,255,255,0.035);border:1px solid var(--border);
+      display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0;
+      transition:border-color .25s;
+    }
+    .social-field:focus-within .social-icon{border-color:rgba(0,212,255,0.3)}
+    .social-field input{padding:11px 14px}
 
-    /* Buttons */
-    .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 26px;border-radius:11px;font-weight:700;font-size:0.9rem;cursor:pointer;border:none;transition:.25s;text-align:center}
-    .btn-primary{background:linear-gradient(135deg,var(--cyan),#0099cc);color:#000;box-shadow:0 0 20px var(--cyan-glow)}
-    .btn-primary:hover{transform:translateY(-1px);box-shadow:0 0 34px var(--cyan-glow)}
+    /* ===== BUTTONS ===== */
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      padding:11px 28px;border-radius:var(--radius-sm);
+      font-weight:700;font-size:0.9rem;cursor:pointer;
+      border:none;transition:all .25s;font-family:inherit;
+      position:relative;overflow:hidden;
+    }
+    .btn::after{
+      content:'';position:absolute;inset:0;
+      background:linear-gradient(135deg,rgba(255,255,255,0.06),transparent);
+      opacity:0;transition:opacity .25s;
+    }
+    .btn:hover::after{opacity:1}
+
+    .btn-primary{
+      background:linear-gradient(135deg,var(--cyan),#0099cc);
+      color:#000;box-shadow:0 4px 24px var(--cyan-glow);
+    }
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 36px var(--cyan-glow)}
+
     .btn-danger{background:linear-gradient(135deg,var(--red),#c0392b);color:#fff}
     .btn-outline{background:transparent;border:1.5px solid var(--cyan);color:var(--cyan)}
-    .btn-outline:hover{background:rgba(0,212,255,0.06)}
-    .btn-sm{padding:7px 16px;font-size:0.82rem;border-radius:8px}
-    .btn-full{width:100%;padding:14px;font-size:1rem;border-radius:13px}
-    .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none!important;box-shadow:none!important}
-    .btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .btn-outline:hover{background:var(--cyan-dim)}
+    .btn-sm{padding:7px 18px;font-size:0.82rem;border-radius:8px}
+    .btn-full{width:100%;padding:15px;font-size:1.02rem;border-radius:14px}
+    .btn:disabled{opacity:0.35;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+    .btn-group{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 
-    /* Wallet Status */
-    .wallet-status{display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:12px;margin-bottom:18px}
-    .wallet-disconnected{background:var(--danger);border:1px solid rgba(255,71,87,0.2)}
-    .wallet-connected{background:var(--wallet);border:1px solid rgba(0,255,178,0.2)}
-    .wallet-dot{width:10px;height:10px;border-radius:50%}
+    /* ===== WALLET STATUS ===== */
+    .wallet-status{display:flex;align-items:center;gap:14px;padding:16px 22px;border-radius:14px;margin-bottom:22px;animation:fadeUp .5s ease-out both}
+    .wallet-disconnected{background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.15)}
+    .wallet-connected{background:var(--green-dim);border:1px solid rgba(0,255,178,0.15)}
+    .wallet-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
     .dot-red{background:var(--red);animation:bink 1.6s infinite}
-    .dot-green{background:var(--green)}
+    .dot-green{background:var(--green);box-shadow:0 0 8px rgba(0,255,178,0.5)}
     @keyframes bink{0%,100%{opacity:1}50%{opacity:0.3}}
 
-    /* Deploy Result Panel */
-    .result-card{background:linear-gradient(135deg,rgba(0,255,178,0.05),rgba(0,212,255,0.03));border:1px solid rgba(0,255,178,0.2);border-radius:var(--radius);padding:24px;margin-bottom:18px}
-    .addr-box{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:'Fira Code',monospace;font-size:0.88rem;word-break:break-all;color:var(--green);margin:10px 0}
-    .param-box{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-family:'Fira Code',monospace;font-size:0.8rem;word-break:break-all;color:var(--text-secondary);max-height:120px;overflow-y:auto;margin:10px 0}
+    /* ===== DEPLOY RESULT ===== */
+    .result-card{
+      background:linear-gradient(135deg,rgba(0,255,178,0.05),rgba(0,212,255,0.03));
+      border:1px solid rgba(0,255,178,0.18);border-radius:var(--radius);
+      padding:28px;margin:28px 0;animation:fadeUp .5s ease-out both;
+    }
+    .addr-box{
+      background:rgba(0,0,0,0.35);border:1px solid var(--border);
+      border-radius:var(--radius-sm);padding:14px 18px;
+      font-family:'Fira Code',monospace;font-size:0.88rem;
+      word-break:break-all;color:var(--green);
+      letter-spacing:0.3px;
+    }
+    .param-box{
+      background:rgba(0,0,0,0.35);border:1px solid var(--border);
+      border-radius:var(--radius-sm);padding:14px 18px;
+      font-family:'Fira Code',monospace;font-size:0.78rem;
+      word-break:break-all;color:var(--text-secondary);
+      max-height:130px;overflow-y:auto;line-height:1.7;
+    }
 
-    /* Accordion */
-    .accordion{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
-    .acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;font-weight:700;font-size:0.94rem;transition:background .2s;background:var(--bg-card)}
+    /* ===== ACCORDION ===== */
+    .accordion{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px;background:var(--bg-card)}
+    .acc-head{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;cursor:pointer;font-weight:700;font-size:0.92rem;transition:background .2s}
     .acc-head:hover{background:rgba(255,255,255,0.02)}
-    .acc-arrow{transition:transform .3s;color:var(--text-secondary)}
+    .acc-arrow{transition:transform .3s;color:var(--text-muted);font-size:0.8rem}
     .accordion.open .acc-arrow{transform:rotate(180deg)}
-    .acc-body{display:none;padding:18px 20px;border-top:1px solid var(--border)}
-    .accordion.open .acc-body{display:block}
+    .acc-body{display:none;padding:18px 22px;border-top:1px solid var(--border)}
 
-    /* Warning */
-    .warn{background:var(--danger);border:1px solid rgba(255,71,87,0.2);border-radius:10px;padding:12px 16px;font-size:0.83rem;display:flex;align-items:start;gap:8px}
-    .warn .wicon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+    /* ===== WARNING ===== */
+    .warn{
+      background:rgba(255,71,87,0.07);border:1px solid rgba(255,71,87,0.15);
+      border-radius:12px;padding:14px 18px;font-size:0.84rem;
+      display:flex;align-items:flex-start;gap:10px;line-height:1.6;
+    }
+    .warn .wicon{font-size:1.1rem;flex-shrink:0;margin-top:1px;color:var(--red)}
 
-    /* Footer link back */
-    .back-link{text-align:center;padding:24px 0}
-    .back-link a{color:var(--text-secondary);font-size:0.88rem}
+    /* ===== BACK LINK ===== */
+    .back-link{text-align:center;padding:28px 0 0}
+    .back-link a{color:var(--text-secondary);font-size:0.88rem;transition:color .2s}
     .back-link a:hover{color:var(--cyan)}
 
-    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.2);border-radius:3px}
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeUp{
+      from{opacity:0;transform:translateY(18px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 
+    /* ===== RESPONSIVE ===== */
     @media(max-width:640px){
-      .main{padding:16px 12px 60px}.row,.row3{grid-template-columns:1fr}
-      .steps{gap:2px}.step-text{display:none}.step-num{width:26px;height:26px;font-size:0.75rem}
-      .step-line{width:24px}.navbar .container{padding:0 12px}
-      .card{padding:18px 16px}.btn-group{flex-direction:column}
-      .btn-full{padding:12px}
+      .main{padding:0 14px 80px}
+      .row,.row3{grid-template-columns:1fr}
+      .steps{gap:0}
+      .step-text{display:none}
+      .step-num{width:28px;height:28px;font-size:0.72rem}
+      .step-line{width:20px}
+      .card{padding:20px 18px;margin-bottom:16px}
+      .btn-group{flex-direction:column}
+      .btn-full{padding:13px}
+      .navbar .container{padding:0 16px}
+      .page-title{padding:32px 0 16px}
+      .page-title h1{font-size:1.5rem}
+    }
+    @media(max-width:380px){
+      .calc-row{flex-direction:column;gap:2px}
     }
   </style>
 </head>
 <body>
 
-<nav class="navbar">
+<nav class="navbar" id="navbar">
   <div class="container">
-    <a href="index.html" class="logo"><div class="logo-icon">🦑</div><span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span></a>
+    <a href="index.html" class="logo">
+      <div class="logo-icon">🦑</div>
+      <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
+    </a>
     <ul class="nav-links">
       <li><a href="index.html">← 返回首页</a></li>
     </ul>
@@ -205,14 +390,15 @@
   <!-- Wallet -->
   <div id="wallet-box" class="wallet-status wallet-disconnected">
     <span class="wallet-dot dot-red"></span>
-    <span>请先连接您的钱包，然后才能部署代币</span>
-    <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包 📡</button>
+    <span style="flex:1">请先连接你的钱包，然后才能部署代币</span>
+    <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包 🔗</button>
   </div>
 
   <!-- Basic Info -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">📋</div><div><h3>基本信息</h3><p class="sub">定义你代币的身份标识</p></div>
+      <div class="card-icon">📋</div>
+      <div><h3>基本信息</h3><p class="sub">定义你代币的身份标识</p></div>
     </div>
 
     <div class="row">
@@ -221,13 +407,12 @@
     </div>
 
     <div class="field"><label>区块链网络</label>
-      <div class="net-option selected"><span>🟡</span><span>BNB Smart Chain (BSC)</span><span class="net-check">✓</span></div>
-      <div class="net-option disabled"><span>🔵</span><span>以太坊 (ETH)</span><span style="font-size:0.75rem;color:var(--text-secondary)">即将支持</span></div>
+      <div class="net-option selected"><span style="font-size:1.2rem">🟡</span><span>BNB Smart Chain (BSC)</span><span class="net-check">✓</span></div>
     </div>
 
     <div class="field"><label>代币封面</label>
       <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-        <div class="up-icon">🖼️</div>
+        <span class="up-icon">🖼️</span>
         <p>点击或拖拽上传</p>
         <p class="small">支持 PNG / JPG / GIF，建议 200×200px</p>
       </div>
@@ -240,7 +425,8 @@
   <!-- Supply & Presale -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">📊</div><div><h3>供应量 & 预售配置</h3><p class="sub">设置代币总量和 Mint 参数</p></div>
+      <div class="card-icon">📊</div>
+      <div><h3>供应量 & 预售配置</h3><p class="sub">设置代币总量和 Mint 参数</p></div>
     </div>
 
     <div class="field"><label>代币总供应量 <span class="req">*</span></label><input type="number" id="t_supply" placeholder="1000000000" value="1000000000" oninput="calcPreview()" /></div>
@@ -256,19 +442,20 @@
     </div>
 
     <div class="calc-panel">
-      <div class="calc-row"><span>📦 总 Mint 次数：</span><strong id="calcMintCount">—</strong></div>
-      <div class="calc-row"><span>🪙 每次 Mint 获得：</span><strong id="calcPerMint">—</strong></div>
-      <div class="calc-row"><span>💰 每代币单价：</span><strong id="calcUnitPrice">—</strong></div>
+      <div class="calc-row"><span>📦 总 Mint 次数</span><strong id="calcMintCount">—</strong></div>
+      <div class="calc-row"><span>🎫 单次 Mint 份额</span><strong id="calcPerMint">—</strong></div>
+      <div class="calc-row"><span>💰 代币单价</span><strong id="calcUnitPrice">—</strong></div>
     </div>
   </div>
 
   <!-- Contract Suffix -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">🔢</div><div><h3>合约地址尾号</h3><p class="sub">系统固定尾号，不可修改</p></div>
+      <div class="card-icon">🔢</div>
+      <div><h3>合约地址尾号</h3><p class="sub">系统固定尾号，不可修改</p></div>
     </div>
     <div class="field">
-      <div style="font-size:1.4rem;font-weight:700;color:var(--cyan);letter-spacing:2px;padding:8px 0">0000</div>
+      <div class="suffix-display">0000</div>
       <div class="hint">所有通过 SquidLaunch 发射的合约地址均以 0000 结尾</div>
     </div>
   </div>
@@ -276,7 +463,8 @@
   <!-- Tax Settings -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">⚙️</div><div><h3>代币税费设置</h3><p class="sub">设置买入/卖出税率及反套利保护</p></div>
+      <div class="card-icon">⚙️</div>
+      <div><h3>代币税费设置</h3><p class="sub">设置买入/卖出税率及反套利保护</p></div>
     </div>
 
     <div class="row">
@@ -300,16 +488,17 @@
   <!-- Open Mode -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">🚀</div><div><h3>开盘模式</h3><p class="sub">设置预售结束后的开盘方式</p></div>
+      <div class="card-icon">🚀</div>
+      <div><h3>开盘模式</h3><p class="sub">设置预售结束后的开盘方式</p></div>
     </div>
     <div class="field">
       <label class="toggle" id="manualOpenToggle" onclick="this.classList.toggle('on');document.getElementById('openModeHint').textContent=this.classList.contains('on')?'开启：需 Owner 手动调用 enableTrading() 开盘':'关闭：预售结束后自动开盘（默认）'">
-        <span>手动开盘模式</span>
         <div class="toggle-box"></div>
+        <span>手动开盘模式</span>
       </label>
       <div class="hint" id="openModeHint">关闭：预售结束后自动开盘（默认）</div>
     </div>
-    <div class="calc-panel" style="margin-top:12px">
+    <div class="calc-panel" style="margin-top:14px">
       <div class="calc-row"><span>💰 Mint 资金分配规则（不可修改）：</span></div>
       <div class="calc-row"><span>　├ 25% → Owner 钱包（立即到账）</span></div>
       <div class="calc-row"><span>　└ 75% → 合约留存（等开盘时使用）</span></div>
@@ -319,7 +508,8 @@
   <!-- Tax Distribution -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">📊</div><div><h3>税费分配</h3><p class="sub">⚠️ 四项分配合计必须等于 100%</p></div>
+      <div class="card-icon">📊</div>
+      <div><h3>税费分配</h3><p class="sub">⚠️ 四项分配合计必须等于 100%</p></div>
     </div>
 
     <div class="range-wrap">
@@ -340,7 +530,7 @@
     </div>
     <div class="dist-total" id="distTotal">总计 0% &nbsp;&nbsp; 未分配: <span class="dist-warn">100%</span></div>
 
-    <div class="field" style="margin-top:16px"><label>资金收款钱包地址</label><input type="text" id="t_fundWallet" placeholder="0x..." /></div>
+    <div class="field" style="margin-top:18px"><label>资金收款钱包地址</label><input type="text" id="t_fundWallet" placeholder="0x..." /></div>
 
     <div class="row">
       <div class="field"><label>分红代币地址</label><input type="text" id="t_rewardToken" placeholder="留空默认 WBNB" /><div class="hint">留空默认 WBNB（池深最大）</div></div>
@@ -350,10 +540,10 @@
 
   <!-- Whitelist -->
   <div class="card">
-    <div class="header" style="margin-bottom:0">
+    <div class="card-header" style="margin-bottom:0">
       <label class="toggle" onclick="this.classList.toggle('on')">
         <div class="toggle-box"></div>
-        <div><span>仅白名单可 Mint</span><p class="hint" style="margin:2px 0 0">开启后只有管理员添加的地址才能参加 Mint</p></div>
+        <div><span style="font-weight:600">仅白名单可 Mint</span><p class="hint" style="margin:4px 0 0">开启后只有管理员添加的地址才能参加 Mint</p></div>
       </label>
     </div>
   </div>
@@ -361,7 +551,8 @@
   <!-- Social Links -->
   <div class="card">
     <div class="card-header">
-      <div class="card-icon">🔗</div><div><h3>可选链接</h3><p class="sub">社交媒体与官网链接（均为选填）</p></div>
+      <div class="card-icon">🔗</div>
+      <div><h3>可选链接</h3><p class="sub">社交媒体与官网链接（均为选填）</p></div>
     </div>
 
     <div class="social-field field"><div class="social-icon">🌐</div><input type="url" id="link_web" placeholder="官网 URL" /></div>
@@ -375,33 +566,37 @@
 
   <!-- Deploy Result (hidden by default) -->
   <div id="deployResult" style="display:none">
-    <div class="result-card" style="margin-top:24px">
-      <h3 style="margin-bottom:8px">✅ 代币部署成功！</h3>
-      <p style="font-size:0.82rem;color:var(--text-secondary)">CONTRACT ADDRESS</p>
+    <div class="result-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <span style="font-size:1.6rem">✅</span>
+        <h3 style="font-size:1.15rem;font-weight:800">代币部署成功！</h3>
+      </div>
+      <p style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Contract Address</p>
       <div class="addr-box" id="contractAddr">—</div>
-      <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:8px">开盘模式：<strong id="resultOpenMode" style="color:var(--cyan)">—</strong></p>
+      <p style="font-size:0.84rem;color:var(--text-secondary);margin-top:12px">开盘模式：<strong id="resultOpenMode" style="color:var(--cyan)">—</strong></p>
 
-      <div class="accordion open" style="margin-top:16px">
+      <div class="accordion open" style="margin-top:18px">
         <div class="acc-head" onclick="this.parentElement.classList.toggle('open')">
           <span>🔍 合约开源验证 (via-IR)</span><span class="acc-arrow">▼</span>
         </div>
         <div class="acc-body">
-          <p style="font-size:0.82rem;color:var(--text-secondary);margin-bottom:10px">
-            ⚠️ 本合约使用 via-IR 编译，必须用 <strong>Standard Json Input</strong> 方式验证。
+          <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px;line-height:1.6">
+            ⚠️ 本合约使用 via-IR 编译，必须用 <strong style="color:var(--text-primary)">Standard Json Input</strong> 方式验证。
           </p>
-          <button class="btn btn-primary btn-sm" onclick="alert('下载验证包 + 打开 BSCScan')">🚀 一键验证</button>
           <div class="btn-group">
+            <button class="btn btn-primary btn-sm" onclick="alert('下载验证包 + 打开 BSCScan')">🚀 一键验证</button>
             <button class="btn btn-outline btn-sm">📥 下载验证包</button>
             <button class="btn btn-outline btn-sm">🌐 打开 BSCScan</button>
             <button class="btn btn-outline btn-sm">📋 复制参数</button>
             <button class="btn btn-outline btn-sm">📥 下载源码</button>
           </div>
-          <div class="field" style="margin-top:12px"><label>构造函数参数（Constructor Arguments）</label>
-            <div class="param-box" id="constructorArgs">部署后显示...</div></div>
+          <div class="field" style="margin-top:14px"><label>构造函数参数（Constructor Arguments）</label>
+            <div class="param-box" id="constructorArgs">部署后显示...</div>
+          </div>
         </div>
       </div>
 
-      <div class="btn-group" style="margin-top:12px">
+      <div class="btn-group" style="margin-top:14px">
         <button class="btn btn-outline btn-sm">📋 复制地址</button>
         <button class="btn btn-outline btn-sm">View on BscScan ↗</button>
       </div>
@@ -415,78 +610,98 @@
 <script>
 /* === Wallet Connection Mock === */
 function connectWallet(){
-  document.getElementById('wallet-box').className='wallet-status wallet-connected';
-  document.getElementById('wallet-box').innerHTML='<span class="wallet-dot dot-green"></span><span>已连接: 0x1234...abcd (BSC)</span><button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
-  document.getElementById('launchBtn').disabled=false;
+  const box = document.getElementById('wallet-box');
+  box.className = 'wallet-status wallet-connected';
+  box.innerHTML = '<span class="wallet-dot dot-green"></span><span style="flex:1">已连接：0x1234...abcd (BSC)</span><button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
+  document.getElementById('launchBtn').disabled = false;
 
   // Update steps
-  const steps=document.querySelectorAll('.step');steps[0].classList.add('done');steps[0].classList.remove('active');
-  if(steps[1])steps[1].classList.add('active');
+  const steps = document.querySelectorAll('.step');
+  steps[0].classList.add('done');
+  steps[0].classList.remove('active');
+  if(steps[1]) steps[1].classList.add('active');
 }
 function disconnectWallet(){
   location.reload();
 }
 
 /* === Real-time Calc Preview === */
+function formatTokenPrice(v){
+  if(!v) return '0';
+  if(v >= 0.0001) return v.toFixed(8).replace(/0+$/,'').replace(/\.$/,'');
+  // 极小数：解析科学计数法，手动拼小数
+  const s = v.toExponential(); // "2e-8" 或 "1.23e-5"
+  const [mantissa, expStr] = s.split('e');
+  const exp = parseInt(expStr);
+  if(exp >= 0) return v.toFixed(8);
+  const digits = mantissa.replace('.',').replace(/^0+/g,'') || '0';
+  return '0.' + '0'.repeat(-exp - 1) + digits;
+}
 function calcPreview(){
-  const supply = parseFloat(document.getElementById('t_supply').value)||0;
-  const price  = parseFloat(document.getElementById('t_mintPrice').value)||0;
-  const hardCap= parseFloat(document.getElementById('t_hardCap').value)||0;
-  const ratio  = parseFloat(document.getElementById('t_presaleRatio').value)||0;
+  const supply   = parseFloat(document.getElementById('t_supply').value)   || 0;
+  const price    = parseFloat(document.getElementById('t_mintPrice').value) || 0;
+  const hardCap  = parseFloat(document.getElementById('t_hardCap').value)   || 0;
+  const ratio    = parseFloat(document.getElementById('t_presaleRatio').value)|| 0;
 
-  const lpRatio = 100-ratio;
-  document.getElementById('lpRatioDisplay').textContent = lpRatio+'%';
+  const lpRatio = 100 - ratio;
+  document.getElementById('lpRatioDisplay').textContent = lpRatio + '%';
 
-  const mintCount = price > 0 && hardCap > 0 ? Math.floor(hardCap/price) : 0;
-  const perMint   = supply > 0 && ratio > 0 ? Math.floor((supply*ratio/100)/mintCount) : 0;
-  const unitPrice = perMint > 0 && price > 0 ? (price/perMint).toExponential(2) : '—';
+  const mintCount  = price > 0 && hardCap > 0 ? Math.floor(hardCap / price) : 0;
+  const perMint    = supply > 0 && ratio > 0 && mintCount > 0 ? Math.floor((supply * ratio / 100) / mintCount) : 0;
+  const unitPrice  = perMint > 0 && price > 0 ? formatTokenPrice(price / perMint) : '—';
 
-  document.getElementById('calcMintCount').textContent = mintCount.toLocaleString() || '—';
-  document.getElementById('calcPerMint').textContent   = perMint ? perMint.toLocaleString() : '—';
-  document.getElementById('calcUnitPrice').textContent = unitPrice;
+  document.getElementById('calcMintCount').textContent = mintCount ? mintCount.toLocaleString() : '—';
+  document.getElementById('calcPerMint').textContent   = perMint  ? perMint.toLocaleString()   : '—';
+  document.getElementById('calcUnitPrice').textContent  = unitPrice;
 }
 
 /* === Tax Distribution Total === */
 function updateDist(){
-  const w=+document.getElementById('distWallet').value;
-  const b=+document.getElementById('distBurn').value;
-  const r=+document.getElementById('distReward').value;
-  const l=+document.getElementById('distLiq').value;
-  document.getElementById('distWalletVal').textContent=w+'%';
-  document.getElementById('distBurnVal').textContent=b+'%';
-  document.getElementById('distRewardVal').textContent=r+'%';
-  document.getElementById('distLiqVal').textContent=l+'%';
-  const total=w+b+r+l;
-  const remain=Math.max(0,100-total);
-  const el=document.getElementById('distTotal');
-  el.innerHTML=`总计 ${total}% &nbsp;&nbsp; 未分配: <span class="${remain===0?'dist-ok':'dist-warn'}">${remain}%</span>`;
+  const w = +document.getElementById('distWallet').value;
+  const b = +document.getElementById('distBurn').value;
+  const r = +document.getElementById('distReward').value;
+  const l = +document.getElementById('distLiq').value;
+  document.getElementById('distWalletVal').textContent = w + '%';
+  document.getElementById('distBurnVal').textContent   = b + '%';
+  document.getElementById('distRewardVal').textContent = r + '%';
+  document.getElementById('distLiqVal').textContent   = l + '%';
+  const total  = w + b + r + l;
+  const remain = Math.max(0, 100 - total);
+  const el = document.getElementById('distTotal');
+  el.innerHTML = `总计 ${total}% &nbsp;&nbsp; 未分配: <span class="${remain === 0 ? 'dist-ok' : 'dist-warn'}">${remain}%</span>`;
 }
 
 /* === Launch Action Mock === */
 function doLaunch(){
-  const btn=document.getElementById('launchBtn');
-  btn.textContent='⏳ 正在发射代币...';btn.disabled=true;
+  const btn = document.getElementById('launchBtn');
+  btn.textContent = '⏳ 正在发射代币...';
+  btn.disabled = true;
   setTimeout(()=>{
-    document.getElementById('deployResult').style.display='block';
-    document.getElementById('contractAddr').textContent='0x'+Array.from({length:40},()=>Math.floor(Math.random()*16).toString(16)).join('');
+    document.getElementById('deployResult').style.display = 'block';
+    document.getElementById('contractAddr').textContent = '0x' + Array.from({length:40}, () => Math.floor(Math.random()*16).toString(16)).join('');
     // 显示开盘模式
-    const manual=document.getElementById('manualOpenToggle').classList.contains('on');
-    document.getElementById('resultOpenMode').textContent=manual?'手动开盘（需 Owner 手动启用交易）':'自动开盘（预售结束后自动启用）';
+    const manual = document.getElementById('manualOpenToggle').classList.contains('on');
+    document.getElementById('resultOpenMode').textContent = manual ? '手动开盘（需 Owner 手动启用交易）' : '自动开盘（预售结束后自动启用）';
     // Scroll to result
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
-    btn.textContent='🚀 立即发射代币';
-  },2000);
+    btn.textContent = '🚀 立即发射代币';
+  }, 2000);
 }
 
 /* === File Upload Preview === */
-document.getElementById('fileInput')?.addEventListener('change',function(e){
+document.getElementById('fileInput')?.addEventListener('change', function(e){
   if(this.files[0]){
-    const area=document.getElementById('uploadArea');
-    area.innerHTML='<div class="up-icon">✅</div><p>图片已上传 ✓</p><p class="small">点击更换图片</p>';
+    const area = document.getElementById('uploadArea');
+    area.innerHTML = '<span class="up-icon">✅</span><p>图片已上传 ✓</p><p class="small">点击更换图片</p>';
   }
 });
 
-// Init calc
+/* === Navbar scroll effect === */
+window.addEventListener('scroll', () => {
+  document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
+});
+
+// Init
 calcPreview();
 </script>
 </body>
