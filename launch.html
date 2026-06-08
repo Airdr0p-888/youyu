@@ -382,19 +382,19 @@
 
       <div class="range-wrap">
         <div class="range-top"><span><span class="dm dm-w"></span>资金钱包（营销 / 捐赠）</span><span class="rv" id="distWalletVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distWallet" oninput="updateDist()" />
+        <input type="range" min="0" max="100" value="0" id="distWallet" oninput="updateDist('distWallet')" />
       </div>
       <div class="range-wrap">
         <div class="range-top"><span><span class="dm dm-b"></span>燃烧（减少供应）</span><span class="rv" id="distBurnVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distBurn" oninput="updateDist()" />
+        <input type="range" min="0" max="100" value="0" id="distBurn" oninput="updateDist('distBurn')" />
       </div>
       <div class="range-wrap">
         <div class="range-top"><span><span class="dm dm-r"></span>分红（持有者奖励）</span><span class="rv" id="distRewardVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distReward" oninput="updateDist()" />
+        <input type="range" min="0" max="100" value="0" id="distReward" oninput="updateDist('distReward')" />
       </div>
       <div class="range-wrap">
         <div class="range-top"><span><span class="dm dm-l"></span>流动性（添加流动性）</span><span class="rv" id="distLiqVal">0%</span></div>
-        <input type="range" min="0" max="100" value="0" id="distLiq" oninput="updateDist()" />
+        <input type="range" min="0" max="100" value="0" id="distLiq" oninput="updateDist('distLiq')" />
       </div>
       <div class="dist-total" id="distTotal">总计 0% &nbsp; 未分配: <span class="dt-warn">100%</span></div>
 
@@ -520,18 +520,34 @@ function calcPreview(){
   document.getElementById('calcUnitPrice').textContent = unitPrice;
 }
 
-function updateDist(){
-  const w = +document.getElementById('distWallet').value;
-  const b = +document.getElementById('distBurn').value;
-  const r = +document.getElementById('distReward').value;
-  const l = +document.getElementById('distLiq').value;
-  document.getElementById('distWalletVal').textContent = w + '%';
-  document.getElementById('distBurnVal').textContent   = b + '%';
-  document.getElementById('distRewardVal').textContent = r + '%';
-  document.getElementById('distLiqVal').textContent    = l + '%';
-  const total = w + b + r + l;
-  const remain = Math.max(0, 100 - total);
-  document.getElementById('distTotal').innerHTML = `总计 ${total}% &nbsp; 未分配: <span class="${remain === 0 ? 'dt-ok' : 'dt-warn'}">${remain}%</span>`;
+function updateDist(changedId){
+  const ids = ['distWallet','distBurn','distReward','distLiq'];
+  const valIds = ['distWalletVal','distBurnVal','distRewardVal','distLiqVal'];
+
+  // 当前拖动的滑块值
+  const current = {};
+  ids.forEach(id => { current[id] = +document.getElementById(id).value; });
+
+  // 如果四项之和超过100，把当前拖动的那项压回去
+  if(changedId){
+    const others = ids.filter(id => id !== changedId);
+    const otherSum = others.reduce((s, id) => s + current[id], 0);
+    const maxVal = Math.max(0, 100 - otherSum);
+    if(current[changedId] > maxVal){
+      current[changedId] = maxVal;
+      document.getElementById(changedId).value = maxVal;
+    }
+  }
+
+  // 更新显示值
+  ids.forEach((id, i) => {
+    document.getElementById(valIds[i]).textContent = current[id] + '%';
+  });
+
+  const total = ids.reduce((s, id) => s + current[id], 0);
+  const remain = 100 - total;
+  document.getElementById('distTotal').innerHTML =
+    `总计 ${total}% &nbsp; 未分配: <span class="${remain === 0 ? 'dt-ok' : 'dt-warn'}">${remain}%</span>`;
 }
 
 function doLaunch(){
