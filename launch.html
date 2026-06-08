@@ -582,7 +582,20 @@ const FACTORY_ABI = [
     {"name":"name","type":"string"},{"name":"symbol","type":"string"},
     {"name":"totalSupply","type":"uint256"},{"name":"launchedAt","type":"uint256"},
     {"name":"active","type":"bool"},{"name":"isPlatformProject","type":"bool"}],
-   "stateMutability":"view","type":"function"}
+   "stateMutability":"view","type":"function"},
+  {"anonymous":false,
+   "inputs":[
+     {"indexed":true,"name":"token","type":"address"},
+     {"indexed":true,"name":"refund","type":"address"},
+     {"indexed":true,"name":"projectOwner","type":"address"},
+     {"indexed":false,"name":"dividend","type":"address"},
+     {"indexed":false,"name":"name","type":"string"},
+     {"indexed":false,"name":"symbol","type":"string"},
+     {"indexed":false,"name":"totalSupply","type":"uint256"},
+     {"indexed":false,"name":"isPlatformProject","type":"bool"},
+     {"indexed":false,"name":"hasDividend","type":"bool"}
+   ],
+   "name":"ProjectLaunched","type":"event"}
 ];
 
 // Token 最小 ABI（用于验证代币）
