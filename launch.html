@@ -196,6 +196,28 @@
     .hero h1 .hl { background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text; }
     .hero p { color:var(--text2);font-size:0.88rem;margin-top:8px; }
 
+    /* ─── OPEN MODE SELECTOR ─── */
+    .open-mode-opt {
+      flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+      padding:14px 10px;border-radius:12px;cursor:pointer;
+      background:rgba(255,255,255,0.02);border:2px solid var(--border);
+      transition:.25s;text-align:center;
+    }
+    .open-mode-opt:hover { border-color:rgba(0,200,255,0.3);background:rgba(0,200,255,0.04); }
+    .open-mode-opt.selected { border-color:var(--cyan);background:rgba(0,200,255,0.08);box-shadow:0 0 12px rgba(0,200,255,0.08); }
+    .open-mode-opt input[type=radio] { display:none; }
+    .om-icon { font-size:1.5rem;line-height:1; }
+    .om-label { font-size:0.85rem;font-weight:600;color:var(--text1); }
+    .om-desc { font-size:0.7rem;color:var(--text3); }
+    #scheduledTimeBox { margin-top:14px; }
+    #scheduledTimeBox label { font-size:0.86rem;font-weight:600;display:block;margin-bottom:6px; }
+    #scheduledTimeBox input[type=datetime-local] {
+      width:100%;padding:11px 14px;border-radius:10px;border:1px solid var(--border);
+      background:rgba(255,255,255,0.03);color:var(--text1);font-size:0.9rem;
+      outline:none;transition:.2s;box-sizing:border-box;font-family:inherit;
+    }
+    #scheduledTimeBox input[type=datetime-local]:focus { border-color:var(--cyan);box-shadow:0 0 8px rgba(0,200,255,0.15); }
+
     /* ─── ANIM ─── */
     @keyframes fu { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
     .panel,.wallet-bar,.calc-box { animation:fu .45s ease-out both; }
@@ -217,6 +239,7 @@
       <span>Squid<span style="background:linear-gradient(90deg,var(--cyan),var(--magenta));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Launch</span></span>
     </a>
     <a href="index.html" class="nb-back">← 返回首页</a>
+    <a href="owner.html" class="nb-back" style="margin-left:12px;color:var(--cyan)">🛠️ 管理面板</a>
   </div>
 </nav>
 
@@ -350,15 +373,27 @@
     <div class="sdiv"><div class="sdiv-line"></div><span class="sdiv-tag">开盘模式</span><div class="sdiv-line" style="background:linear-gradient(90deg,transparent,var(--border))"></div></div>
 
     <div class="panel">
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-label">手动开盘模式</div>
-          <div class="toggle-sub" id="openModeHint">关闭：预售结束后自动开盘（默认）</div>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="manualOpenChk" onchange="onToggleManual(this)" />
-          <span class="ts-slider"></span>
+      <!-- ★ 开盘模式三选一 -->
+      <div style="display:flex;gap:10px;margin-bottom:14px">
+        <label class="open-mode-opt" id="optAuto" onclick="selectOpenMode('auto')">
+          <input type="radio" name="openMode" value="auto" checked />
+          <span class="om-icon">⏰</span>
+          <span class="om-label">定时开盘</span>
+          <span class="om-desc">设好时间自动开</span>
         </label>
+        <label class="open-mode-opt" id="optManual" onclick="selectOpenMode('manual')">
+          <input type="radio" name="openMode" value="manual" />
+          <span class="om-icon">🎮</span>
+          <span class="om-label">手动开盘</span>
+          <span class="om-desc">Owner 手动开启</span>
+        </label>
+      </div>
+
+      <!-- ★ 定时开盘时间选择器（仅 auto 模式显示） -->
+      <div id="scheduledTimeBox">
+        <label>⏰ 预售结束 & 自动开盘时间</label>
+        <input type="datetime-local" id="t_openTime" oninput="onOpenTimeChange()" />
+        <div class="hint" id="openTimeHint">选择时间后，到达该时刻合约将自动完成预售并开启交易</div>
       </div>
 
       <!-- ★ Mint 资金分配规则：仅平台方钱包连接时显示 -->
@@ -546,6 +581,17 @@ function checkPlatformWallet(addr){
 
 // ★ 页面加载时检测是否已连接（用户刷新页面不丢失）
 (async function autoConnect(){
+  // 初始化开盘模式默认选中
+  selectOpenMode('auto');
+
+  // 设置默认开盘时间 = 24小时后
+  const defTime = new Date(Date.now() + 24*3600000);
+  const pad2 = n => String(n).padStart(2,'0');
+  document.getElementById('t_openTime').value =
+    `${defTime.getFullYear()}-${pad2(defTime.getMonth()+1)}-${pad2(defTime.getDate())}T` +
+    `${pad2(defTime.getHours())}:${pad2(defTime.getMinutes())}`;
+  onOpenTimeChange();
+
   if(window.ethereum && ethereum.selectedAddress){
     onWalletConnected(ethereum.selectedAddress);
   }
@@ -565,10 +611,47 @@ function disconnectWallet(){
   location.reload();
 }
 
-function onToggleManual(chk){
-  document.getElementById('openModeHint').textContent = chk.checked
-    ? '开启：需 Owner 手动调用 enableTrading() 开盘'
-    : '关闭：预售结束后自动开盘（默认）';
+function onOpenTimeChange(){
+  const val = document.getElementById('t_openTime').value;
+  const hint = document.getElementById('openTimeHint');
+  if(!val){
+    hint.textContent = '选择时间后，到达该时刻合约将自动完成预售并开启交易';
+    hint.style.color = '';
+    return;
+  }
+  const d = new Date(val);
+  const now = Date.now();
+  const diffMs = d.getTime() - now;
+  if(diffMs <= 0){
+    hint.textContent = '⚠️ 开盘时间必须晚于当前时间';
+    hint.style.color = '#ff4757';
+  } else {
+    const hours = Math.floor(diffMs / 3600000);
+    const mins = Math.floor((diffMs % 3600000) / 60000);
+    if(hours > 48){
+      hint.textContent = `⏰ ${d.toLocaleString()}（距现在 ${hours} 小时）`;
+      hint.style.color = '';
+    } else {
+      hint.textContent = `⏰ ${d.toLocaleString()}（约 ${hours}h${mins}m 后开盘）`;
+      hint.style.color = '';
+    }
+  }
+}
+
+// ★ 开盘模式切换
+let currentOpenMode = 'auto';
+function selectOpenMode(mode){
+  currentOpenMode = mode;
+
+  // 更新选中样式
+  document.getElementById('optAuto').classList.toggle('selected', mode === 'auto');
+  document.getElementById('optManual').classList.toggle('selected', mode === 'manual');
+
+  // 显示/隐藏时间选择器
+  document.getElementById('scheduledTimeBox').style.display = (mode === 'auto') ? '' : 'none';
+
+  // 设置 radio
+  document.querySelector(`input[name="openMode"][value="${mode}"]`).checked = true;
 }
 
 function formatTokenPrice(v){
@@ -652,8 +735,10 @@ function doLaunch(){
   setTimeout(()=>{
     document.getElementById('deployResult').style.display = 'block';
     document.getElementById('contractAddr').textContent = '0x' + Array.from({length:36}, ()=>Math.floor(Math.random()*16).toString(16)).join('') + '0000';
-    const manual = document.getElementById('manualOpenChk').checked;
-    document.getElementById('resultOpenMode').textContent = manual ? '手动开盘（需 Owner 手动启用）' : '自动开盘（预售结束自动启用）';
+    const manual = currentOpenMode === 'manual';
+    document.getElementById('resultOpenMode').textContent = manual
+      ? '手动开盘（需 Owner 调 enableTrading）'
+      : '定时开盘（' + (document.getElementById('t_openTime').value || '未设置') + '）';
 
     // ★ 分红状态（由 distReward > 0 决定，非单独开关）
     const divEnabled = +document.getElementById('distReward').value > 0;

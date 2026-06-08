@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SquidLaunch — 项目方管理</title>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg:#060d1a; --bg2:#0a1628; --panel:rgba(10,20,40,0.85);
+      --border:rgba(0,200,255,0.1); --border-h:rgba(0,200,255,0.32);
+      --cyan:#00c8ff; --cyan-glow:rgba(0,200,255,0.3);
+      --magenta:#d400ff; --green:#00ffb2; --green-dim:rgba(0,255,178,0.08);
+      --yellow:#ffd700; --red:#ff4757; --orange:#ff9f43;
+      --text:#e8f4ff; --text2:#5e7fa0; --text3:#2e4a62;
+      --r:14px; --rs:9px;
+    }
+    html { font-family:'Inter','PingFang SC','Noto Sans SC',sans-serif; background:var(--bg); color:var(--text); line-height:1.6; -webkit-font-smoothing:antialiased; }
+    body {
+      min-height:100vh;
+      background: radial-gradient(ellipse 120% 60% at 70% -5%, rgba(0,200,255,0.05) 0%, transparent 55%),
+                  radial-gradient(ellipse 80% 50% at -10% 80%, rgba(212,0,255,0.04) 0%, transparent 55%), var(--bg);
+    }
+    ::-webkit-scrollbar{width:4px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:rgba(0,200,255,0.15);border-radius:2px}
+
+    /* NAV */
+    .navbar { position:sticky;top:0;z-index:200;backdrop-filter:blur(20px);background:rgba(6,13,26,0.88);border-bottom:1px solid var(--border); }
+    .nb-inner { max-width:1280px;margin:0 auto;padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between; }
+    .logo { display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text);font-size:1.15rem;font-weight:800; }
+    .logo-ring { width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--cyan),var(--magenta));display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 0 16px var(--cyan-glow); }
+    .nb-links { display:flex;align-items:center;gap:18px; }
+    .nb-link { color:var(--text2);font-size:0.84rem;text-decoration:none;transition:.2s;padding:6px 12px;border-radius:8px; }
+    .nb-link:hover,.nb-link.active { color:var(--cyan);background:rgba(0,200,255,0.06); }
+
+    /* LAYOUT */
+    .layout { max-width:1100px;margin:0 auto;padding:28px 24px 80px; }
+
+    /* WALLET BAR */
+    .wallet-bar { display:flex;align-items:center;gap:12px;padding:13px 18px;border-radius:12px;margin-bottom:20px; }
+    .wb-disc { background:rgba(255,71,87,0.07);border:1px solid rgba(255,71,87,0.15); }
+    .wb-conn { background:var(--green-dim);border:1px solid rgba(0,255,178,0.15); }
+    .wd { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+    .wd-r { background:var(--red);animation:blink 1.8s infinite; }
+    .wd-g { background:var(--green);box-shadow:0 0 7px rgba(0,255,178,0.5); }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
+
+    /* PANEL */
+    .panel { background:var(--panel);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;margin-bottom:20px;backdrop-filter:blur(12px);transition:border-color .25s; }
+    .panel:hover { border-color:rgba(0,200,255,0.18); }
+
+    /* SEC HEADING */
+    .sec-h { display:flex;align-items:center;gap:10px;margin-bottom:16px;margin-top:4px; }
+    .sec-badge { display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;font-size:0.95rem;background:linear-gradient(135deg,rgba(0,200,255,0.12),rgba(212,0,255,0.06));border:1px solid rgba(0,200,255,0.14); }
+    .sec-h h2 { font-size:1rem;font-weight:700;letter-spacing:-0.01em; }
+
+    /* FORM */
+    .field { margin-bottom:16px; }
+    .field label { display:block;font-size:0.8rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:0.01em; }
+    input[type=text],input[type=number],textarea,select {
+      width:100%;padding:11px 15px;border-radius:var(--rs);
+      border:1px solid var(--border);background:rgba(4,12,24,0.9);
+      color:var(--text);font-family:inherit;font-size:0.88rem;transition:all .22s;outline:none;
+    }
+    input:focus,textarea:focus,select:focus { border-color:var(--border-h);box-shadow:0 0 0 3px rgba(0,200,255,0.06); }
+    input::placeholder,textarea::placeholder { color:var(--text3);font-size:0.84rem; }
+    .hint { font-size:0.73rem;color:var(--text3);margin-top:5px;line-height:1.55; }
+    .row2 { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+    .row3 { display:grid;grid-template-columns:repeat(3,1fr);gap:12px; }
+    @media(max-width:600px){.row2,.row3{grid-template-columns:1fr}}
+
+    /* BTNS */
+    .btn { display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 22px;border-radius:var(--rs);font-weight:700;font-size:0.86rem;cursor:pointer;border:none;transition:all .22s;font-family:inherit;position:relative;overflow:hidden; }
+    .btn-primary { background:linear-gradient(135deg,var(--cyan),#007daa);color:#000;box-shadow:0 4px 20px var(--cyan-glow); }
+    .btn-primary:hover { transform:translateY(-2px);box-shadow:0 6px 32px var(--cyan-glow); }
+    .btn-success { background:linear-gradient(135deg,var(--green),#00cc88);color:#000;box-shadow:0 4px 20px rgba(0,255,178,0.25); }
+    .btn-danger { background:linear-gradient(135deg,var(--red),#cc3344);color:#fff; }
+    .btn-outline { background:transparent;border:1.5px solid rgba(0,200,255,0.35);color:var(--cyan); }
+    .btn-outline:hover { background:rgba(0,200,255,0.07); }
+    .btn-sm { padding:7px 15px;font-size:0.78rem;border-radius:7px; }
+    .btn-block { width:100%;padding:14px;font-size:0.95rem;border-radius:12px; }
+    .btn:disabled { opacity:0.32;cursor:not-allowed;transform:none!important;box-shadow:none!important; }
+    .btn-group { display:flex;gap:8px;flex-wrap:wrap;margin-top:10px; }
+
+    /* TOGGLE */
+    .toggle-row { display:flex;align-items:center;justify-content:space-between;gap:14px;padding:4px 0; }
+    .toggle-switch { position:relative;width:44px;height:24px;flex-shrink:0; }
+    .toggle-switch input { opacity:0;width:0;height:0; }
+    .ts-slider { position:absolute;inset:0;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:.3s; }
+    .ts-slider::before { content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:var(--text3);top:3px;left:3px;transition:.3s; }
+    .toggle-switch input:checked ~ .ts-slider { background:rgba(0,200,255,0.22);border-color:rgba(0,200,255,0.4); }
+    .toggle-switch input:checked ~ .ts-slider::before { transform:translateX(20px);background:var(--cyan);box-shadow:0 0 8px var(--cyan-glow); }
+    .toggle-label { font-size:0.88rem;font-weight:600;cursor:pointer; }
+    .toggle-sub { font-size:0.74rem;color:var(--text2);margin-top:2px; }
+
+    /* WARN / INFO */
+    .warn-box { display:flex;gap:10px;padding:12px 16px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.14);border-radius:10px;font-size:0.8rem;line-height:1.65; }
+    .warn-box .wi { color:var(--red);flex-shrink:0;margin-top:1px; }
+    .info-box { display:flex;gap:10px;padding:12px 16px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.12);border-radius:10px;font-size:0.8rem;line-height:1.65;color:var(--text2); }
+    .info-box .wi { color:var(--cyan);flex-shrink:0;margin-top:1px; }
+
+    /* PROJECT LIST */
+    .proj-card { background:rgba(4,12,24,0.6);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px;margin-bottom:14px;transition:all .25s;cursor:pointer; }
+    .proj-card:hover { border-color:rgba(0,200,255,0.25);transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.3); }
+    .proj-card.active { border-color:var(--cyan);background:rgba(0,200,255,0.05); }
+    .proj-head { display:flex;align-items:center;justify-content:space-between;margin-bottom:10px; }
+    .proj-name { font-size:1.02rem;font-weight:700; }
+    .proj-symbol { display:inline-flex;align-items:center;padding:3px 10px;border-radius:6px;background:rgba(0,200,255,0.08);font-size:0.76rem;font-weight:700;color:var(--cyan);margin-left:8px; }
+    .proj-status { padding:4px 11px;border-radius:20px;font-size:0.72rem;font-weight:700; }
+    .ps-presale { background:rgba(255,215,0,0.1);color:var(--yellow);border:1px solid rgba(255,215,0,0.2); }
+    .ps-live   { background:rgba(0,255,178,0.1);color:var(--green);border:1px solid rgba(0,255,178,0.2); }
+    .ps-paused { background:rgba(255,71,87,0.1);color:var(--red);border:1px solid rgba(255,71,87,0.2); }
+    .ps-finalized { background:rgba(100,130,170,0.1);color:var(--text2);border:1px solid rgba(100,130,170,0.2); }
+    .proj-meta { display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:0.78rem; }
+    .pm-item { color:var(--text3); }
+    .pm-item strong { color:var(--text2);font-weight:600; }
+
+    /* ACTION GRID */
+    .action-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:16px; }
+    .action-btn { display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 14px;border-radius:12px;border:1.5px solid var(--border);background:rgba(4,12,24,0.5);cursor:pointer;transition:all .22s;text-align:center; }
+    .action-btn:hover { border-color:var(--cyan);background:rgba(0,200,255,0.05);transform:translateY(-2px); }
+    .action-btn:disabled { opacity:0.35;cursor:not-allowed;transform:none !important; }
+    .ab-icon { font-size:1.6rem;line-height:1; }
+    .ab-label { font-size:0.82rem;font-weight:600;color:var(--text); }
+    .ab-desc { font-size:0.7rem;color:var(--text3);line-height:1.45; }
+
+    /* ADDR BOX */
+    .addr-box { background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--rs);padding:13px 16px;font-family:'Fira Code','Courier New',monospace;font-size:0.84rem;word-break:break-all;color:var(--green);letter-spacing:0.3px; }
+    .addr-label { font-size:0.74rem;color:var(--text3);margin-bottom:4px;display:block;font-family:inherit; }
+
+    /* LOG */
+    .log-area { background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:var(--rs);padding:14px 18px;max-height:220px;overflow-y:auto;font-family:'Fira Code','Courier New',monospace;font-size:0.78rem;color:var(--text2);line-height:1.75;white-space:pre-wrap;word-break:break-all; }
+    .log-ok { color:var(--green); }
+    .log-warn { color:var(--yellow); }
+    .log-err { color:var(--red); }
+    .log-info { color:var(--cyan); }
+
+    /* TABS */
+    .tab-bar { display:flex;gap:2px;margin-bottom:18px;background:rgba(4,12,24,0.5);border-radius:10px;padding:3px; }
+    .tab-item { flex:1;padding:9px 14px;text-align:center;font-size:0.82rem;font-weight:600;color:var(--text3);border-radius:8px;cursor:pointer;transition:.2s;border:none;background:transparent; }
+    .tab-item:hover { color:var(--text2); }
+    .tab-item.active { background:rgba(0,200,255,0.1);color:var(--cyan); }
+
+    /* EMPTY */
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text3); }
+    .empty-icon { font-size:3rem;margin-bottom:12px;display:block; }
+    .empty-state p { font-size:0.9rem; }
+    .empty-state a { color:var(--cyan);text-decoration:none; }
+
+    /* ANIM */
+    @keyframes fu { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+    .panel,.wallet-bar,.proj-card { animation:fu .45s ease-out both; }
+
+    /* MOBILE */
+    @media(max-width:768px){
+      .action-grid{ grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+      .proj-meta{ grid-template-columns:1fr 1fr; }
+      .nb-links{ display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ NAVBAR ═══ -->
+<nav class="navbar"><div class="nb-inner">
+  <a href="index.html" class="logo"><div class="logo-ring">🦑</div>SquidLaunch</a>
+  <div class="nb-links">
+    <a href="index.html" class="nb-link">首页</a>
+    <a href="launch.html" class="nb-link">发射</a>
+    <a href="owner.html" class="nb-link active">管理面板</a>
+    <a href="refund.html" class="nb-link">紧急赎回</a>
+  </div>
+</div></nav>
+
+<div class="layout">
+
+  <!-- WALLET -->
+  <div id="walletBox" class="wallet-bar wb-disc">
+    <span class="wd wd-r"></span>
+    <span style="flex:1;font-size:0.86rem">请先连接你的项目方钱包</span>
+    <button class="btn btn-outline btn-sm" onclick="connectWallet()">连接钱包 🔗</button>
+  </div>
+
+  <!-- ── 项目列表（未选中时显示）── -->
+  <div id="projectListArea">
+
+    <div class="sec-h"><div class="sec-badge">📋</div><h2>我的项目</h2></div>
+
+    <div id="projectList">
+      <!-- JS 动态填充 -->
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display:none">
+      <span class="empty-icon">📭</span>
+      <p>暂无项目记录</p>
+      <p style="font-size:0.78rem;margin-top:8px">
+        前往 <a href="launch.html">发射页面</a> 创建你的第一个代币项目
+      </p>
+    </div>
+  </div>
+
+  <!-- ── 项目详情（选中后显示）── -->
+  <div id="projectDetailArea" style="display:none">
+
+    <!-- 返回按钮 -->
+    <button class="btn btn-outline btn-sm" style="margin-bottom:16px" onclick="goBackToList()">
+      ← 返回项目列表
+    </button>
+
+    <!-- 项目信息卡片 -->
+    <div class="panel">
+      <div class="proj-head">
+        <div>
+          <span class="proj-name" id="dName">—</span>
+          <span class="proj-symbol" id="dSymbol">—</span>
+        </div>
+        <span class="proj-status ps-presale" id="dStatus">预售中</span>
+      </div>
+      <div class="proj-meta">
+        <div class="pm-item">代币地址：<strong id="dTokenAddr" style="font-family:monospace;font-size:0.72rem">—</strong></div>
+        <div class="pm-item">退款合约：<strong id="dRefundAddr" style="font-family:monospace;font-size:0.72rem">—</strong></div>
+        <div class="pm-item">分红合约：<strong id="dDivAddr" style="font-family:monospace;font-size:0.72rem">—</strong></div>
+        <div class="pm-item">总供应量：<strong id="dSupply">—</strong></div>
+        <div class="pm-item">当前阶段：<strong id="dPhase">—</strong></div>
+        <div class="pm-item">平台项目：<strong id="dIsPlatform">—</strong></div>
+      </div>
+    </div>
+
+    <!-- 操作 Tab 切换 -->
+    <div class="tab-bar">
+      <button class="tab-item active" onclick="switchTab('trade')">交易控制</button>
+      <button class="tab-item" onclick="switchTab('whitelist')">白名单管理</button>
+      <button class="tab-item" onclick="switchTab('presale')">预售 & LP</button>
+      <button class="tab-item" onclick="switchTab('dividend')">分红操作</button>
+    </div>
+
+    <!-- ══ TAB: 交易控制 ══ -->
+    <div class="tab-panel" id="tabTrade">
+      <div class="panel">
+        <div class="sec-h"><div class="sec-badge">⚡</div><h2>交易开关</h2></div>
+        <div class="warn-box" style="margin-bottom:14px">
+          <span class="wi">⚠️</span>
+          <span>开启交易后，代币将可以在 PancakeSwap 上自由买卖。此操作<strong>不可撤销</strong>。</span>
+        </div>
+        <div class="action-grid">
+          <div class="action-btn" id="actEnableTrading" onclick="callContract('enableTrading')">
+            <span class="ab-icon">▶️</span>
+            <span class="ab-label">开启交易</span>
+            <span class="ab-desc">调用 enableTrading() 允许用户在 DEX 上买卖</span>
+          </div>
+          <div class="action-btn" onclick="alert('仅平台 Guardian 可暂停交易')">
+            <span class="ab-icon">⏸️</span>
+            <span class="ab-label">暂停交易</span>
+            <span class="ab-desc">紧急暂停（仅平台方可操作）</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: 白名单管理 ══ -->
+    <div class="tab-panel" id="tabWhitelist" style="display:none">
+      <div class="panel">
+        <div class="sec-h"><div class="sec-badge">📝</div><h2>白名单管理</h2></div>
+        <div class="info-box" style="margin-bottom:14px">
+          <span class="wi">ℹ️</span>
+          <span>添加到白名单的地址可以参与 Mint。移除后将无法继续 Mint（已 Mint 的不受影响）。</span>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>添加白名单地址</label>
+            <input type="text" id="wlAddInput" placeholder="0x..." />
+          </div>
+          <div class="field">
+            <label>移除白名单地址</label>
+            <input type="text" id="wlRemoveInput" placeholder="0x..." />
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-primary btn-sm" onclick="callContract('addToWhitelist')">➕ 添加</button>
+          <button class="btn btn-danger btn-sm" onclick="callContract('removeFromWhitelist')">➖ 移除</button>
+        </div>
+
+        <div style="margin-top:18px">
+          <label style="font-size:0.8rem;font-weight:600;color:var(--text2)">当前白名单列表</label>
+          <div class="log-area" id="whitelistList" style="min-height:60px;max-height:180px">
+            加载中...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: 预售 & LP ══ -->
+    <div class="tab-panel" id="tabPresale" style="display:none">
+      <div class="panel">
+        <div class="sec-h"><div class="sec-badge">💰</div><h2>完成预售 & 注入流动性</h2></div>
+        <div class="warn-box" style="margin-bottom:14px">
+          <span class="wi">⚠️</span>
+          <span>finalizePresale() 将：① 结束预售 ② 用合约中留存的 BNB 自动注入 LP 到 PancakeSwap ③ LP token 发给退款合约。执行后不可撤销！</span>
+        </div>
+
+        <div class="info-box" style="margin-bottom:16px">
+          <span class="wi">ℹ️</span>
+          <span>合约当前 BNB 余额将用于注入流动性。确保余额足够。</span>
+        </div>
+
+        <div class="action-grid">
+          <div class="action-btn" onclick="callContract('finalizePresale')" id="actFinalize">
+            <span class="ab-icon">🚀</span>
+            <span class="ab-label">完成预售 + 注入LP</span>
+            <span class="ab-desc">调用 finalizePresale()</span>
+          </div>
+          <div class="action-btn" onclick="callContract('processLiquidity')" id="actLiq">
+            <span class="ab-icon">💧</span>
+            <span class="ab-label">单独注入LP</span>
+            <span class="ab-desc">如果 finalize 后需再次注 LP</span>
+          </div>
+        </div>
+
+        <div style="margin-top:16px">
+          <label style="font-size:0.8rem;font-weight:600;color:var(--text2)">合约状态查询</label>
+          <div class="calc-box">
+            <div class="calc-row"><span>预售是否激活</span><strong id="qPresaleActive">—</strong></div>
+            <div class="calc-row"><span>交易是否启用</span><strong id="qTradingEnabled">—</strong></div>
+            <div class="calc-row"><span>LP 是否已注入</span><strong id="qLiquidityAdded">—</strong></div>
+            <div class="calc-row"><span>预售是否已完成</span><strong id="qPresaleFinalized">—</strong></div>
+            <div class="calc-row"><span>合约 BNB 余额</span><strong id="qBnbBalance">—</strong></div>
+            <div class="calc-row"><span>已 Mint 总额 (BNB)</span><strong id="qTotalRaised">—</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: 分红操作 ══ -->
+    <div class="tab-panel" id="tabDividend" style="display:none">
+      <div class="panel">
+        <div class="sec-h"><div class="sec-badge">💰</div><h2>分红操作</h2></div>
+        <div id="dividendNoContract" style="display:none">
+          <div class="info-box">
+            <span class="wi">ℹ️</span>
+            <span>本项目未配置独立分红合约。如需使用分红功能，请在发射页面重新部署并开启分红选项。</span>
+          </div>
+        </div>
+        <div id="dividendHasContract">
+          <div class="warn-box" style="margin-bottom:14px">
+            <span class="wi">⚠️</span>
+            <span>processDividend() 将把累积的代币 swap 成 BNB/ERC20 并按持仓比例分配给持有人。需要消耗 gas。</span>
+          </div>
+          <div class="action-grid">
+            <div class="action-btn" onclick="callContract('processDividend')">
+              <span class="ab-icon">💵</span>
+              <span class="ab-label">执行分红分发</span>
+              <span class="ab-desc">调用 Dividend 合约 processDividend()</span>
+            </div>
+            <div class="action-btn" onclick="callContract('claimMyDividend')">
+              <span class="ab-icon">🎁</span>
+              <span class="ab-label">领取自己的分红</span>
+              <span class="ab-desc">调用 claimDividend() 提取到钱包</span>
+            </div>
+          </div>
+
+          <div style="margin-top:16px">
+            <label style="font-size:0.8rem;font-weight:600;color:var(--text2)">分红合约状态</label>
+            <div class="calc-box">
+              <div class="calc-row"><span>分红是否暂停</span><strong id="qDivPaused">—</strong></div>
+              <div class="calc-row"><span>累积待处理代币量</span><strong id="qDivPending">—</strong></div>
+              <div class="calc-row"><span>持有人数量</span><strong id="qDivHolders">—</strong></div>
+              <div class="calc-row"><span>已处理总额</span><strong id="qDivProcessed">—</strong></div>
+              <div class="calc-row"><span>我的可领金额</span><strong id="qMyDividend">—</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="panel">
+      <div class="sec-h"><div class="sec-badge">📜</div><h2>操作日志</h2></div>
+      <div class="log-area" id="opLog">
+<span class="log-info">[系统] 管理面板已就绪，等待连接钱包...</span>
+      </div>
+    </div>
+  </div><!-- /projectDetailArea -->
+
+</div><!-- /.layout -->
+
+<script>
+// ★ 工厂合约地址（部署后填入真实地址）
+const FACTORY_ADDRESS = ''; // TODO: 部署后填入
+
+// ★ 当前选中的项目
+let currentProject = null;
+
+// ★ 连接钱包
+async function connectWallet(){
+  if(!window.ethereum){
+    alert('未检测到钱包插件，请安装 MetaMask 或 TP Wallet');
+    return;
+  }
+  try {
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+    onWalletConnected(accounts[0]);
+  } catch(e){
+    alert('连接失败：' + (e.message || e));
+  }
+}
+
+function onWalletConnected(addr){
+  const box = document.getElementById('walletBox');
+  box.className = 'wallet-bar wb-conn';
+  const short = addr.slice(0,6) + '...' + addr.slice(-4);
+  box.innerHTML =
+    '<span class="wd wd-g"></span>' +
+    '<span style="flex:1;font-size:0.86rem">已连接：' + short + ' (BSC)</span>' +
+    '<button class="btn btn-outline btn-sm" onclick="disconnectWallet()">断开</button>';
+
+  log('[钱包] 已连接 ' + short);
+
+  // 加载项目列表
+  loadProjects(addr);
+}
+
+function disconnectWallet(){ location.reload(); }
+
+// ★ 日志
+function log(msg, type=''){
+  const el = document.getElementById('opLog');
+  const ts = new Date().toLocaleTimeString();
+  const cls = type ? ' log-' + type : '';
+  el.innerHTML += '\n<span class="' + cls + '">[' + ts + '] ' + msg + '</span>';
+  el.scrollTop = el.scrollHeight;
+}
+
+// ★ 加载项目列表
+async function loadProjects(ownerAddress){
+  const listEl = document.getElementById('projectList');
+  const emptyEl = document.getElementById('emptyState');
+
+  // 实际对接时：调用 Factory.getProjectsByOwner(ownerAddress)
+  // 这里用模拟数据展示 UI 结构
+  const mockProjects = [
+    {
+      name: 'DemoToken',
+      symbol: 'DTK',
+      tokenAddr: '0x1234567890abcdef1234567890abcdef12345678',
+      refundAddr: '0xabcd567890efabcd1234567890abcdef12345678',
+      dividendAddr: '',
+      totalSupply: '1,000,000,000',
+      status: 'presale',     // presale | live | paused | finalized
+      isPlatform: true,
+      phase: '预售中'
+    },
+    {
+      name: 'MoonRocket',
+      symbol: 'MRT',
+      tokenAddr: '0xfedcba0987654321fedcba0987654321fedcba09',
+      refundAddr: '0x9876543210abcdef9876543210abcdef98765432',
+      dividendAddr: '0xabcdef1234567890abcdef1234567890abcdef12',
+      totalSupply: '500,000,000',
+      status: 'live',
+      isPlatform: false,
+      phase: '交易中'
+    }
+  ];
+
+  if(mockProjects.length === 0){
+    listEl.style.display = 'none';
+    emptyEl.style.display = '';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  listEl.innerHTML = '';
+
+  mockProjects.forEach((p, i) => {
+    const statusMap = {
+      presale: ['预售中','ps-presale'],
+      live:   ['交易中','ps-live'],
+      paused:  ['已暂停','ps-paused'],
+      finalized: ['已完成','ps-finalized']
+    };
+    const [statusText, statusCls] = statusMap[p.status] || ['未知',''];
+
+    const card = document.createElement('div');
+    card.className = 'proj-card';
+    card.style.animationDelay = (i * 0.08) + 's';
+    card.innerHTML =
+      '<div class="proj-head">' +
+        '<div>' +
+          '<span class="proj-name">' + p.name + '</span>' +
+          '<span class="proj-symbol">' + p.symbol + '</span>' +
+        '</div>' +
+        '<span class="proj-status ' + statusCls + '">' + statusText + '</span>' +
+      '</div>' +
+      '<div class="proj-meta">' +
+        '<div class="pm-item">供应量：<strong>' + p.totalSupply + '</strong></div>' +
+        '<div class="pm-item">阶段：<strong>' + p.phase + '</strong></div>' +
+        '<div class="pm-item">平台项目：<strong>' + (p.isPlatform ? '是 ✅' : '否') + '</strong></div>' +
+      '</div>';
+    card.onclick = () => selectProject(p);
+    listEl.appendChild(card);
+  });
+
+  log('加载了 ' + mockProjects.length + ' 个项目');
+}
+
+// ★ 选中项目
+function selectProject(p){
+  currentProject = p;
+
+  // 显示详情区域
+  document.getElementById('projectListArea').style.display = 'none';
+  document.getElementById('projectDetailArea').style.display = '';
+
+  // 填充数据
+  document.getElementById('dName').textContent = p.name;
+  document.getElementById('dSymbol').textContent = p.symbol;
+  document.getElementById('dTokenAddr').textContent = p.tokenAddr.slice(0,16) + '…';
+  document.getElementById('dRefundAddr').textContent = p.refundAddr.slice(0,16) + '…';
+
+  const divEl = document.getElementById('dDivAddr');
+  if(p.dividendAddr){
+    divEl.textContent = p.dividendAddr.slice(0,16) + '…';
+    divEl.parentElement.style.display = '';
+  } else {
+    divEl.textContent = '未配置';
+    divEl.parentElement.style.display = '';
+  }
+
+  document.getElementById('dSupply').textContent = p.totalSupply;
+  document.getElementById('dPhase').textContent = p.phase;
+  document.getElementById('dIsPlatform').textContent = p.isPlatform ? '是（25%+75%）' : '否（全留LP）';
+
+  const statusMap = { presale:'预售中', live:'交易中', paused:'已暂停', finalized:'已完成' };
+  const stEl = document.getElementById('dStatus');
+  stEl.textContent = statusMap[p.status] || '未知';
+  stEl.className = 'proj-status ps-' + p.status;
+
+  // 分红 tab 显示/隐藏
+  if(p.dividendAddr){
+    document.getElementById('dividendNoContract').style.display = 'none';
+    document.getElementById('dividendHasContract').style.display = '';
+  } else {
+    document.getElementById('dividendNoContract').style.display = '';
+    document.getElementById('dividendHasContract').style.display = 'none';
+  }
+
+  // 查询合约状态
+  queryProjectStatus(p);
+
+  log('[选择] 进入「' + p.name + '(' + p.symbol + ')」管理界面', 'info');
+}
+
+// ★ 返回列表
+function goBackToList(){
+  currentProject = null;
+  document.getElementById('projectListArea').style.display = '';
+  document.getElementById('projectDetailArea').style.display = 'none';
+}
+
+// ★ Tab 切换
+function switchTab(tabName){
+  document.querySelectorAll('.tab-panel').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+
+  const panelId = 'tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1);
+  const panel = document.getElementById(panelId);
+  if(panel) panel.style.display = '';
+
+  event.target.classList.add('active');
+}
+
+// ★ 查询项目状态（模拟）
+async function queryProjectStatus(p){
+  // 实际对接时通过 Web3 调用合约读取
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+
+  set('qPresaleActive', p.status === 'presale' ? '✅ 是' : '❌ 否');
+  set('qTradingEnabled', p.status === 'live' ? '✅ 是' : '❌ 否');
+  set('qLiquidityAdded', (p.status === 'live' || p.status === 'finalized') ? '✅ 已注入' : '❌ 未注入');
+  set('qPresaleFinalized', p.status === 'finalized' ? '✅ 已完成' : '❌ 未完成');
+  set('qBnbBalance', p.status === 'presale' ? '~12.5 BNB' : '0 BNB');
+  set('qTotalRaised', p.status === 'presale' ? '~50.0 BNB' : '50.0 BNB');
+
+  // 分红状态
+  if(p.dividendAddr){
+    set('qDivPaused', '❌ 否');
+    set('qDivPending', '125,000 DTK');
+    set('qDivHolders', '42 人');
+    set('qDivProcessed', '2.5 BNB');
+    set('qMyDividend', '0.012 BNB');
+
+    // 白名单列表（模拟）
+    document.getElementById('whitelistList').innerHTML =
+      '<span class="log-info">0x1234...5678</span>\n' +
+      '<span class="log-info">0xabcd...ef01</span>\n' +
+      '<span class="log-info">0x9876...1234</span>\n' +
+      '<span class="log-text3">(共 3 个地址)</span>';
+  }
+}
+
+// ★ 调用合约
+async function callContract(action){
+  if(!currentProject){ alert('请先选择一个项目'); return; }
+  if(!window.ethereum){ alert('请先连接钱包'); return; }
+
+  const actions = {
+    enableTrading:       { label: '开启交易',         confirm: '确认开启交易？此操作不可撤销！' },
+    finalizePresale:     { label: '完成预售+注入LP',  confirm: '确认完成预售并注入流动性？\n\n这将：\n① 结束预售\n② BNB→LP 注入 PancakeSwap\n③ LP token 发给退款合约\n\n此操作不可撤销！' },
+    processLiquidity:    { label: '注入LP',           confirm: '确认注入流动性？' },
+    addToWhitelist:      { label: '添加白名单',       needInput: 'wlAddInput',   inputLabel: '地址' },
+    removeFromWhitelist: { label: '移除白名单',       needInput: 'wlRemoveInput',inputLabel: '地址' },
+    processDividend:     { label: '执行分红',         confirm: '确认执行分红分发？' },
+    claimMyDividend:     { label: '领取分红',         confirm: '确认领取自己的分红？' }
+  };
+
+  const act = actions[action];
+  if(!act) return;
+
+  // 需要输入地址的操作
+  if(act.needInput){
+    const val = document.getElementById(act.needInput)?.value?.trim();
+    if(!val){ alert('请输入' + act.inputLabel); return; }
+    if(!val.startsWith('0x') || val.length !== 66){ alert('地址格式不正确'); return; }
+  }
+
+  // 确认弹窗
+  if(act.confirm && !confirm(act.confirm)) return;
+
+  log('[请求] 正在调用 ' + act.label + '...', 'info');
+
+  try {
+    // ★ 实际对接代码示例：
+    //
+    // const web3 = new Web3(ethereum);
+    // const contract = new web3.eth.Contract(TOKEN_ABI, currentProject.tokenAddr);
+    // const tx = contract.methods[action]();
+    // const receipt = await tx.send({ from: accounts[0], gas: 300000 });
+    // log('[成功] ' + act.label + ' TX: ' + receipt.transactionHash, 'ok');
+
+    // 模拟延迟
+    await new Promise(r => setTimeout(r, 1500));
+
+    log('[成功] ' + act.label + ' 已执行 ✓', 'ok');
+    log('(实际对接时这里会显示真实的 Transaction Hash)', '');
+
+    // 刷新状态
+    if(currentProject) queryProjectStatus(currentProject);
+  } catch(e){
+    log('[失败] ' + act.label + ': ' + (e.message || e), 'err');
+  }
+}
+
+// ★ 页面加载初始化
+(async function init(){
+  if(window.ethereum && ethereum.selectedAddress){
+    onWalletConnected(ethereum.selectedAddress);
+  }
+
+  // 监听账户切换
+  if(window.ethereum){
+    ethereum.on('accountsChanged', (accounts) => {
+      if(accounts.length > 0) onWalletConnected(accounts[0]);
+      else disconnectWallet();
+    });
+  }
+})();
+</script>
+
+</body>
+</html>
