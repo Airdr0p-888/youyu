@@ -3,522 +3,683 @@ pragma solidity ^0.8.20;
 
 /**
  * @title SquidLaunchToken
- * @notice SquidLaunch 发射平台代币模板
- * @dev 基于 ModaMint 架构，支持 Mint/预售/税费分配/分红/白名单
+ * @notice SquidLaunch 代币合约 — 带 Mint/预售/税费 + 外部分红合约集成
+ *
+ * 权限模型（开放平台）：
+ * ┌─────────────────────────────────────────────────────┐
+ * │  owner      = 项目方部署者 → 日常操作               │
+ * │  GUARDIAN   = 平台地址     → 紧急监管               │
+ * │  refundContract = 退款合约 → mint 资金托管 + 理赔    │
+ * │  dividendContract = 分红合约 → 独立处理分红分发      │
+ * └─────────────────────────────────────────────────────┘
+ *
+ * ★ isPlatformProject 标志（构造时设入，不可更改）：
+ *   true  = 平台方自己发的项目
+ *     → Mint 资金：25% → 平台钱包(即时) + 75% → 合约留LP
+ *
+ *   false = 第三方项目方发的项目
+ *     → Mint 资金：**100% 全部留合约用于 LP**（项目方不碰一分钱）
+ *
+ * ★ 分红系统已抽离到独立合约 SquidLaunchDividend：
+ *   - 本合约只负责：税费中的 distReward 部分自动转给分红合约
+ *   - 持有人追踪、swap、分发、claim 全部由分红合约负责
+ *   - 如果未绑定分红合约(distRewardPct 应设为0)，则不分红
  */
-contract SquidLaunchToken {
-    // ============================================================
-    //  I. 基础信息
-    // ============================================================
-
-    string public name;
-    string public symbol;
-    uint8 public constant DECIMALS = 18;
-    uint256 public totalSupply;
-
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-    mapping(address => bool) private _isExcludedFromFee;
-
-    address public owner;
-    address public adminContract;
-
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "SquidLaunch: caller is not owner");
-        _;
-    }
-
-    constructor(
-        string memory _name,
-        string memory _symbol,
-        uint256 _totalSupply
-    ) {
-        name = _name;
-        symbol = _symbol;
-        totalSupply = _totalSupply * 10 ** DECIMALS;
-        _balances[address(this)] = totalSupply;
-        owner = msg.sender;
-        _isExcludedFromFee[owner] = true;
-        _isExcludedFromFee[address(this)] = true;
-        emit Transfer(address(0), address(this), totalSupply);
-    }
-
-    function balanceOf(address account) external view returns (uint256) {
-        return _balances[account];
-    }
-
-    function allowance(address _owner, address spender) external view returns (uint256) {
-        return _allowances[_owner][spender];
-    }
-
-    function approve(address spender, uint256 amount) external returns (bool) {
-        _allowances[msg.sender][spender] = amount;
-        emit Approval(msg.sender, spender, amount);
-        return true;
-    }
-
-    function transferOwnership(address newOwner) external onlyOwner {
-        require(newOwner != address(0), "SquidLaunch: zero address");
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
-    }
-
-    function renounceOwnership() external onlyOwner {
-        emit OwnershipTransferred(owner, address(0));
-        owner = address(0);
-    }
-
-    function setAdminContract(address _adminContract) external onlyOwner {
-        require(_adminContract != address(0), "SquidLaunch: zero address");
-        adminContract = _adminContract;
-    }
-
-    function excludeFromFee(address account, bool excluded) external onlyOwner {
-        _isExcludedFromFee[account] = excluded;
-    }
-
-    function transfer(address to, uint256 amount) external returns (bool) {
-        _transfer(msg.sender, to, amount);
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        uint256 currentAllowance = _allowances[from][msg.sender];
-        require(currentAllowance >= amount, "ERC20: transfer amount exceeds allowance");
-        _allowances[from][msg.sender] = currentAllowance - amount;
-        _transfer(from, to, amount);
-        return true;
-    }
-
-    function _transfer(address from, address to, uint256 amount) internal virtual {
-        require(_balances[from] >= amount, "ERC20: transfer amount exceeds balance");
-
-        // 税费处理（子类实现）
-        uint256 taxAmount = _calculateTax(from, to, amount);
-        if (taxAmount > 0) {
-            uint256 netAmount = amount - taxAmount;
-            _balances[from] -= amount;
-            _balances[address(this)] += taxAmount; // 税收进入合约
-            _balances[to] += netAmount;
-            emit Transfer(from, address(this), taxAmount);
-            emit Transfer(from, to, netAmount);
-
-            // 触发税收分配处理
-            _processTaxDistribution(taxAmount);
-        } else {
-            _balances[from] -= amount;
-            _balances[to] += amount;
-            emit Transfer(from, to, amount);
-        }
-    }
-
-    function _calculateTax(address from, address to, uint256 amount) internal view virtual returns (uint256) {
-        if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) return 0;
-        return 0; // 默认无税，由子类覆盖
-    }
-
-    function _processTaxDistribution(uint256 taxAmount) internal virtual {
-        // 子类实现：按比例分配到 营销钱包/销毁/分红/流动性
-    }
-
-    // ============================================================
-    //  II. Mint 预售系统
-    // ============================================================
-
-    uint256 public constant MINT_PRICE_BNB = 0.001 ether;     // 每次 Mint 价格
-    uint256 public constant TOKENS_PER_MINT = 1_000_000 * 10 ** DECIMALS; // 每次获得的代币数
-    uint256 public presaleHardCap;                              // 预售硬顶（BNB）
-    uint256 public lpRatioPercent = 50;                          // LP 分配比例 %
-    uint256 public presaleRaisedBNB;                             // 已筹集 BNB 数量
-    uint256 public totalMintCount;                               // 总 Mint 次数
-    bool public presaleActive;                                   // 预售是否激活
-    bool public tradingEnabled;                                  // 交易是否开启
-    bool public manualOpenMode = false;                         // 手动开盘模式（true=需Owner手动开盘）
-
-    address public marketingWallet;                              // 营销收款钱包
-    address public liquidityPoolAddress;                         // LP 地址（部署后设置）
-
-    event Minted(address indexed minter, uint256 bnbAmount, uint256 tokenCount, uint256 mintCount);
-    event PresaleFinalized(uint256 totalBNB, uint256 totalTokensLP, uint256 bnbForLP);
-    event TradingEnabled();
-    event ManualOpenModeUpdated(bool enabled);
-
-    function setManualOpenMode(bool _enabled) external onlyOwner {
-        manualOpenMode = _enabled;
-        emit ManualOpenModeUpdated(_enabled);
-    }
-
-    modifier onlyWhenPresaleActive() {
-        require(presaleActive, "SquidLaunch: presale not active");
-        _;
-    }
-
-    /**
-     * @notice 用户 Mint 代币 — 支付 BNB 获得固定数量代币
-     * @dev 75% BNB 留在合约等待开盘，25% 立即进入部署者钱包
-     */
-    function mint() external payable onlyWhenPresaleActive nonReentrant {
-        require(msg.value == MINT_PRICE_BNB, "SquidLaunch: incorrect BNB amount");
-        require(presaleRaisedBNB + msg.value <= presaleHardCap, "SquidLaunch: presale hard cap reached");
-
-        totalMintCount++;
-        presaleRaisedBNB += msg.value;
-
-        // 资金分配：75% 留合约等开盘，25% 立即进部署者钱包
-        uint256 toOwner = msg.value * 25 / 100;
-        uint256 toContract = msg.value - toOwner;
-
-        if (toOwner > 0) {
-            (bool sentOwner, ) = owner.call{value: toOwner}("");
-            require(sentOwner, "SquidLaunch: failed to send to owner");
-        }
-        // toContract 自动留在合约中（address(this).balance 自动累积）
-
-        // 从合约库存转出代币
-        uint256 tokenAmount = TOKENS_PER_MINT;
-        require(_balances[address(this)] >= tokenAmount, "SquidLaunch: insufficient tokens");
-        _balances[address(this)] -= tokenAmount;
-        _balances[msg.sender] += tokenAmount;
-        emit Transfer(address(this), msg.sender, tokenAmount);
-
-        emit Minted(msg.sender, msg.value, tokenAmount, totalMintCount);
-    }
-
-    /**
-     * @notice Owner 手动结束预售 → 注入 Uniswap/PancakeSwap LP
-     * @dev 若 manualOpenMode=false 则自动开盘；若 true 需 Owner 手动调用 enableTrading()
-     */
-    function finalizePresale() external onlyOwner nonReentrant {
-        require(presaleActive, "SquidLaunch: presale already ended");
-        presaleActive = false;
-
-        uint256 bnbBalance = address(this).balance;  // 75% 的 Mint 资金
-        uint256 lpTokens = totalSupply * lpRatioPercent / 100;
-
-        // 将 LP 代币和 BNB 注入流动性池
-        _balances[address(this)] -= lpTokens;
-        _balances[liquidityPoolAddress] += lpTokens;
-        emit Transfer(address(this), liquidityPoolAddress, lpTokens);
-
-        uint256 bnbForLP = bnbBalance * lpRatioPercent / 100;
-        (bool sentLP, ) = liquidityPoolAddress.call{value: bnbForLP}("");
-        require(sentLP, "SquidLaunch: failed to send LP BNB");
-
-        // 剩余 BNB（bnbBalance - bnbForLP）留在合约，由 Owner 后续提取
-        emit PresaleFinalized(bnbBalance, lpTokens, bnbForLP);
-
-        // 非手动开盘模式 → 自动开盘
-        if (!manualOpenMode) {
-            tradingEnabled = true;
-            antiArbitrageEnd = block.timestamp + antiArbDuration;
-            emit TradingEnabled();
-        }
-    }
-
-    /**
-     * @notice 开启公开交易
-     */
-    function enableTrading() external onlyOwner {
-        require(!presaleActive, "SquidLaunch: presale still active");
-        require(!tradingEnabled, "SquidLaunch: trading already enabled");
-        tradingEnabled = true;
-        antiArbitrageEnd = block.timestamp + antiArbDuration;
-        emit TradingEnabled();
-    }
-
-    function setMarketingWallet(address _wallet) external onlyOwner {
-        require(_wallet != address(0), "SquidLaunch: zero address");
-        marketingWallet = _wallet;
-    }
-
-    function setLiquidityPoolAddress(address _lp) external onlyOwner {
-        require(_lp != address(0), "SquidLaunch: zero address");
-        liquidityPoolAddress = _lp;
-    }
-
-    // ============================================================
-    //  III. 税费系统
-    // ============================================================
-
-    uint256 public buyTaxBps = 100;      // 买入税率 (基点, 默认 1%)
-    uint256 public sellTaxBps = 100;     // 卖出税率 (基点, 默认 1%)
-    uint256 public constant MAX_TAX_BPS = 1000; // 最高 10%
-
-    // 税收分配比例（四项合计 ≤ 100%）
-    uint16 public taxDistMarketing = 30;   // 营销钱包 %
-    uint16 public taxDistBurn = 10;        // 销毁 %
-    uint16 public taxDistDividend = 40;    // 分红池 %
-    uint16 public taxDistLiquidity = 20;   // 流动性 %
-
-    event TaxSettingsUpdated(uint256 buyTax, uint256 sellTax);
-    event TaxDistributionUpdated(uint16 marketing, uint16 burn, uint16 dividend, uint16 liquidity);
-
-    function setTaxes(uint256 _buyTaxBps, uint256 _sellTaxBps) external onlyOwner {
-        require(_buyTaxBps <= MAX_TAX_BPS && _sellTaxBps <= MAX_TAX_BPS, "SquidLaunch: tax too high");
-        buyTaxBps = _buyTaxBps;
-        sellTaxBps = _sellTaxBps;
-        emit TaxSettingsUpdated(_buyTaxBps, _sellTaxBps);
-    }
-
-    function setTaxDistribution(
-        uint16 _marketing,
-        uint16 _burn,
-        uint16 _dividend,
-        uint16 _liquidity
-    ) external onlyOwner {
-        require(_marketing + _burn + _dividend + _liquidity <= 100, "SquidLaunch: distribution > 100%");
-        taxDistMarketing = _marketing;
-        taxDistBurn = _burn;
-        taxDistDividend = _dividend;
-        taxDistLiquidity = _liquidity;
-        emit TaxDistributionUpdated(_marketing, _burn, _dividend, _liquidity);
-    }
-
-    function _calculateTax(address from, address to, uint256 amount) internal view override returns (uint256) {
-        if (!tradingEnabled) return 0;
-        if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) return 0;
-        if (from == liquidityPoolAddress) return amount * buyTaxBps / 10000; // 买入
-        if (to == liquidityPoolAddress) return amount * sellTaxBps / 10000; // 卖出
-        return 0;
-    }
-
-    function _processTaxDistribution(uint256 taxAmount) internal override {
-        if (taxAmount == 0) return;
-
-        uint256 marketingAmt = taxAmount * taxDistMarketing / 100;
-        uint256 burnAmt = taxAmount * taxDistBurn / 100;
-        uint256 dividendAmt = taxAmount * taxDistDividend / 100;
-        uint256 liqAmt = taxAmount * taxDistLiquidity / 100;
-
-        // 1. 营销钱包
-        if (marketingAmt > 0 && marketingWallet != address(0)) {
-            _balances[address(this)] -= marketingAmt;
-            _balances[marketingWallet] += marketingAmt;
-            emit Transfer(address(this), marketingWallet, marketingAmt);
-        }
-
-        // 2. 销毁
-        if (burnAmt > 0) {
-            _balances[address(this)] -= burnAmt;
-            totalSupply -= burnAmt;
-            emit Transfer(address(this), address(0), burnAmt);
-        }
-
-        // 3. 分红累积（存入合约，达到阈值后 swap）
-        if (dividendAmt > 0) {
-            dividendAccumulated += dividendAmt;
-        }
-
-        // 4. 流动性累积
-        if (liqAmt > 0) {
-            liquidityAccumulated += liqAmt;
-        }
-    }
-
-    // ============================================================
-    //  IV. 反套利保护
-    // ============================================================
-
-    uint256 public antiArbDuration = 3 days;       // 反套利保护期时长
-    uint256 public antiArbitrageEnd;               // 保护期结束时间戳
-    uint256 public maxTxAmount;                    // 保护期内单笔交易限额
-
-    event AntiArbSettingsUpdated(uint256 duration, uint256 maxTx);
-
-    function setAntiArbitrage(uint256 _durationDays, uint256 _maxTxAmount) external onlyOwner {
-        antiArbDuration = _durationDays * 1 days;
-        maxTxAmount = _maxTxAmount;
-        emit AntiArbSettingsUpdated(_durationDays, _maxTxAmount);
-    }
-
-    // ============================================================
-    //  V. 分红系统 (DividendTracker)
-    // ============================================================
-
-    IUniswapV2Router02 public uniswapV2Router;
-    address public uniswapV2Pair;
-    address public dividendToken = address(0); // 默认 WBNB 作为分红代币
-    uint256 public dividendThreshold = 100_000 * 10 ** DECIMALS; // 分红阈值
-    uint256 public dividendAccumulated = 0;           // 已累积待分红代币
-    uint256 public liquidityAccumulated = 0;          // 待注入流动性的累积
-    bool public dividendsEnabled = true;
-    bool public swapAndLiquifyEnabled = true;
-
-    mapping(address => bool) public isDividendExcluded;
-    address[] public dividendHolders;
-
-    event DividendSettingsUpdated(uint256 threshold, address token);
-    event ProcessedDividend(uint256 swappedAmount, uint256 holderCount);
-    event SwapAndLiquify(uint256 tokensHalf, uint256 bnbHalf);
-
-    function setDividendSettings(uint256 _threshold, address _token) external onlyOwner {
-        dividendThreshold = _threshold;
-        if (_token != address(0)) dividendToken = _token;
-        emit DividendSettingsUpdated(_threshold, _token);
-    }
-
-    function setUniswapRouter(address _router) external onlyOwner {
-        uniswapV2Router = IUniswapV2Router02(_router);
-        uniswapV2Pair = IUniswapV2Factory(uniswapV2.factory()).createPair(
-            address(this), uniswapV2Router.WETH()
-        );
-    }
-
-    /**
-     * @notice 处理分红：将累积的分红代币 swap 后分配给持有人
-     */
-    function processDividend() external onlyOwner nonReentrant {
-        require(dividendAccumulated >= dividendThreshold, "SquidLaunch: below threshold");
-        require(dividendsEnabled, "SquidLaunch: dividends disabled");
-
-        uint256 toProcess = dividendAccumulated;
-        dividendAccumulated = 0;
-
-        // Swap 一半代币为 BNB（简化逻辑）
-        // 实际部署时调用 uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens
-        // 然后 按 holding 比例分配给 dividendHolders
-
-        emit ProcessedDividend(toProcess, dividendHolders.length);
-    }
-
-    /**
-     * @notice 处理流动性累积：swap 并注入 LP
-     */
-    function processLiquidity() external onlyOwner nonReentrant {
-        require(liquidityAccumulated > 0, "SquidLaunch: nothing to process");
-        require(swapAndLiquifyEnabled, "SquidLaunch: swap&liquify disabled");
-
-        uint256 toProcess = liquidityAccumulated;
-        liquidityAccumulated = 0;
-
-        // 实际部署时：
-        // 1. 取一半代币 swap 为 BNB
-        // 2. 将另一半代币 + BNB addLiquidity
-
-        emit SwapAndLiquify(toProcess / 2, toProcess / 2);
-    }
-
-    function processAll() external onlyOwner nonReentrant {
-        processDividend();
-        processLiquidity();
-    }
-
-    // ============================================================
-    //  VI. 白名单系统 (Mint Whitelist)
-    // ============================================================
-
-    bool public whitelistMode = false;
-    mapping(address => bool) public mintWhitelist;
-
-    event WhitelistToggled(bool enabled);
-    event WhitelistAdded(address indexed account);
-    event WhitelistRemoved(address indexed account);
-
-    function toggleWhitelistMode() external onlyOwner {
-        whitelistMode = !whitelistMode;
-        emit WhitelistToggled(whitelistMode);
-    }
-
-    function addToWhitelist(address[] calldata accounts) external onlyOwner {
-        for (uint i = 0; i < accounts.length; i++) {
-            mintWhitelist[accounts[i]] = true;
-            emit WhitelistAdded(accounts[i]);
-        }
-    }
-
-    function removeFromWhitelist(address[] calldata accounts) external onlyOwner {
-        for (uint i = 0; i < accounts.length; i++) {
-            mintWhitelist[accounts[i]] = false;
-            emit WhitelistRemoved(accounts[i]);
-        }
-    }
-
-    function checkWhitelist(address account) external view returns (bool) {
-        if (!whitelistMode) return true;
-        return mintWhitelist[account];
-    }
-
-    // 修改 mint 函数增加白名单检查
-    function _checkMintEligibility(address minter) internal view returns (bool) {
-        if (!whitelistMode) return true;
-        return mintWhitelist[minter];
-    }
-
-    // ============================================================
-    //  VII. 提取功能
-    // ============================================================
-
-    /**
-     * @notice Owner 提取合约中的所有 BNB
-     */
-    function withdrawBNB() external onlyOwner nonReentrant {
-        (bool sent, ) = owner.call{value: address(this).balance}("");
-        require(sent, "SquidLaunch: failed to send BNB");
-    }
-
-    /**
-     * @notice Owner 提取合约中卡住的 ERC20 代币
-     */
-    function withdrawStuckToken(address tokenAddr) external onlyOwner nonReentrant {
-        IERC20(tokenAddr).transfer(owner, IERC20(tokenAddr).balanceOf(address(this)));
-    }
-
-    // ============================================================
-    //  VIII. 接收 BNB
-    // ============================================================
-
-    receive() external payable {}
-
-    fallback() external payable {}
-}
-
-// ============================================================
-//  IX. 接口定义
-// ============================================================
-
-interface IERC20 {
-    function transfer(address to, uint256 value) external returns (bool);
-    function balanceOf(address who) external view returns (uint256);
-}
-
 interface IUniswapV2Factory {
     function createPair(address tokenA, address tokenB) external returns (address pair);
 }
 
 interface IUniswapV2Router02 {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external;
+    function factory() external view returns (address);
+    function WETH() external view returns (address);
+
     function addLiquidityETH(
         address token,
-        uint amountTokenDesired,
-        uint amountTokenMin,
-        uint amountETHMin,
+        uint256 amountTokenDesired,
+        uint256 amountTokenMin,
+        uint256 amountETHMin,
         address to,
-        uint deadline
-    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+        uint256 deadline
+    ) external payable returns (uint256 amountToken, uint256 amountETH, uint256 liquidity);
+
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external;
 }
 
-// ============================================================
-//  X. 重入锁
-// ============================================================
+interface IERC20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+}
 
-abstract contract ReentrancyGuard {
-    uint256 private _status = 1;
-    modifier nonReentrant() {
-        require(_status == 1, "ReentrancyGuard: reentrant call");
-        _status = 2;
+contract SquidLaunchToken {
+    string public name;
+    string public symbol;
+    uint8 public constant DECIMALS = 18;
+    uint256 public constant TOTAL_SUPPLY;
+
+    // ─── 基础状态 ────────────────────────────────────────────────────
+    address public owner;
+    address public immutable i_owner;          // 部署时锁定，不可更改
+
+    // ★ 平台项目标志（构造函数设入，不可更改）
+    bool   public immutable isPlatformProject;  // true=平台方可预留Mint资金, false=第三方100%即付
+
+    // 平台守护者角色
+    bytes32 public constant GUARDIAN_ROLE = keccak256("SQUID_GUARDIAN");
+    mapping(address => bool) public isGuardian;   // guardian 地址列表（支持多签升级）
+    bool public guardianEnabled = true;
+
+    bool public tradingEnabled;
+    bool public presaleActive;
+    bool public manualOpenMode;
+
+    // ─── Mint 参数（构造函数设入） ──────────────────────────────────
+    uint256 public MINT_PRICE_BNB;              // 单次 Mint 价格
+    uint256 public TOKENS_PER_MINT;             // 单次 Mint 获得代币数量
+    uint256 public maxMintCount;                // 最大 Mint 次数（硬顶）
+    uint256 public currentMintCount;            // 当前已 Mint 次数
+    uint256 public presaleHardCapBNB;           // 预售硬顶（BNB）
+
+    // ─── 税费参数 ────────────────────────────────────────────────────
+    uint256 public buyTaxPct;
+    uint256 public sellTaxPct;
+
+    // 税费分配比例（四项之和必须 = 100%）
+    uint256 public distWalletPct;   // 营销钱包
+    uint256 public distBurnPct;     // 销毁
+    uint256 public distRewardPct;   // ★ 分红 → 自动转发给外部分红合约
+    uint256 public distLiqPct;      // 流动性
+
+    address public taxWallet;
+
+    // ─── 反套利保护 ──────────────────────────────────────────────────
+    uint256 public antiArbitrageEnd;       // 保护期结束时间戳
+    uint256 public maxTxAmount;            // 保护期内单笔最大交易量
+
+    // ─── 白名单模式 ──────────────────────────────────────────────────
+    bool public whitelistMode;
+    mapping(address => bool) public mintWhitelist;
+
+    // ─── 排除地址列表（不收税 / 不通知分红合约更新持有人） ─────────────
+    mapping(address => bool) public excludedFromTax;
+
+    // ─── ★ 外部合约引用（解耦设计）──────────────────────────────────
+    address public refundContract;      // 退款/理赔合约
+    address public dividendContract;    // ★ 分红合约（独立部署，可选）
+
+    // ─── DEX ─────────────────────────────────────────────────────────
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
+    bool public inSwap;                      // 防重入
+
+    // ─── ERC20 标准字段 ──────────────────────────────────────────────
+    uint256 private _totalSupply;
+    mapping(address => uint256) private _balances;
+    mapping(address => mapping(address => uint256)) private _allowances;
+
+    // ─── 事件 ────────────────────────────────────────────────────────
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event Minted(address indexed minter, uint256 bnbPaid, uint256 tokensReceived, uint256 recordIndex);
+    event PresaleFinalized(uint256 timestamp);
+    event TradingEnabled(uint256 timestamp, bool manualMode);
+    event TaxSettingsUpdated(uint256 buyTax, uint256 sellTax);
+    event TaxDistributionUpdated(uint256 wallet, uint256 burn, uint256 reward, uint256 liq);
+    event GuardianUpdated(address indexed guardian, bool enabled);
+    event EmergencyPaused(address indexed caller, uint256 timestamp);
+    event EmergencyRefundForced(address indexed caller, uint256 timestamp);
+    event RefundContractSet(address indexed refundContract);
+    event DividendContractSet(address indexed dividendContract);
+    event WhitelistUpdated(address indexed addr, bool status);
+    event LiquidityAdded(uint256 tokenAmt, uint256 bnbAmt, address lpRecipient);
+    event RewardForwarded(address indexed to, uint256 amount);
+
+    // ─── Modifier ─────────────────────────────────────────────────────
+    modifier onlyOwner() {
+        require(msg.sender == owner, "SquidLaunch: not owner");
         _;
-        _status = 1;
+    }
+
+    modifier onlyGuardian() {
+        require(isGuardian[msg.sender] && guardianEnabled, "SquidLaunch: not guardian");
+        _;
+    }
+
+    modifier onlyWhenTradingActive() {
+        require(tradingEnabled, "SquidLaunch: trading not active");
+        _;
+    }
+
+    modifier onlyWhenPresaleActive() {
+        require(presaleActive && !tradingEnabled, "SquidLaunch: presale not active or already trading");
+        _;
+    }
+
+    modifier lockSwap() {
+        inSwap = true;
+        _;
+        inSwap = false;
+    }
+
+    modifier nonReentrant() {
+        uint256 gasBefore = gasleft();
+        _;
+        require(gasleft() >= gasBefore / 64, "SquidLaunch: reentrancy guard");
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 构造函数
+    // ══════════════════════════════════════════════════════════════════
+
+    constructor(
+        string memory _name,
+        string memory _symbol,
+        uint256 _totalSupply,
+        address _owner,
+        address _routerAddress,
+        bool _isPlatformProject   // ★ 是否为平台方项目
+    ) payable {
+        name         = _name;
+        symbol       = _symbol;
+        TOTAL_SUPPLY = _totalSupply * 10 ** DECIMALS;
+
+        owner   = msg.sender;  // 工厂临时拥有
+        i_owner = _owner;      // 项目方最终 owner（工厂后续 transferOwnership）
+
+        isPlatformProject = _isPlatformProject;
+
+        _totalSupply = TOTAL_SUPPLY;
+        _balances[address(this)] = TOTAL_SUPPLY;
+        emit Transfer(address(0), address(this), TOTAL_SUPPLY);
+
+        // 默认参数
+        MINT_PRICE_BNB    = 0.001 ether;
+        TOKENS_PER_MINT   = TOTAL_SUPPLY * 50 / 100 / 10000;  // 预售50% ÷ 默认10000次mint
+        maxMintCount      = 10000;
+        presaleHardCapBNB = 10 ether;
+
+        presaleActive = true;
+        tradingEnabled = false;
+
+        buyTaxPct  = 5;
+        sellTaxPct = 5;
+        distWalletPct = 10;
+        distBurnPct   = 30;
+        distRewardPct = 0;   // ★ 默认关闭分红（需要时通过 Factory 绑定分红合约后开启）
+        distLiqPct    = 60;   // 关闭分红时流动性占更大比例
+        taxWallet    = _owner;
+
+        antiArbitrageEnd = block.timestamp + 1 hours;
+        maxTxAmount     = TOTAL_SUPPLY * 100 / 10000; // 1%
+
+        whitelistMode = false;
+        manualOpenMode = false;
+
+        // DEX Router
+        if (_routerAddress != address(0)) {
+            uniswapV2Router = IUniswapV2Router02(_routerAddress);
+            uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
+                address(this), uniswapV2Router.WETH()
+            );
+            excludedFromTax[address(this)] = true;
+            excludedFromTax[_routerAddress] = true;
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Owner 管理
+    // ══════════════════════════════════════════════════════════════════
+
+    function transferOwnership(address _newOwner) external onlyOwner {
+        require(_newOwner != address(0), "SquidLaunch: zero address");
+        emit OwnershipTransferred(owner, _newOwner);
+        owner = _newOwner;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 平台 Guardian 管理
+    // ══════════════════════════════════════════════════════════════════
+
+    function setGuardian(address _guardian) external {
+        require(msg.sender == owner || msg.sender == i_owner, "SquidLaunch: unauthorized");
+        require(_guardian != address(0), "SquidLaunch: zero guardian");
+        isGuardian[_guardian] = true;
+        emit GuardianUpdated(_guardian, true);
+    }
+
+    function toggleGuardian(bool _enabled) external onlyOwner {
+        guardianEnabled = _enabled;
+    }
+
+    function emergencyPause() external onlyGuardian {
+        tradingEnabled = false;
+        presaleActive = false;
+        emit EmergencyPaused(msg.sender, block.timestamp);
+    }
+
+    function emergencyForceRefund() external onlyGuardian {
+        presaleActive = false;
+        if (tradingEnabled) tradingEnabled = false;
+        if (refundContract != address(0)) {
+            (bool ok, ) = refundContract.call(
+                abi.encodeWithSignature("emergencyEnable()")
+            );
+            if (!ok) {}
+        }
+        emit EmergencyRefundForced(msg.sender, block.timestamp);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 外部合约绑定
+    // ══════════════════════════════════════════════════════════════════
+
+    function setRefundContract(address _refundContract) external {
+        require(msg.sender == owner || refundContract == address(0), "SquidLaunch: not authorized");
+        require(_refundContract != address(0), "SquidLaunch: zero address");
+        refundContract = _refundContract;
+        emit RefundContractSet(_refundContract);
+    }
+
+    /**
+     * @notice ★ 绑定独立分红合约（仅可设置一次，由 Factory 在部署时调用）
+     */
+    function setDividendContract(address _dividendContract) external {
+        // 仅在首次设置时允许（owner 或 Factory 都可以调）
+        require(dividendContract == address(0), "SquidLaunch: dividend already set");
+        require(_dividendContract != address(0), "SquidLaunch: zero address");
+        dividendContract = _dividendContract;
+        emit DividendContractSet(_dividendContract);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ★ Mint（预售阶段）— 根据 isPlatformProject 区分资金分配
+    // ══════════════════════════════════════════════════════════════════
+
+    function mint() external payable onlyWhenPresaleActive nonReentrant {
+        require(_checkMintEligibility(msg.sender), "SquidLaunch: not whitelisted");
+
+        require(msg.value == MINT_PRICE_BNB, "SquidLaunch: incorrect BNB amount");
+        require(currentMintCount < maxMintCount, "SquidLaunch: mint sold out");
+
+        currentMintCount++;
+
+        uint256 tokenAmount = TOKENS_PER_MINT;
+
+        // 转代币给用户
+        _transferInternal(address(this), msg.sender, tokenAmount);
+
+        // ★ 根据 isPlatformProject 决定资金分配方式
+        if (isPlatformProject) {
+            // ══ 平台方项目：25% → 平台钱包 + 75% 留合约用于 LP ══
+            uint256 toOwner    = msg.value * 25 / 100;
+            uint256 toReserve  = msg.value - toOwner;   // 75%
+
+            if (toOwner > 0) {
+                (bool sentOwner, ) = owner.call{value: toOwner}("");
+                require(sentOwner, "SquidLaunch: failed to send to platform");
+            }
+
+            if (refundContract != address(0)) {
+                (bool okRC, ) = refundContract.call(
+                    abi.encodeWithSignature("onMint(address,uint256,uint256)",
+                        msg.sender, toReserve, tokenAmount)
+                );
+                if (!okRC) {}
+            }
+        } else {
+            // ══ 第三方项目：100% 全部留合约用于 LP（项目方不碰资金）══
+            uint256 toReserve = msg.value;
+
+            if (refundContract != address(0)) {
+                (bool okRC, ) = refundContract.call(
+                    abi.encodeWithSignature("onMint(address,uint256,uint256)",
+                        msg.sender, toReserve, tokenAmount)
+                );
+                if (!okRC) {}
+            }
+        }
+
+        emit Minted(msg.sender, msg.value, tokenAmount, currentMintCount);
+    }
+
+    function _checkMintEligibility(address minter) internal view returns (bool) {
+        if (!whitelistMode) return true;
+        return mintWhitelist[minter];
+    }
+
+    function addToWhitelist(address _addr) external onlyOwner {
+        mintWhitelist[_addr] = true;
+        emit WhitelistUpdated(_addr, true);
+    }
+
+    function removeFromWhitelist(address _addr) external onlyOwner {
+        mintWhitelist[_addr] = false;
+        emit WhitelistUpdated(_addr, false);
+    }
+
+    function toggleWhitelist(bool _mode) external onlyOwner {
+        whitelistMode = _mode;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 预售结束 & 开盘
+    // ══════════════════════════════════════════════════════════════════
+
+    function finalizePresale() external onlyOwner {
+        require(presaleActive, "SquidLaunch: presale already ended");
+        presaleActive = false;
+
+        uint256 bnbBalance = address(this).balance;
+
+        if (bnbBalance > 0 && distLiqPct > 0) {
+            processLiquidity();
+        }
+
+        uint256 remainingBNB = address(this).balance;
+        if (remainingBNB > 0 && refundContract != address(0)) {
+            (bool sentRC, ) = refundContract.call{value: remainingBNB}("");
+            if (!sentRC) {}
+        }
+
+        if (refundContract != address(0)) {
+            (bool okPF, ) = refundContract.call(
+                abi.encodeWithSignature("onPresaleFinalized()")
+            );
+            if (!okPF) {}
+        }
+
+        if (!manualOpenMode) {
+            _enableTrading();
+        }
+
+        emit PresaleFinalized(block.timestamp);
+    }
+
+    function enableTrading() external onlyOwner {
+        require(!presaleActive, "SquidLaunch: presale still active");
+        require(!manualOpenMode || !tradingEnabled, "SquidLaunch: already enabled");
+        _enableTrading();
+    }
+
+    function setManualOpenMode(bool _manual) external onlyOwner {
+        manualOpenMode = _manual;
+    }
+
+    function _enableTrading() internal {
+        tradingEnabled = true;
+        antiArbitrageEnd = block.timestamp + 1 hours;
+        if (refundContract != address(0)) {
+            (bool okTE, ) = refundContract.call(
+                abi.encodeWithSignature("onTradingEnabled()")
+            );
+            if (!okTE) {}
+        }
+        emit TradingEnabled(block.timestamp, manualOpenMode);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 流动性注入 — LP token 发给退款合约（平台控制，防 Rug）
+    // ══════════════════════════════════════════════════════════════════
+
+    function processLiquidity() public lockSwap onlyOwner {
+        uint256 tokenForLiq = (_balances[address(this)] * distLiqPct / 100) / 2;
+        uint256 bnbForLiq   = address(this).balance * distLiqPct / 100 / 2;
+
+        require(tokenForLiq > 0 && bnbForLiq > 0, "SquidLaunch: nothing to add");
+
+        approve(address(uniswapV2Router), tokenForLiq);
+
+        (,, uint256 lpTokens) = uniswapV2Router.addLiquidityETH{value: bnbForLiq}(
+            address(this),
+            tokenForLiq,
+            0,
+            0,
+            refundContract != address(0) ? refundContract : owner,
+            block.timestamp + 300
+        );
+
+        emit LiquidityAdded(tokenForLiq, bnbForLiq,
+            refundContract != address(0) ? refundContract : owner);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 税费设置
+    // ══════════════════════════════════════════════════════════════════
+
+    function setTaxes(uint256 _buy, uint256 _sell) external onlyOwner {
+        require(_buy <= 25 && _sell <= 25, "SquidLaunch: tax too high");
+        buyTaxPct  = _buy;
+        sellTaxPct = _sell;
+        emit TaxSettingsUpdated(_buy, _sell);
+    }
+
+    function setTaxDistribution(
+        uint256 _wallet, uint256 _burn, uint256 _reward, uint256 _liq
+    ) external onlyOwner {
+        require(_wallet + _burn + _reward + _liq == 100, "SquidLaunch: distribution must be 100%");
+        // ★ 如果设置了 _reward > 0 但没有绑定分红合约，提醒但不阻断
+        // （分红合约由 Factory 在 launch 时决定是否部署和绑定）
+        distWalletPct = _wallet;
+        distBurnPct   = _burn;
+        distRewardPct = _reward;
+        distLiqPct    = _liq;
+        emit TaxDistributionUpdated(_wallet, _burn, _reward, _liq);
+    }
+
+    function setTaxWallet(address _wallet) external onlyOwner {
+        require(_wallet != address(0), "SquidLaunch: zero address");
+        taxWallet = _wallet;
+    }
+
+    function setAntiArbitrageParams(uint256 _maxTx, uint256 _durationHours) external onlyOwner {
+        maxTxAmount     = _maxTx;
+        antiArbitrageEnd = block.timestamp + (_durationHours * 3600);
+    }
+
+    function excludeFromTax(address _addr, bool _exclude) external onlyOwner {
+        excludedFromTax[_addr] = _exclude;
+    }
+
+    function setUniswapRouter(address _router) external onlyOwner {
+        require(_router != address(0), "SquidLaunch: zero router");
+        uniswapV2Router = IUniswapV2Router02(_router);
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
+            address(this), uniswapV2Router.WETH()
+        );
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ★ 税费分配 — distReward 部分自动转给外部分红合约
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev 四项税费分配：
+     *   1. distWallet → 转给营销钱包
+     *   2. distBurn   → 销毁（减 totalSupply）
+     *   3. distReward → ★ 转给独立分红合约（或留合约等分红合约来取）
+     *   4. distLiq    → 留合约，下次 processLiquidity 使用
+     */
+    function _processTaxDistribution(uint256 _taxAmount) internal {
+        uint256 amtWallet = _taxAmount * distWalletPct / 100;
+        uint256 amtBurn   = _taxAmount * distBurnPct / 100;
+        uint256 amtReward = _taxAmount * distRewardPct / 100;
+        uint256 amtLiq    = _taxAmount * distLiqPct / 100;
+
+        // 1. 销毁
+        if (amtBurn > 0) {
+            _totalSupply -= amtBurn;
+            emit Transfer(address(this), address(0), amtBurn);
+        }
+
+        // 2. 营销钱包
+        if (amtWallet > 0 && taxWallet != address(0)) {
+            _balances[address(this)] -= amtWallet;
+            _balances[taxWallet] += amtWallet;
+            emit Transfer(address(this), taxWallet, amtWallet);
+        }
+
+        // 3. ★ 分红 → 转发给独立分红合约
+        if (amtReward > 0 && dividendContract != address(0)) {
+            // 先 approve 再 transfer 给分红合约
+            // 注意：_balances[address(this)] 已经包含 taxAmount 了（见 _transfer 中先加了进来）
+            // 所以这里直接从合约余额中扣
+            _balances[address(this)] -= amtReward;
+            IERC20(address(this)).transfer(dividendContract, amtReward);
+
+            // 通知分红合约收到了奖励代币
+            (bool ok, ) = dividendContract.call(
+                abi.encodeWithSignature("onRewardReceived(address,uint256)",
+                    msg.sender, amtReward)   // 触发交易的人，用于更新持有人状态
+            );
+            if (!ok) {} // 不阻断主流程；即使回调失败，代币已经转到分红合约了
+
+            emit RewardForwarded(dividendContract, amtReward);
+        } else if (amtReward > 0) {
+            // 没有绑定分红合约 → 红利留在合约中（等同于额外流动资金）
+            // 不做任何事，留在 _balances[address(this)]
+        }
+
+        // 4. 流动性 — 已自动在 _balances[address(this)] 中
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // ERC20 核心
+    // ══════════════════════════════════════════════════════════════════
+
+    function totalSupply() external view returns (uint256) { return _totalSupply; }
+
+    function balanceOf(address _account) external view returns (uint256) { return _balances[_account]; }
+
+    function allowance(address _owner, address _spender) external view returns (uint256) { return _allowances[_owner][_spender]; }
+
+    function approve(address _spender, uint256 _amount) external returns (bool) {
+        _allowances[msg.sender][_spender] = _amount;
+        emit Approval(msg.sender, _spender, _amount);
+        return true;
+    }
+
+    function increaseAllowance(address _spender, uint256 _added) external returns (bool) {
+        _allowances[msg.sender][_spender] += _added;
+        emit Approval(msg.sender, _spender, _allowances[msg.sender][_spender]);
+        return true;
+    }
+
+    function decreaseAllowance(address _spender, uint256 _subtracted) external returns (bool) {
+        require(_allowances[msg.sender][_spender] >= _subtracted, "SquidLaunch: decreased below zero");
+        _allowances[msg.sender][_spender] -= _subtracted;
+        emit Approval(msg.sender, _spender, _allowances[msg.sender][_spender]);
+        return true;
+    }
+
+    function transfer(address _to, uint256 _amount) external returns (bool) {
+        _transfer(msg.sender, _to, _amount);
+        return true;
+    }
+
+    function transferFrom(address _from, address _to, uint256 _amount) external returns (bool) {
+        uint256 currentAllowance = _allowances[_from][msg.sender];
+        require(currentAllowance >= _amount, "SquidLaunch: insufficient allowance");
+        _allowances[_from][msg.sender] = currentAllowance - _amount;
+        _transfer(_from, _to, _amount);
+        return true;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 内部转账逻辑（税费 + 反套利 + 通知分红合约更新持有人）
+    // ══════════════════════════════════════════════════════════════════
+
+    function _transfer(address _from, address _to, uint256 _amount) internal virtual {
+        require(_balances[_from] >= _amount, "SquidLaunch: insufficient balance");
+
+        // P1-3: 反套利保护
+        if (block.timestamp < antiArbitrageEnd && _to == uniswapV2Pair) {
+            require(_amount <= maxTxAmount, "SquidLaunch: exceeds max tx during protection period");
+        }
+
+        // 计算税费
+        uint256 taxAmount = _calculateTax(_from, _to, _amount);
+        uint256 netAmount = _amount - taxAmount;
+
+        // 扣除税费
+        _balances[_from] -= _amount;
+        _balances[address(this)] += taxAmount;
+        _balances[_to] += netAmount;
+
+        emit Transfer(_from, _to, netAmount);
+        if (taxAmount > 0) {
+            emit Transfer(_from, address(this), taxAmount);
+        }
+
+        // 处理税费分配（含分红转发）
+        if (taxAmount > 0 && !inSwap && _to != address(this)) {
+            _processTaxDistribution(taxAmount);
+        }
+
+        // ★ 通知分红合约更新持有人状态（轻量级，仅当有绑定时才调）
+        if (dividendContract != address(0)) {
+            (bool ok, ) = dividendContract.call(
+                abi.encodeWithSignature("onHoldersUpdate(address[])",
+                    _fromArr(_from, _to))
+            );
+            if (!ok) {} // 不阻断转账
+        }
+    }
+
+    /** @brief 打包两个地址为数组用于回调 */
+    function _fromArr(address a, address b) internal pure returns (address[] memory) {
+        address[] memory arr = new address[](2);
+        arr[0] = a;
+        arr[1] = b;
+        return arr;
+    }
+
+    function _transferInternal(address _from, address _to, uint256 _amount) internal {
+        _balances[_from] -= _amount;
+        _balances[_to] += _amount;
+        emit Transfer(_from, _to, _amount);
+
+        // 同样通知分红合约
+        if (dividendContract != address(0)) {
+            (bool ok, ) = dividendContract.call(
+                abi.encodeWithSignature("onHoldersUpdate(address[])",
+                    _fromArr(_from, _to))
+            );
+            if (!ok) {}
+        }
+    }
+
+    function _calculateTax(address _from, address _to, uint256 _amount) internal view returns (uint256) {
+        if (excludedFromTax[_from] || excludedFromTax[_to]) return 0;
+        if (!tradingEnabled) return 0;
+
+        if (_from == uniswapV2Pair) return _amount * buyTaxPct / 100;  // 买入
+        if (_to == uniswapV2Pair) return _amount * sellTaxPct / 100;  // 卖出
+        return 0;
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // 卡住的资产提取（安全阀）
+    // ══════════════════════════════════════════════════════════════════
+
+    function withdrawStuckBNB() external onlyOwner {
+        uint256 bal = address(this).balance;
+        require(bal > 0, "SquidLaunch: no BNB");
+        (bool sent, ) = owner.call{value: bal}("");
+        require(sent, "SquidLaunch: withdraw failed");
+    }
+
+    function withdrawStuckToken(address _token, uint256 _amount) external onlyOwner {
+        require(_token != address(this), "SquidLaunch: cannot withdraw own tokens this way");
+        IERC20(_token).transfer(owner, _amount);
     }
 }

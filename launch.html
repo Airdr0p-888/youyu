@@ -400,10 +400,50 @@
 
       <div class="field" style="margin-top:16px"><label>资金收款钱包地址</label><input type="text" id="t_fundWallet" placeholder="0x..." /></div>
 
-      <div class="row2">
-        <div class="field"><label>分红代币地址</label><input type="text" id="t_rewardToken" placeholder="留空默认 WBNB" /><div class="hint">留空默认 WBNB</div></div>
-        <div class="field"><label>最低持币数量（分红门槛）</label><input type="number" id="t_minHold" placeholder="0" value="0" /><div class="hint">填 0 = 无门槛</div></div>
-      </div>
+      <!-- ★ 分红开关 + 配置（默认关闭） -->
+      <div style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06)">
+        <div class="toggle-row" style="margin-bottom:12px">
+          <div>
+            <div class="toggle-label">💰 启用分红系统</div>
+            <div class="toggle-sub">开启后将部署独立分红合约，交易税费的分红部分自动转发给分红合约处理</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="dividendChk" onchange="toggleDividendUI()" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- 以下内容仅分红启用时显示 -->
+        <div id="dividendConfig" style="display:none">
+
+          <div class="range-wrap" style="margin-top:12px">
+            <div class="range-top"><span><span class="dm dm-r"></span>分红（持有者奖励）</span><span class="rv" id="distRewardVal">0%</span></div>
+            <input type="range" min="0" max="100" value="40" id="distReward" oninput="updateDist('distReward')" />
+          </div>
+
+          <div class="row2" style="margin-top:14px">
+            <div class="field"><label>分红代币地址</label><input type="text" id="t_rewardToken" placeholder="留空 = BNB" /><div class="hint">留空则分发 BNB，或填 USDT 等 ERC20 地址</div></div>
+          </div>
+
+          <div class="field" style="margin-top:10px"><label>📊 分红触发阈值</label>
+            <div style="display:flex;gap:10px;align-items:flex-end">
+              <div style="flex:1">
+                <input type="number" id="t_dividendPct" placeholder="0.01" value="0.01" step="0.001" min="0.001" max="100" oninput="calcPreview()" />
+                <div class="hint">占总供应量的百分比(%)。累积够数后 owner 可执行分红 swap+分发。</div>
+              </div>
+              <div style="text-align:center;min-width:130px;padding:8px 14px;border-radius:10px;background:rgba(0,200,255,0.06);border:1px solid rgba(0,200,255,0.12)">
+                <div style="font-size:0.7rem;color:var(--text3);margin-bottom:2px">≈ 绝对值</div>
+                <strong id="t_dividendAbs" style="font-size:1rem;color:var(--cyan)">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-box" style="margin-top:12px;font-size:0.78rem;color:var(--text3)">
+            <span class="wi" style="color:var(--cyan)">ℹ️</span>&nbsp;
+            分红由独立合约 SquidLaunchDividend 处理，平台方钱包拥有紧急暂停/提取权限。即使分红出问题不影响主代币正常交易。
+          </div>
+        </div><!-- /#dividendConfig -->
+      </div><!-- /分红区块 -->
     </div>
 
     <!-- ── 白名单 ── -->
@@ -445,6 +485,9 @@
         <p style="font-size:0.76rem;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Contract Address</p>
         <div class="addr-box" id="contractAddr">—</div>
         <p style="font-size:0.8rem;color:var(--text2);margin-top:10px">开盘模式：<strong id="resultOpenMode" style="color:var(--cyan)">—</strong></p>
+        <div id="dividendAddrRow" style="display:none;margin-top:8px;font-size:0.8rem;color:var(--text2)">
+          分红合约：<strong class="val" style="color:#a78bfa">—</strong>
+        </div>
 
         <div class="acc open">
           <div class="acc-h" onclick="this.parentElement.classList.toggle('open')">
@@ -518,6 +561,41 @@ function calcPreview(){
   document.getElementById('calcMintCount').textContent = mintCount ? mintCount.toLocaleString() : '—';
   document.getElementById('calcPerMint').textContent   = perMint  ? perMint.toLocaleString()   : '—';
   document.getElementById('calcUnitPrice').textContent = unitPrice;
+
+  // 分红阈值：百分比 → 绝对值
+  const divPct   = parseFloat(document.getElementById('t_dividendPct').value) || 0;
+  const divAbs   = supply > 0 && divPct > 0 ? Math.floor(supply * divPct / 100) : 0;
+  const divAbsEl = document.getElementById('t_dividendAbs');
+  if(divAbs > 0){
+    divAbsEl.textContent = Number(divAbs).toLocaleString('fullwide', {maximumFractionDigits: 0});
+    divAbsEl.style.color = 'var(--cyan)';
+  } else {
+    divAbsEl.textContent = '—';
+  }
+}
+
+// ★ 分红开关 UI 切换
+function toggleDividendUI(){
+  const chk = document.getElementById('dividendChk').checked;
+  const cfg = document.getElementById('dividendConfig');
+  const rewardSlider = document.getElementById('distReward').closest('.range-wrap');
+
+  if(chk){
+    // 开启分红 → 显示配置区，distReward 变为可调
+    cfg.style.display = '';
+    document.getElementById('distReward').disabled = false;
+    // 如果 distReward 是0，给个默认值
+    if(+document.getElementById('distReward').value === 0){
+      document.getElementById('distReward').value = 40;
+      updateDist('distReward');
+    }
+  }else{
+    // 关闭分红 → 隐藏配置区，distReward 强制为0
+    cfg.style.display = 'none';
+    document.getElementById('distReward').value = 0;
+    document.getElementById('distReward').disabled = true;
+    updateDist('distReward');
+  }
 }
 
 function updateDist(changedId){
@@ -559,6 +637,34 @@ function doLaunch(){
     document.getElementById('contractAddr').textContent = '0x' + Array.from({length:36}, ()=>Math.floor(Math.random()*16).toString(16)).join('') + '0000';
     const manual = document.getElementById('manualOpenChk').checked;
     document.getElementById('resultOpenMode').textContent = manual ? '手动开盘（需 Owner 手动启用）' : '自动开盘（预售结束自动启用）';
+
+    // ★ 分红状态
+    const divEnabled = document.getElementById('dividendChk')?.checked || false;
+    const divAddrEl = document.getElementById('dividendAddrRow');
+    if(divAddrEl){
+      if(divEnabled){
+        divAddrEl.style.display = '';
+        divAddrEl.querySelector('.val').textContent = '0x' + Array.from({length:36}, ()=>Math.floor(Math.random()*16).toString(16)).join('') + 'DDDD';
+      } else {
+        divAddrEl.style.display = 'none';
+      }
+    }
+
+    // 构造函数参数（已简化：分红由独立合约处理）
+    const name = document.getElementById('t_name').value || 'MyToken';
+    const symbol = document.getElementById('t_symbol').value || 'MTK';
+    const supply = document.getElementById('t_supply').value || '1000000000';
+    const isPlatform = false; // 由 Factory 自动判定 msg.sender
+
+    document.getElementById('constructorArgs').innerHTML =
+      '<code style="font-size:0.72rem;line-height:1.8;word-break:break-all;display:block;color:var(--text2)">' +
+      '[ "' + name + '", "' + symbol + '", ' + supply + ', owner, router, isPlatformProject ]<br><br>' +
+      '<span style="color:var(--cyan)">▼ 部署的合约</span><br>' +
+      'Token → ' + document.getElementById('contractAddr').textContent.substring(0,18) + '…<br>' +
+      'Refund → 0x' + Array.from({length:8},()=>Math.floor(Math.random()*16).toString(16)).join('') + '…RF<br>' +
+      (divEnabled ? 'Dividend → ' + (divAddrEl?.querySelector('.val')?.textContent || '0x…DD') + '<br>' : '') +
+      '</code>';
+
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
     btn.textContent = '🚀 立即发射代币';
     btn.disabled = false;
