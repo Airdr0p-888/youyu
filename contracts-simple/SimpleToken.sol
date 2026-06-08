@@ -152,18 +152,10 @@ contract SimpleToken {
         if (_fc.maxTxPct > 0)     maxTxAmount     = totalSupply * _fc.maxTxPct / 100;
         if (_fc.maxWalletPct > 0) maxWalletAmount  = totalSupply * _fc.maxWalletPct / 100;
 
-        // PancakeSwap
+        // PancakeSwap（直调，不用 try/catch——优化器会剥掉 catch 里的 revert 字符串导致 0x0x）
         uniswapRouter = _routerAddress;
         IUniswapV2Router02 router = IUniswapV2Router02(_routerAddress);
-        address wethAddr;
-        try router.WETH() returns (address w) { wethAddr = w; } catch { revert("WETH fail"); }
-        address factoryAddr;
-        try router.factory() returns (address f) { factoryAddr = f; } catch { revert("factory fail"); }
-        try IUniswapV2Factory(factoryAddr).createPair(address(this), wethAddr) returns (address p) {
-            uniswapPair = p;
-        } catch {
-            revert("createPair fail");
-        }
+        uniswapPair   = IUniswapV2Factory(router.factory()).createPair(address(this), router.WETH());
 
         // 排除
         isExcludedFromTax[_owner] = true;
