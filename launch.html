@@ -567,10 +567,15 @@ const FACTORY_ABI = [
   {"inputs":[{"name":"_launchFee","type":"uint256"},{"name":"_platformOwner","type":"address"}],
    "stateMutability":"nonpayable","type":"constructor"},
   {"inputs":[],"name":"launchFee","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-  {"inputs":[{"name":"_name","type":"string"},{"name":"_symbol","type":"string"},
-             {"name":"_totalSupply","type":"uint256"},{"name":"_routerAddress","type":"address"},
-             {"name":"_enableDividend","type":"bool"},{"name":"_rewardToken","type":"address"},
-             {"name":"_dividendThreshold","type":"uint256"}],
+  {"inputs":[{"name":"params","type":"tuple","components":[
+     {"name":"name","type":"string"},
+     {"name":"symbol","type":"string"},
+     {"name":"totalSupply","type":"uint256"},
+     {"name":"routerAddress","type":"address"},
+     {"name":"enableDividend","type":"bool"},
+     {"name":"rewardToken","type":"address"},
+     {"name":"dividendThreshold","type":"uint256"}
+   ]}],
    "name":"launch","outputs":[{"name":"tokenAddr","type":"address"},
                              {"name":"refundAddr","type":"address"},
                              {"name":"dividendAddr","type":"address"}],
@@ -841,9 +846,11 @@ async function doLaunch(){
     // 估算 gas
     let gasEstimate;
     try {
-      gasEstimate = await factory.methods.launch(
-        name, symbol, supply, PANCAKE_ROUTER, enableDividend, rewardToken, dividendThreshold
-      ).estimateGas({
+      gasEstimate = await factory.methods.launch({
+        name: name, symbol: symbol, totalSupply: supply,
+        routerAddress: PANCAKE_ROUTER, enableDividend: enableDividend,
+        rewardToken: rewardToken, dividendThreshold: dividendThreshold
+      }).estimateGas({
         from: userAddr,
         value: launchFee
       });
@@ -855,11 +862,17 @@ async function doLaunch(){
       return;
     }
 
-    // 发送交易
+    // 发送交易（struct 参数 → 传对象）
     console.log('[Launch] 发送交易...');
-    const result = await factory.methods.launch(
-      name, symbol, supply, PANCAKE_ROUTER, enableDividend, rewardToken, dividendThreshold
-    ).send({
+    const result = await factory.methods.launch({
+      name: name,
+      symbol: symbol,
+      totalSupply: supply,
+      routerAddress: PANCAKE_ROUTER,
+      enableDividend: enableDividend,
+      rewardToken: rewardToken,
+      dividendThreshold: dividendThreshold
+    }).send({
       from: userAddr,
       value: launchFee,
       gas: Math.floor(gasEstimate * 1.2)
