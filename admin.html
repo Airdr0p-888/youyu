@@ -318,25 +318,34 @@
     }
   }
 
-  /* ── 分红合约管理 ── */
+  /* ── 分红合约管理（兼容旧版合约） ── */
   async function loadDistributor() {
     if (!signer) { alert('请先连接钱包！'); return; }
     var addr = document.getElementById('distributorAddr').value.trim();
     if (!addr) { alert('请输入分红合约地址！'); return; }
     try {
       distContract = new ethers.Contract(addr, DISTRIBUTOR_DATA.ABI, signer);
-      document.getElementById('btnSetMinDiv').disabled = false;
       document.getElementById('btnTriggerDiv').disabled = false;
+      // platformOwner（所有版本都有）
       var ownerAddr = await distContract.platformOwner();
-      // 检查当前钱包是否是 platformOwner，只有 owner 才能启用提 BNB
       var isOwner = (userAddr.toLowerCase() === ownerAddr.toLowerCase());
+      // minDividendBalance（新版才有，旧版会 revert）
+      var isNewVersion = true;
+      try {
+        var minDiv = await distContract.minDividendBalance();
+        document.getElementById('curMinDiv').textContent = parseFloat(ethers.utils.formatEther(minDiv)).toLocaleString() + ' 个';
+        document.getElementById('btnSetMinDiv').disabled = false;
+      } catch(_minErr) {
+        isNewVersion = false;
+        document.getElementById('curMinDiv').textContent = '0 个（旧版不支持）';
+        document.getElementById('btnSetMinDiv').disabled = true;
+      }
       document.getElementById('btnWithdrawDivBNB').disabled = !isOwner;
       document.getElementById('divOwnerInfo').innerHTML =
         'PlatformOwner: <b>' + ownerAddr.slice(0,6) + '...' + ownerAddr.slice(-4) + '</b>' +
-        (isOwner ? ' ✅ 当前钱包' : ' ⚠️ 当前钱包不是 Owner，无法提 BNB');
-      var minDiv = await distContract.minDividendBalance();
-      document.getElementById('curMinDiv').textContent = parseFloat(ethers.utils.formatEther(minDiv)).toLocaleString() + ' 个';
-      await refreshDistPool();
+        (isOwner ? ' ✅ 当前钱包' : ' ⚠️ 当前钱包不是 Owner，无法提 BNB') +
+        ' &nbsp;|&nbsp; 版本：<b>' + (isNewVersion ? '新版' : '旧版（部分功能不可用）') + '</b>';
+      await tryRefreshDistPool();
       var s = document.getElementById('distStatus');
       s.className = 'status ok';
       s.textContent = '✅ 分红合约加载成功';
@@ -347,14 +356,33 @@
     }
   }
 
+  async function tryRefreshDistPool() {
+    if (!distContract || !contract) return;
+    try {
+      var tokenBal = await contract.balanceOf(distContract.address);
+      var tokenDec = ethers.utils.formatEther(tokenBal);
+      var info = '📊 积攒代币：<b>' + parseFloat(tokenDec).toLocaleString(undefined,{maximumFractionDigits:2}) + '</b> 个';
+      try {
+        var holdersCount = await distContract.holdersCount();
+        info += ' &nbsp;|&nbsp; 👥 分红人数：<b>' + holdersCount + '</b>';
+      } catch(_h) { info += ' &nbsp;|&nbsp; 👥 分红人数：加载分红合约后显示'; }
+      document.getElementById('distPoolInfo').innerHTML = info;
+    } catch(e) {
+      document.getElementById('distPoolInfo').textContent = '⚠️ 获取状态失败（请先加载代币合约和分红合约）';
+    }
+  }
+
   async function refreshDistPool() {
     if (!distContract || !contract) return;
     try {
       var tokenBal = await contract.balanceOf(distContract.address);
-      var holdersCount = await distContract.holdersCount();
       var tokenDec = ethers.utils.formatEther(tokenBal);
-      document.getElementById('distPoolInfo').innerHTML =
-        '📊 积攒代币：<b>' + parseFloat(tokenDec).toLocaleString(undefined,{maximumFractionDigits:2}) + '</b> 个 &nbsp;|&nbsp; 👥 分红人数：<b>' + holdersCount + '</b>';
+      var info = '📊 积攒代币：<b>' + parseFloat(tokenDec).toLocaleString(undefined,{maximumFractionDigits:2}) + '</b> 个';
+      try {
+        var holdersCount = await distContract.holdersCount();
+        info += ' &nbsp;|&nbsp; 👥 分红人数：<b>' + holdersCount + '</b>';
+      } catch(_h) {}
+      document.getElementById('distPoolInfo').innerHTML = info;
     } catch(e) {
       document.getElementById('distPoolInfo').textContent = '⚠️ 获取状态失败';
     }
@@ -407,7 +435,13 @@
       var bnb = parseFloat(ethers.utils.formatEther(bal)).toFixed(6);
       if (!confirm('⚠️ 危险操作！确认提取分红合约中全部 ' + bnb + ' BNB 到 ADMIN 地址？\n\n此操作将清空所有待领取的分红 BNB！')) return;
       document.getElementById('btnWithdrawDivBNB').disabled = true;
-      var tx = await distContract.withdrawBNB();
+      // 先尝试新版 withdrawBNB()（无参数），报错则回退旧版 withdrawStuckBNB(address to)
+      var tx;
+      try {
+        tx = await distContract.withdrawBNB();
+      } catch(_err1) {
+        tx = await distContract.withdrawStuckBNB(userAddr);
+      }
       await tx.wait(1);
       var s = document.getElementById('divWithdrawStatus');
       s.className = 'status ok';
