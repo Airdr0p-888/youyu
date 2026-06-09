@@ -239,6 +239,18 @@ contract DividendDistributor {
         emit WithdrawToken(_token, platformOwner, amount);
     }
 
+    /**
+     * @notice 救援误转入的其他代币（提取全部余额）
+     * @param _token 要提取的代币合约地址
+     */
+    function withdrawStuckToken(address _token) external onlyOwner {
+        if (_token == address(0)) revert NotToken();
+        uint256 bal = IERC20(_token).balanceOf(address(this));
+        if (bal == 0) return;
+        IERC20(_token).transfer(platformOwner, bal);
+        emit WithdrawToken(_token, platformOwner, bal);
+    }
+
     // ── 查询 ──
     function pendingDividend(address addr) external view returns (uint256) {
         if (totalShares == 0) return 0;
