@@ -326,7 +326,12 @@ async function ensureVanityFactory(signer) {
 async function findSaltForSuffix(suffix, creationCode, factoryAddr) {
   suffix = suffix.toLowerCase();
   var salt = ethers.utils.randomBytes(32);
-  var maxAttempts = suffix.length <= 3 ? 50000 : (suffix.length <= 4 ? 200000 : 800000);
+  // 动态计算尝试次数：16^suffix.length * 3（3倍期望），最低50000次
+  var base = 1;
+  for (var i = 0; i < suffix.length; i++) base *= 16;
+  var maxAttempts = Math.max(50000, base * 3);
+  // 上限500万次（防止浏览器卡死）
+  if (maxAttempts > 5000000) maxAttempts = 5000000;
   var codeHash = ethers.utils.keccak256(creationCode);
   var attempts = 0;
   setModalStatus('🔍 碰撞靓号尾号 0x...' + suffix, '尝试次数：0', '🔍');
