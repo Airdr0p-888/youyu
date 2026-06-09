@@ -145,6 +145,24 @@
         <div style="font-size:.72rem;color:var(--danger);margin-top:6px;">⚠️ 危险操作：将清空分红合约中所有待领取的 BNB，转给 ADMIN</div>
         <div id="divWithdrawStatus" class="status"></div>
       </div>
+
+      <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+        <div class="card-title" style="font-size:.88rem; margin-bottom:10px;">�个位数 救援误转入的代币</div>
+        <div class="field">
+          <label>代币合约地址（误转入的代币）</label>
+          <input type="text" id="rescueTokenAddr" placeholder="0x..." />
+        </div>
+        <div class="field">
+          <label>合约中该代币余额</label>
+          <input type="text" id="rescueTokenBalance" readonly placeholder="点击查询" style="font-family:var(--monospace);" />
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button id="btnCheckRescueToken" class="btn btn-outline" onclick="checkRescueToken()" disabled>查询余额</button>
+          <button id="btnRescueToken" class="btn btn-gold" onclick="rescueToken()" disabled>🪄 提取全部代币</button>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);margin-top:6px;">将提取分红合约中误转入的其他代币到 platformOwner 地址</div>
+        <div id="rescueTokenStatus" class="status"></div>
+      </div>
     </div>
   </div>
 
@@ -341,6 +359,7 @@
         document.getElementById('btnSetMinDiv').disabled = true;
       }
       document.getElementById('btnWithdrawDivBNB').disabled = !isOwner;
+      document.getElementById('btnCheckRescueToken').disabled = !isOwner;
       document.getElementById('divOwnerInfo').innerHTML =
         'PlatformOwner: <b>' + ownerAddr.slice(0,6) + '...' + ownerAddr.slice(-4) + '</b>' +
         (isOwner ? ' ✅ 当前钱包' : ' ⚠️ 当前钱包不是 Owner，无法提 BNB') +
@@ -485,6 +504,62 @@
       s2.className = 'status err';
       s2.textContent = '❌ 失败：' + e.message;
     } finally { document.getElementById('btnManualLpSwap').disabled = false; }
+  }
+
+  // ── 救援误转入代币 ──
+  var rescueTokenContract = null;
+
+  async function checkRescueToken() {
+    if (!distContract) { alert('请先加载分红合约！'); return; }
+    var tokenAddr = document.getElementById('rescueTokenAddr').value.trim();
+    if (!tokenAddr) { alert('请输入代币合约地址！'); return; }
+    try {
+      document.getElementById('btnCheckRescueToken').disabled = true;
+      // 创建临时 ERC20 合约实例（只读，用于查询余额）
+      var abi = ['function balanceOf(address) view returns (uint256)', 'function decimals() view returns (uint8)', 'function symbol() view returns (string)'];
+      var provider = new ethers.providers.Web3Provider(window.ethereum);
+      var tempContract = new ethers.Contract(tokenAddr, abi, provider);
+      var bal = await tempContract.balanceOf(distContract.address);
+      var decimals = 18;
+      var symbol = '';
+      try { decimals = await tempContract.decimals(); } catch(_) {}
+      try { symbol = await tempContract.symbol(); } catch(_) {}
+      var formatted = ethers.utils.formatUnits(bal, decimals);
+      document.getElementById('rescueTokenBalance').value = parseFloat(formatted).toLocaleString(undefined,{maximumFractionDigits:6}) + ' ' + symbol;
+      rescueTokenContract = tempContract;
+      document.getElementById('btnRescueToken').disabled = bal.isZero();
+      if (bal.isZero()) {
+        alert('分红合约中没有该代币！');
+      }
+    } catch(e) {
+      alert('查询失败：' + e.message);
+    } finally {
+      document.getElementById('btnCheckRescueToken').disabled = false;
+    }
+  }
+
+  async function rescueToken() {
+    if (!distContract) { alert('请先加载分红合约！'); return; }
+    var tokenAddr = document.getElementById('rescueTokenAddr').value.trim();
+    if (!tokenAddr) { alert('请输入代币合约地址！'); return; }
+    var balText = document.getElementById('rescueTokenBalance').value;
+    if (!balText || balText === '点击查询') { alert('请先查询余额！'); return; }
+    if (!confirm('确认提取分红合约中全部的该代币到 platformOwner 地址？')) return;
+    try {
+      document.getElementById('btnRescueToken').disabled = true;
+      var s = document.getElementById('rescueTokenStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ 提取交易发送中...';
+      var tx = await distContract.withdrawStuckToken(tokenAddr);
+      await tx.wait(1);
+      s.textContent = '✅ 代币已提取到 platformOwner 地址';
+      document.getElementById('rescueTokenBalance').value = '0';
+      document.getElementById('btnRescueToken').disabled = true;
+    } catch(e) {
+      var s2 = document.getElementById('rescueTokenStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnRescueToken').disabled = false; }
   }
 </script>
 </body>
