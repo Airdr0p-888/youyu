@@ -50,8 +50,7 @@ contract SimpleToken {
     uint256 public totalMinted;
     uint256 public presaleTokens;
     uint256 public presaleSold;
-    mapping(address => bool) public hasMinted;
-    uint256 public mintBatchSize;  // 0=任意金额, >0=固定单次BNB数量
+    uint256 public liquidityPct;
 
     // ── 开盘控制 ──
     bool    public tradingEnabled;
@@ -85,44 +84,30 @@ contract SimpleToken {
     event WhitelistModeSet(bool enabled);
     event DistributorSet(address indexed distributor);
 
-    address public pendingOwner;
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-    event OwnershipTransferPending(address indexed currentOwner, address indexed pendingOwner);
-
     // ── Custom Errors ──
     error EmptyNameSym();
     error SupplyZero();
     error OwnerZero();
     error PriceZero();
+    error PresaleOver100();
+    error LiqPctOver100();
     error BadMode();
     error LimitOver100();
     error TaxTooHigh();
     error NotOwner();
-    error AlreadyMinted();
-    error WrongMintAmount();
 
     modifier onlyOwner() { if (msg.sender != owner) revert NotOwner(); _; }
-
-    modifier onlyPendingOwner() {
-        if (msg.sender != pendingOwner) revert NotOwner();
-        _;
-    }
-
-    // ── Fair Launch 硬编码参数（不可篡改） ──
-    // presalePct = 50 → 50% 代币用于 mint 发放，50% 留作加池消耗
-    // 每次 mint tokenAmount：用户得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
-    uint256 public constant presalePct = 50;
-    uint256 public constant liqPct      = 100;   // 100% BNB 用于加池，平台不抽 BNB
 
     /// @param _name          代币名称
     /// @param _symbol       代币符号
     /// @param _totalSupply  总供应量（如 1000000，自动 ×10^18）
     /// @param _owner        Owner 地址
-    /// @param _platformOwner 平台方钱包（收 LP 和手续费）
+    /// @param _platformOwner 平台方钱包（收 LP）
     /// @param _routerAddress PancakeSwap Router
     /// @param _mintPrice    Mint 单价（wei）
     /// @param _hardCap      硬顶（wei）
-    /// @param _mintBatchSize 单次固定 Mint BNB 量（wei, 0=任意）
+    /// @param _presalePct   预售占比（%）
+    /// @param _liqPct      每笔 mint 加池子比例（%）
     /// @param _buyTax       买入税（bps）
     /// @param _sellTax      卖出税（bps）
     /// @param _maxTxPct     单笔交易上限（%）
@@ -141,7 +126,8 @@ contract SimpleToken {
         address         _routerAddress,
         uint256         _mintPrice,
         uint256         _hardCap,
-        uint256         _mintBatchSize,
+        uint256         _presalePct,
+        uint256         _liqPct,
         uint256         _buyTax,
         uint256         _sellTax,
         uint256         _maxTxPct,
@@ -156,6 +142,8 @@ contract SimpleToken {
         if (_totalSupply == 0) revert SupplyZero();
         if (_owner == address(0)) revert OwnerZero();
         if (_mintPrice == 0) revert PriceZero();
+        if (_presalePct > 100) revert PresaleOver100();
+        if (_liqPct > 100) revert LiqPctOver100();
         if (_openMode > 2) revert BadMode();
         if (_maxTxPct > 100 || _maxWalletPct > 100) revert LimitOver100();
         if (_buyTax > MAX_TAX || _sellTax > MAX_TAX) revert TaxTooHigh();
@@ -169,17 +157,21 @@ contract SimpleToken {
 
         totalSupply   = _totalSupply * 10**decimals;
 
-        // 公平发射：50% 代币用于 mint 发放，50% 留作加池消耗
-        // 每次 mint tokenAmount：用户得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
-        presaleTokens = totalSupply * presalePct / 100;   // = totalSupply * 50%
+        // 代币分配
+        presaleTokens = totalSupply * _presalePct / 100;
+        if (presaleTokens > 0) {
+            balanceOf[address(this)] = presaleTokens;
+            emit Transfer(address(0), address(this), presaleTokens);
+        }
+        uint256 ownerTokens = totalSupply - presaleTokens;
+        if (ownerTokens > 0) {
+            balanceOf[_owner] = ownerTokens;
+            emit Transfer(address(0), _owner, ownerTokens);
+        }
 
         mintPrice     = _mintPrice;
         hardCap       = _hardCap;
-        mintBatchSize = _mintBatchSize;
-
-        // 100% 代币留在合约（50% 发给用户 + 50% 加池消耗）
-        balanceOf[address(this)] = totalSupply;
-        emit Transfer(address(0), address(this), totalSupply);
+        liquidityPct  = _liqPct;
 
         openMode      = _openMode;
         openTime      = _openTime;
@@ -212,35 +204,30 @@ contract SimpleToken {
 
     function mint() external payable {
         if (msg.value == 0) revert PriceZero();
-        if (hasMinted[msg.sender]) revert AlreadyMinted();
-        if (mintBatchSize > 0 && msg.value != mintBatchSize) revert WrongMintAmount();
         if (totalMinted + msg.value > hardCap) revert("cap reached");
         if (whitelistOnly && !whitelist[msg.sender]) revert("not whitelisted");
         if (openMode == 0 && block.timestamp >= openTime) revert("mint closed");
         if (openMode == 2 && tradingEnabled) revert("trading started");
 
         uint256 tokenAmount = _calcTokenAmount(msg.value);
-        // 每次 mint 消耗 2x：tokenAmount 给用户 + tokenAmount 加池
-        // 只检查合约余额，presaleTokens 仅用于前端展示
-        if (balanceOf[address(this)] < tokenAmount * 2) revert("insufficient contract balance");
+        if (presaleSold + tokenAmount > presaleTokens) revert("sold out");
 
-        uint256 liqBNB    = msg.value;                     // liqPct=100 → 100% BNB 加池
-        uint256 liqTokens = tokenAmount;                    // liqPct=100 → 等量代币加池
+        uint256 liqBNB    = msg.value * liquidityPct / 100;
+        uint256 liqTokens = tokenAmount * liquidityPct / 100;
 
         if (liqBNB > 0 && liqTokens > 0) {
             _addLiquidity(liqTokens, liqBNB);
         }
 
-        // 用户获得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
-        balanceOf[address(this)] -= tokenAmount * 2;
-        balanceOf[msg.sender] += tokenAmount;
-        hasMinted[msg.sender] = true;
-        emit Transfer(address(this), msg.sender, tokenAmount);
+        uint256 buyAmount = tokenAmount - liqTokens;
+        balanceOf[address(this)] -= tokenAmount;
+        balanceOf[msg.sender] += buyAmount;
+        emit Transfer(address(this), msg.sender, buyAmount);
 
         totalMinted += msg.value;
-        presaleSold += tokenAmount;  // 只记录发给用户的量
+        presaleSold += tokenAmount;
 
-        emit Mint(msg.sender, msg.value, tokenAmount);
+        emit Mint(msg.sender, msg.value, buyAmount);
 
         // 通知 distributor 更新持仓
         _notifyDistributor(msg.sender);
@@ -302,20 +289,6 @@ contract SimpleToken {
     function setDistributor(address _distributor) external onlyOwner {
         distributor = _distributor;
         emit DistributorSet(_distributor);
-    }
-
-    // ╍═══════ 所有权转移（两阶段，防止转错地址） ╍═══════
-    function transferOwnership(address newOwner) external onlyOwner {
-        if (newOwner == address(0)) revert OwnerZero();
-        pendingOwner = newOwner;
-        emit OwnershipTransferPending(owner, newOwner);
-    }
-
-    function acceptOwnership() external onlyPendingOwner {
-        address oldOwner = owner;
-        owner = pendingOwner;
-        pendingOwner = address(0);
-        emit OwnershipTransferred(oldOwner, owner);
     }
 
     // ╍═══════ 白名单管理 ╍═══════
@@ -427,7 +400,7 @@ contract SimpleToken {
         IERC20(tkn).transfer(platformOwner, amount);
     }
 
-    function holdersCount() external view returns (uint256) {
+    function holdersCount() external returns (uint256) {
         if (distributor == address(0)) return 0;
         return IDistributor(distributor).holdersCount();
     }

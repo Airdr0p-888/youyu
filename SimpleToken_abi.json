@@ -43,6 +43,16 @@
       },
       {
         "internalType": "uint256",
+        "name": "_presalePct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_liqPct",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "_buyTax",
         "type": "uint256"
       },
@@ -107,12 +117,22 @@
   },
   {
     "inputs": [],
+    "name": "LiqPctOver100",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotOwner",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "OwnerZero",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PresaleOver100",
     "type": "error"
   },
   {
@@ -235,44 +255,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "currentOwner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "pendingOwner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnershipTransferPending",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "previousOwner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnershipTransferred",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": false,
         "internalType": "uint256",
         "name": "buyTax",
@@ -362,13 +344,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "acceptOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -540,7 +515,7 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -596,7 +571,7 @@
   },
   {
     "inputs": [],
-    "name": "liqPct",
+    "name": "liquidityPct",
     "outputs": [
       {
         "internalType": "uint256",
@@ -720,38 +695,12 @@
   },
   {
     "inputs": [],
-    "name": "pendingOwner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "platformOwner",
     "outputs": [
       {
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "presalePct",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -996,19 +945,6 @@
         "type": "bool"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
-    ],
-    "name": "transferOwnership",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

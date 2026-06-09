@@ -87,6 +87,20 @@
     </div>
     <div id="wlStatus" class="status"></div>
   </div>
+
+  <div class="card">
+    <div class="card-title">&#128184; 合约管理</div>
+    <div class="field">
+      <label>合约 BNB 余额</label>
+      <input type="text" id="contractBalance" readonly placeholder="先加载合约" style="font-family:var(--monospace);" />
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button id="btnRefreshBalance" class="btn btn-outline" onclick="refreshBalance()">刷新余额</button>
+      <button id="btnWithdraw" class="btn btn-gold" onclick="withdrawBNB()">提取全部 BNB</button>
+    </div>
+    <div class="hint" style="font-size:.72rem;color:var(--muted);margin-top:8px;">BNB 将转入 platformOwner 地址</div>
+    <div id="withdrawStatus" class="status"></div>
+  </div>
 </div>
 
 <script src="ethers.umd.min.js"></script>
@@ -119,6 +133,7 @@
       var s = document.getElementById('contractStatus');
       s.className = 'status ok';
       s.textContent = '✅ 合约加载成功！Owner：' + await contract.owner();
+      refreshBalance();
     } catch(e) {
       var s2 = document.getElementById('contractStatus');
       s2.className = 'status err';
@@ -164,6 +179,40 @@
       s2.className = 'status err';
       s2.textContent = '❌ 失败：' + e.message;
     } finally { document.getElementById('btnRrm').disabled = false; }
+  }
+
+  async function refreshBalance() {
+    if (!contract) { alert('请先加载合约！'); return; }
+    try {
+      var provider = new ethers.providers.Web3Provider(window.ethereum);
+      var bal = await provider.getBalance(contract.address);
+      var bnb = parseFloat(ethers.utils.formatEther(bal)).toFixed(6);
+      document.getElementById('contractBalance').value = bnb + ' BNB';
+    } catch(e) {
+      document.getElementById('contractBalance').value = '获取失败';
+    }
+  }
+
+  async function withdrawBNB() {
+    if (!contract) { alert('请先加载合约！'); return; }
+    try {
+      var provider = new ethers.providers.Web3Provider(window.ethereum);
+      var bal = await provider.getBalance(contract.address);
+      if (bal.isZero()) { alert('合约内没有 BNB 可提！'); return; }
+      var bnb = parseFloat(ethers.utils.formatEther(bal)).toFixed(6);
+      if (!confirm('确认提取合约中全部 ' + bnb + ' BNB 到 platformOwner 地址？')) return;
+      document.getElementById('btnWithdraw').disabled = true;
+      var tx = await contract.withdrawBNB();
+      await tx.wait(1);
+      var s = document.getElementById('withdrawStatus');
+      s.className = 'status ok';
+      s.textContent = '✅ 已提取 ' + bnb + ' BNB';
+      refreshBalance();
+    } catch(e) {
+      var s2 = document.getElementById('withdrawStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnWithdraw').disabled = false; }
   }
 
   async function setWhitelistMode(on) {
