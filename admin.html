@@ -139,9 +139,24 @@
       <div id="triggerStatus" class="status"></div>
     </div>
   </div>
-</div>
 
-<script src="ethers.umd.min.js"></script>
+  <div class="card">
+    <div class="card-title">&#128260; 手动触发 Swap</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">
+      当累积的税费代币达到阈值后会自动 swap，也可在此手动触发。
+    </div>
+    <div class="flex-gap">
+      <button id="btnManualDivSwap" class="btn btn-gold" onclick="manualSwapDividend()" disabled>&#127873; 手动分红 Swap</button>
+      <button id="btnManualLpSwap" class="btn btn-outline" onclick="manualSwapLP()" disabled>&#128280; 手动 LP Swap</button>
+    </div>
+    <div id="manualSwapStatus" class="status"></div>
+    <div style="margin-top:10px;font-size:.72rem;color:var(--muted);">
+      &#128161; 分红 Swap：将累积的分红代币换成 BNB 并发给分红合约<br>
+      &#128161; LP Swap：将累积的 LP 代币换成 BNB 并添加流动性
+    </div>
+  </div>
+
+</div>
 <script src="contract_data.js"></script>
 <script src="distributor_data.js"></script>
 <script>
@@ -172,6 +187,8 @@
       var s = document.getElementById('contractStatus');
       s.className = 'status ok';
       s.textContent = '✅ 合约加载成功！Owner：' + await contract.owner();
+      document.getElementById('btnManualDivSwap').disabled = false;
+      document.getElementById('btnManualLpSwap').disabled = false;
       refreshBalance();
     } catch(e) {
       var s2 = document.getElementById('contractStatus');
@@ -363,6 +380,40 @@
       s2.className = 'status err';
       s2.textContent = '❌ 失败：' + e.message;
     } finally { document.getElementById('btnSetMinDiv').disabled = false; }
+  }
+
+  async function manualSwapDividend() {
+    if (!contract) { alert('请先加载代币合约！'); return; }
+    try {
+      document.getElementById('btnManualDivSwap').disabled = true;
+      var s = document.getElementById('manualSwapStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ 分红 Swap 交易发送中...';
+      var tx = await contract.swapAndDistributeDividend();
+      await tx.wait(1);
+      s.textContent = '✅ 分红 Swap 完成！代币已换成 BNB 并发给分红合约';
+    } catch(e) {
+      var s2 = document.getElementById('manualSwapStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnManualDivSwap').disabled = false; }
+  }
+
+  async function manualSwapLP() {
+    if (!contract) { alert('请先加载代币合约！'); return; }
+    try {
+      document.getElementById('btnManualLpSwap').disabled = true;
+      var s = document.getElementById('manualSwapStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ LP Swap 交易发送中...';
+      var tx = await contract.swapAndLiquify();
+      await tx.wait(1);
+      s.textContent = '✅ LP Swap 完成！代币已换成 BNB 并添加流动性';
+    } catch(e) {
+      var s2 = document.getElementById('manualSwapStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnManualLpSwap').disabled = false; }
   }
 </script>
 </body>

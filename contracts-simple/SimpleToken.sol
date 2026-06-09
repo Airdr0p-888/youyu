@@ -15,14 +15,12 @@ interface IDistributor {
     function updateHolder(address addr, uint256 balance) external;
     function distribute() external;
     function holdersCount() external view returns (uint256);
-    function distributeBNB() external payable;  // 新增：接收 BNB 并分配
+    function distributeBNB() external payable;
 }
 
 /**
  * @title SimpleToken — Mint + 独立分红版
- * @notice 18(+1) 个平铺构造函数参数（兼容 ethers.js CREATE2 部署）
- *         税费代币直接转给外部 DividendDistributor 合约处理
- *         持币人追踪由 Token 合约推送给 Distributor
+ * @notice 税费代币 swap 成 BNB 后发送给分红合约，由分红合约完成分配
  */
 contract SimpleToken {
     string public name;
@@ -54,14 +52,14 @@ contract SimpleToken {
     uint256 public presaleTokens;
     uint256 public presaleSold;
     mapping(address => bool) public hasMinted;
-    uint256 public mintBatchSize;  // 0=任意金额, >0=固定单次BNB数量
+    uint256 public mintBatchSize;
 
     // ── 开盘控制 ──
     bool    public tradingEnabled;
     uint8   public openMode;
     uint256 public openTime;
     uint256 public fullOpenDelay;
-    uint256 public capReachedTime;     // 满额模式：达到硬顶的时间戳，0=未满额
+    uint256 public capReachedTime;
 
     // ── 白名单 ──
     bool    public whitelistOnly;
@@ -71,15 +69,15 @@ contract SimpleToken {
     address public distributor;
 
     // ── 税收四路分配 ──
-    uint256 public taxAllocMarketing;    // bps (万分之一)
-    uint256 public taxAllocBurn;         // bps
-    uint256 public taxAllocLp;           // bps
-    uint256 public taxAllocDistribute;   // bps
+    uint256 public taxAllocMarketing;
+    uint256 public taxAllocBurn;
+    uint256 public taxAllocLp;
+    uint256 public taxAllocDistribute;
     address public marketingWallet;
     uint256 public pendingLpTokens;
     uint256 public lpSwapThreshold;
-    uint256 public pendingDividendTokens;  // 累积的分红代币
-    uint256 public dividendSwapThreshold;  // 分红 swap 阈值
+    uint256 public pendingDividendTokens;
+    uint256 public dividendSwapThreshold;
     bool    public swapEnabled = true;
     bool    private _inSwap;
     address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
@@ -92,6 +90,7 @@ contract SimpleToken {
     mapping(address => bool) public isExcludedFromTax;
     mapping(address => bool) public isExcludedFromLimits;
 
+    // ── Events ──
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Mint(address indexed buyer, uint256 bnbIn, uint256 tokenOut);
@@ -106,6 +105,7 @@ contract SimpleToken {
     event MarketingWalletSet(address indexed wallet);
     event SwapAndLiquify(uint256 tokensSwapped, uint256 bnbAdded);
     event SellOccurred(address indexed seller, uint256 amount);
+    event SwapAndDistributeFailed(string reason, uint256 amount);
 
     address public pendingOwner;
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
@@ -124,43 +124,17 @@ contract SimpleToken {
     error WrongMintAmount();
     error AllocSumNot100();
     error SwapInProgress();
+    error CapReached();
 
     modifier onlyOwner() { if (msg.sender != owner) revert NotOwner(); _; }
-
     modifier onlyPendingOwner() {
         if (msg.sender != pendingOwner) revert NotOwner();
         _;
     }
 
-    // ── Fair Launch 硬编码参数（不可篡改） ──
-    // presalePct = 50 → 50% 代币用于 mint 发放，50% 留作加池消耗
-    // 每次 mint tokenAmount：用户得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
     uint256 public constant presalePct = 50;
-    uint256 public constant liqPct      = 100;   // 100% BNB 用于加池，平台不抽 BNB
+    uint256 public constant liqPct      = 100;
 
-    /// @param _name          代币名称
-    /// @param _symbol       代币符号
-    /// @param _totalSupply  总供应量（如 1000000，自动 ×10^18）
-    /// @param _owner        Owner 地址
-    /// @param _platformOwner 平台方钱包（收 LP 和手续费）
-    /// @param _routerAddress PancakeSwap Router
-    /// @param _mintPrice    Mint 单价（wei）
-    /// @param _hardCap      硬顶（wei）
-    /// @param _mintBatchSize 单次固定 Mint BNB 量（wei, 0=任意）
-    /// @param _buyTax       买入税（bps）
-    /// @param _sellTax      卖出税（bps）
-    /// @param _maxTxPct     单笔交易上限（%）
-    /// @param _maxWalletPct 单钱包持仓上限（%）
-    /// @param _openMode     开盘模式 0=定时 1=手动 2=满额
-    /// @param _openTime     定时模式开盘时间戳（秒）
-    /// @param _fullOpenDelay 满额模式达硬顶后延迟秒数
-    /// @param _whitelistOnly 是否仅白名单可 mint
-    /// @param _distributor   分红合约地址（可选，0x0=税费留在合约里）
-    /// @param _taxAllocMarketing 营销比例（bps）
-    /// @param _taxAllocBurn      销毁比例（bps）
-    /// @param _taxAllocLp        回流底池比例（bps）
-    /// @param _taxAllocDistribute 分红比例（bps）
-    /// @param _marketingWallet   营销收款地址
     constructor(
         string  memory _name,
         string  memory _symbol,
@@ -195,38 +169,33 @@ contract SimpleToken {
         if (_buyTax > MAX_TAX || _sellTax > MAX_TAX) revert TaxTooHigh();
         if (_taxAllocMarketing + _taxAllocBurn + _taxAllocLp + _taxAllocDistribute != 10000) revert AllocSumNot100();
 
-        name            = _name;
-        symbol          = _symbol;
-        owner           = _owner;
-        platformOwner   = _platformOwner;
-        lpReceiver      = _platformOwner;
-        distributor     = _distributor;
+        name               = _name;
+        symbol             = _symbol;
+        owner              = _owner;
+        platformOwner      = _platformOwner;
+        lpReceiver         = _platformOwner;
+        distributor        = _distributor;
         taxAllocMarketing = _taxAllocMarketing;
         taxAllocBurn      = _taxAllocBurn;
         taxAllocLp        = _taxAllocLp;
         taxAllocDistribute = _taxAllocDistribute;
-        marketingWallet      = _marketingWallet;
-        lpSwapThreshold      = totalSupply * 1 / 100000;   // 0.001% 总供应量
-        dividendSwapThreshold = totalSupply * 1 / 100000;   // 0.001% 总供应量
+        marketingWallet    = _marketingWallet;
+        lpSwapThreshold   = _totalSupply * 10**decimals / 100000;   // 0.001%
+        dividendSwapThreshold = _totalSupply * 10**decimals / 100000; // 0.001%
 
-        totalSupply   = _totalSupply * 10**decimals;
-
-        // 公平发射：50% 代币用于 mint 发放，50% 留作加池消耗
-        // 每次 mint tokenAmount：用户得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
-        presaleTokens = totalSupply * presalePct / 100;   // = totalSupply * 50%
+        totalSupply = _totalSupply * 10**decimals;
+        presaleTokens = totalSupply * presalePct / 100;
 
         mintPrice     = _mintPrice;
         hardCap       = _hardCap;
         mintBatchSize = _mintBatchSize;
 
-        // 100% 代币留在合约（50% 发给用户 + 50% 加池消耗）
         balanceOf[address(this)] = totalSupply;
         emit Transfer(address(0), address(this), totalSupply);
 
         openMode      = _openMode;
         openTime      = _openTime;
         fullOpenDelay = _fullOpenDelay;
-
         whitelistOnly = _whitelistOnly;
 
         buyTax  = _buyTax;
@@ -235,12 +204,10 @@ contract SimpleToken {
         if (_maxTxPct > 0)     maxTxAmount    = totalSupply * _maxTxPct / 100;
         if (_maxWalletPct > 0) maxWalletAmount = totalSupply * _maxWalletPct / 100;
 
-        // PancakeSwap 创建交易对
         uniswapRouter = _routerAddress;
         IUniswapV2Router02 router = IUniswapV2Router02(_routerAddress);
         uniswapPair = IUniswapV2Factory(router.factory()).createPair(address(this), router.WETH());
 
-        // 排除
         isExcludedFromTax[_owner] = true;
         isExcludedFromTax[address(this)] = true;
         isExcludedFromLimits[_owner] = true;
@@ -259,38 +226,31 @@ contract SimpleToken {
         if (msg.value == 0) revert PriceZero();
         if (hasMinted[msg.sender]) revert AlreadyMinted();
         if (mintBatchSize > 0 && msg.value != mintBatchSize) revert WrongMintAmount();
-        if (totalMinted + msg.value > hardCap) revert("cap reached");
+        if (totalMinted + msg.value > hardCap) revert CapReached();
         if (whitelistOnly && !whitelist[msg.sender]) revert("not whitelisted");
         if (openMode == 0 && block.timestamp >= openTime) revert("mint closed");
         if (openMode == 2 && tradingEnabled) revert("trading started");
 
         uint256 tokenAmount = _calcTokenAmount(msg.value);
-        // 每次 mint 消耗 2x：tokenAmount 给用户 + tokenAmount 加池
-        // 只检查合约余额，presaleTokens 仅用于前端展示
-        if (balanceOf[address(this)] < tokenAmount * 2) revert("insufficient contract balance");
+        // 用 presaleTokens - presaleSold 检查剩余可 mint 量，不受税费代币影响
+        if (presaleTokens - presaleSold < tokenAmount) revert("insufficient contract balance");
 
-        uint256 liqBNB    = msg.value;                     // liqPct=100 → 100% BNB 加池
-        uint256 liqTokens = tokenAmount;                    // liqPct=100 → 等量代币加池
+        uint256 liqBNB    = msg.value;
+        uint256 liqTokens = tokenAmount;
 
         if (liqBNB > 0 && liqTokens > 0) {
             _addLiquidity(liqTokens, liqBNB);
-            // ⚠️ _addLiquidity → addLiquidityETH → _transfer 已扣了 LP 部分
-            //    这里只需再扣用户部分，不能重复扣 LP 部分
         }
 
-        // 用户获得 tokenAmount
-        // LP 部分已在 _addLiquidity 内部的 _transfer 中扣除 (balanceOf[this] -= amountA)
         balanceOf[address(this)] -= tokenAmount;
         balanceOf[msg.sender] += tokenAmount;
         hasMinted[msg.sender] = true;
         emit Transfer(address(this), msg.sender, tokenAmount);
 
         totalMinted += msg.value;
-        presaleSold += tokenAmount;  // 只记录发给用户的量
+        presaleSold += tokenAmount;
 
         emit Mint(msg.sender, msg.value, tokenAmount);
-
-        // 通知 distributor 更新持仓
         _notifyDistributor(msg.sender);
 
         if (openMode == 2 && totalMinted >= hardCap && capReachedTime == 0) {
@@ -354,7 +314,6 @@ contract SimpleToken {
         emit DistributorSet(_distributor);
     }
 
-    // ╍═══════ 所有权转移（两阶段，防止转错地址） ╍═══════
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert OwnerZero();
         pendingOwner = newOwner;
@@ -410,7 +369,6 @@ contract SimpleToken {
     function _transfer(address from, address to, uint256 amount) internal {
         if (balanceOf[from] < amount) revert("insuf bal");
         if (from != owner && to != owner && from != address(this)) {
-            // Mode 2 (满额模式): capReachedTime + fullOpenDelay 后才算开启
             bool isOpen = tradingEnabled;
             if (!isOpen && openMode == 2 && capReachedTime > 0 && block.timestamp >= capReachedTime + fullOpenDelay) {
                 isOpen = true;
@@ -444,7 +402,6 @@ contract SimpleToken {
         emit Transfer(from, to, sendAmount);
 
         if (tax > 0) {
-            // LP回流：累积到合约，后续 swapAndLiquify
             if (taxAllocLp > 0) {
                 uint256 lpAmt = tax * taxAllocLp / 10000;
                 if (lpAmt > 0) {
@@ -453,7 +410,6 @@ contract SimpleToken {
                     emit Transfer(from, address(this), lpAmt);
                 }
             }
-            // 销毁：发送到 0xdead
             if (taxAllocBurn > 0) {
                 uint256 burnAmt = tax * taxAllocBurn / 10000;
                 if (burnAmt > 0) {
@@ -461,7 +417,6 @@ contract SimpleToken {
                     emit Transfer(from, DEAD, burnAmt);
                 }
             }
-            // 营销：发送到项目方钱包
             if (taxAllocMarketing > 0 && marketingWallet != address(0)) {
                 uint256 mktAmt = tax * taxAllocMarketing / 10000;
                 if (mktAmt > 0) {
@@ -469,7 +424,6 @@ contract SimpleToken {
                     emit Transfer(from, marketingWallet, mktAmt);
                 }
             }
-            // 分红：累积到合约，由合约统一 swap 后发给分红合约
             if (taxAllocDistribute > 0) {
                 uint256 distAmt = tax * taxAllocDistribute / 10000;
                 if (distAmt > 0) {
@@ -478,34 +432,31 @@ contract SimpleToken {
                     emit Transfer(from, address(this), distAmt);
                 }
             }
-            // 自动触发 LP 回流（超过阈值且非 swap 中）
+            // 自动触发 LP 回流
             if (swapEnabled && !_inSwap && pendingLpTokens >= lpSwapThreshold && lpSwapThreshold > 0) {
                 _swapAndLiquify();
             }
-            // 自动触发分红代币 swap（超过阈值且非 swap 中）
+            // 自动触发分红代币 swap
             if (swapEnabled && !_inSwap && pendingDividendTokens >= dividendSwapThreshold && dividendSwapThreshold > 0) {
                 _swapAndDistributeDividend();
             }
         }
 
-        // 通知 distributor 更新持仓
         _notifyDistributor(from);
         _notifyDistributor(to);
 
-        // 卖出后仅发出事件，由外部独立调用 distribute()
         if (isSell && distributor != address(0)) {
             emit SellOccurred(from, amount);
         }
     }
 
-    /// @dev 通知 distributor 更新某地址的持仓
     function _notifyDistributor(address addr) internal {
         if (distributor == address(0)) return;
         if (addr == address(0) || addr == address(this) || addr == uniswapPair) return;
         try IDistributor(distributor).updateHolder(addr, balanceOf[addr]) {} catch {}
     }
 
-    // ╍═══════ 提取（若未设置 distributor，税费留在合约里可提取） ╍═══════
+    // ╍═══════ 提取 ╍═══════
 
     function withdrawBNB() external onlyOwner {
         (bool sent,) = platformOwner.call{value: address(this).balance}("");
@@ -551,7 +502,6 @@ contract SimpleToken {
 
     // ╍═══════ LP 回流 ╍═══════
 
-    /// @notice 任何人可调用，将累积的 LP 税款兑换成 BNB 并添加流动性
     function swapAndLiquify() external {
         if (_inSwap) revert SwapInProgress();
         if (pendingLpTokens == 0) return;
@@ -570,25 +520,25 @@ contract SimpleToken {
         path[0] = address(this);
         path[1] = router.WETH();
 
-        // 一半换 BNB
         allowance[address(this)][uniswapRouter] = half;
         try router.swapExactTokensForETHSupportingFeeOnTransferTokens(
-            half, 0, path, address(this), block.timestamp
+            half, 0, path, address(this), block.timestamp + 60
         ) {} catch {
-            // swap 失败，恢复 pendingLpTokens
             pendingLpTokens = half + otherHalf;
             _inSwap = false;
+            emit SwapAndDistributeFailed("lp swap failed", half);
             return;
         }
 
         uint256 bnbGot = address(this).balance;
+        _inSwap = false;
+
         if (bnbGot > 0 && otherHalf > 0) {
             allowance[address(this)][uniswapRouter] = allowance[address(this)][uniswapRouter] + otherHalf;
             try router.addLiquidityETH{value: bnbGot}(
                 address(this), otherHalf, 0, 0, DEAD, block.timestamp + 3600
             ) {} catch {}
         }
-        _inSwap = false;
         emit SwapAndLiquify(half + otherHalf, bnbGot);
     }
 
@@ -596,7 +546,6 @@ contract SimpleToken {
 
     // ╍═════ 分红代币 Swap 与分发 ╍═════
 
-    /// @notice 任何人可调用，将累积的分红代币兑换成 BNB 并发送给分红合约
     function swapAndDistributeDividend() external {
         if (_inSwap) revert SwapInProgress();
         if (pendingDividendTokens == 0) return;
@@ -621,21 +570,19 @@ contract SimpleToken {
         try router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokensToSwap, 0, path, address(this), block.timestamp + 60
         ) {} catch {
-            // swap 失败，恢复 pendingDividendTokens
             pendingDividendTokens = tokensToSwap;
             _inSwap = false;
+            emit SwapAndDistributeFailed("dividend swap failed", tokensToSwap);
             return;
         }
 
         uint256 bnbReceived = address(this).balance - bnbBefore;
         _inSwap = false;
 
-        // 直接将 BNB 发送给分红合约，触发 receive() → distributeBNB()
         if (bnbReceived > 0 && distributor != address(0)) {
             (bool sent,) = distributor.call{value: bnbReceived}("");
-            // sent=false 说明发送失败，BNB 留在代币合约，可由 owner 通过 withdrawBNB() 取出
             if (!sent) {
-                pendingDividendTokens = bnbReceived; // 恢复待处理量，等待下次重试
+                emit SwapAndDistributeFailed("bnb send failed", bnbReceived);
             }
         }
     }
