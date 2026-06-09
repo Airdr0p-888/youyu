@@ -102,6 +102,7 @@ contract SimpleToken {
     event TaxAllocationSet(uint256 marketing, uint256 burn, uint256 lp, uint256 distribute);
     event MarketingWalletSet(address indexed wallet);
     event SwapAndLiquify(uint256 tokensSwapped, uint256 bnbAdded);
+    event SellOccurred(address indexed seller, uint256 amount);
 
     address public pendingOwner;
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
@@ -482,9 +483,9 @@ contract SimpleToken {
         _notifyDistributor(from);
         _notifyDistributor(to);
 
-        // 卖出后触发分红检查（distributor 自己卖时不触发，避免重入 pair swap）
-        if (isSell && distributor != address(0) && from != distributor) {
-            try IDistributor(distributor).distribute() {} catch {}
+        // 卖出后仅发出事件，由外部独立调用 distribute()
+        if (isSell && distributor != address(0)) {
+            emit SellOccurred(from, amount);
         }
     }
 

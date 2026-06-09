@@ -129,6 +129,15 @@
       <button id="btnSetMinDiv" class="btn btn-gold" onclick="setMinDividend()" disabled>设置最低门槛</button>
       <div id="minDivStatus" class="status"></div>
     </div>
+
+    <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+      <div class="field">
+        <label>分红池状态</label>
+        <div id="distPoolInfo" style="font-size:.82rem;color:var(--muted);">加载分红合约后显示</div>
+      </div>
+      <button id="btnTriggerDiv" class="btn btn-gold" onclick="triggerDistribute()" disabled>💸 触发分红</button>
+      <div id="triggerStatus" class="status"></div>
+    </div>
   </div>
 </div>
 
@@ -291,8 +300,10 @@
     try {
       distContract = new ethers.Contract(addr, DISTRIBUTOR_DATA.ABI, signer);
       document.getElementById('btnSetMinDiv').disabled = false;
+      document.getElementById('btnTriggerDiv').disabled = false;
       var minDiv = await distContract.minDividendBalance();
       document.getElementById('curMinDiv').textContent = parseFloat(ethers.utils.formatEther(minDiv)).toLocaleString() + ' 个';
+      await refreshDistPool();
       var s = document.getElementById('distStatus');
       s.className = 'status ok';
       s.textContent = '✅ 分红合约加载成功';
@@ -301,6 +312,37 @@
       s2.className = 'status err';
       s2.textContent = '❌ 加载失败：' + e.message;
     }
+  }
+
+  async function refreshDistPool() {
+    if (!distContract || !contract) return;
+    try {
+      var tokenBal = await contract.balanceOf(distContract.address);
+      var holdersCount = await distContract.holdersCount();
+      var tokenDec = ethers.utils.formatEther(tokenBal);
+      document.getElementById('distPoolInfo').innerHTML =
+        '📊 积攒代币：<b>' + parseFloat(tokenDec).toLocaleString(undefined,{maximumFractionDigits:2}) + '</b> 个 &nbsp;|&nbsp; 👥 分红人数：<b>' + holdersCount + '</b>';
+    } catch(e) {
+      document.getElementById('distPoolInfo').textContent = '⚠️ 获取状态失败';
+    }
+  }
+
+  async function triggerDistribute() {
+    if (!distContract) { alert('请先加载分红合约！'); return; }
+    try {
+      document.getElementById('btnTriggerDiv').disabled = true;
+      var s = document.getElementById('triggerStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ 分红交易发送中...';
+      var tx = await distContract.distribute();
+      await tx.wait(1);
+      s.textContent = '✅ 分红完成！';
+      await refreshDistPool();
+    } catch(e) {
+      var s2 = document.getElementById('triggerStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnTriggerDiv').disabled = false; }
   }
 
   async function setMinDividend() {
