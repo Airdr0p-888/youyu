@@ -101,7 +101,7 @@
   </div>
 
   <div class="card">
-    <div class="card-title">&#128184; 合约管理</div>
+    <div class="card-title">&#128184; 代币合约管理</div>
     <div class="field">
       <label>合约 BNB 余额</label>
       <input type="text" id="contractBalance" readonly placeholder="先加载合约" style="font-family:var(--monospace);" />
@@ -138,6 +138,12 @@
       </div>
       <button id="btnTriggerDiv" class="btn btn-gold" onclick="triggerDistribute()" disabled>💸 触发分红</button>
       <div id="triggerStatus" class="status"></div>
+
+      <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:12px;">
+        <button id="btnWithdrawDivBNB" class="btn btn-outline" onclick="withdrawDivBNB()" disabled>🔴 提取分红合约全部 BNB</button>
+        <div style="font-size:.72rem;color:var(--danger);margin-top:6px;">⚠️ 危险操作：将清空分红合约中所有待领取的 BNB，转给 ADMIN</div>
+        <div id="divWithdrawStatus" class="status"></div>
+      </div>
     </div>
   </div>
 
@@ -319,6 +325,7 @@
       distContract = new ethers.Contract(addr, DISTRIBUTOR_DATA.ABI, signer);
       document.getElementById('btnSetMinDiv').disabled = false;
       document.getElementById('btnTriggerDiv').disabled = false;
+      document.getElementById('btnWithdrawDivBNB').disabled = false;
       var minDiv = await distContract.minDividendBalance();
       document.getElementById('curMinDiv').textContent = parseFloat(ethers.utils.formatEther(minDiv)).toLocaleString() + ' 个';
       await refreshDistPool();
@@ -381,6 +388,27 @@
       s2.className = 'status err';
       s2.textContent = '❌ 失败：' + e.message;
     } finally { document.getElementById('btnSetMinDiv').disabled = false; }
+  }
+
+  async function withdrawDivBNB() {
+    if (!distContract) { alert('请先加载分红合约！'); return; }
+    try {
+      var provider = new ethers.providers.Web3Provider(window.ethereum);
+      var bal = await provider.getBalance(distContract.address);
+      if (bal.isZero()) { alert('分红合约内没有 BNB 可提！'); return; }
+      var bnb = parseFloat(ethers.utils.formatEther(bal)).toFixed(6);
+      if (!confirm('⚠️ 危险操作！确认提取分红合约中全部 ' + bnb + ' BNB 到 ADMIN 地址？\n\n此操作将清空所有待领取的分红 BNB！')) return;
+      document.getElementById('btnWithdrawDivBNB').disabled = true;
+      var tx = await distContract.withdrawStuckBNB(userAddr);
+      await tx.wait(1);
+      var s = document.getElementById('divWithdrawStatus');
+      s.className = 'status ok';
+      s.textContent = '✅ 已提取 ' + bnb + ' BNB';
+    } catch(e) {
+      var s2 = document.getElementById('divWithdrawStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnWithdrawDivBNB').disabled = false; }
   }
 
   async function manualSwapDividend() {
