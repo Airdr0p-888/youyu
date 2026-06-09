@@ -262,7 +262,7 @@
         updateEstimate();
       }
 
-      // 如果已连接钱包，刷新余额 + 检查是否已 mint
+      // 如果已连接钱包，刷新余额 + 检查是否已 mint + 白名单
       if (userAddr) {
         updateUserBnb();
         try {
@@ -273,6 +273,23 @@
             document.getElementById('warnBox').classList.remove('hidden');
           }
         } catch(e) { console.log('hasMinted check failed', e); }
+
+        // ── 白名单检查 ──
+        try {
+          var wlOnly = await tokenContract.whitelistOnly();
+          if (wlOnly) {
+            var isWl = await tokenContract.whitelist(userAddr);
+            if (!isWl) {
+              document.getElementById('btnMint').disabled = true;
+              var wb = document.getElementById('warnBox');
+              // 不覆盖已提示的 hasMinted
+              if (!minted) {
+                wb.textContent = '🔒 该项目开启了白名单模式，您的地址不在白名单中，无法 Mint';
+                wb.classList.remove('hidden');
+              }
+            }
+          }
+        } catch(e) { console.log('whitelist check failed', e); }
       }
 
       document.getElementById('loadingBox').classList.add('hidden');
