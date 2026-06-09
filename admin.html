@@ -400,7 +400,7 @@
       var bnb = parseFloat(ethers.utils.formatEther(bal)).toFixed(6);
       if (!confirm('⚠️ 危险操作！确认提取分红合约中全部 ' + bnb + ' BNB 到 ADMIN 地址？\n\n此操作将清空所有待领取的分红 BNB！')) return;
       document.getElementById('btnWithdrawDivBNB').disabled = true;
-      var tx = await distContract.withdrawBNB(userAddr);
+      var tx = await distContract.withdrawBNB();
       await tx.wait(1);
       var s = document.getElementById('divWithdrawStatus');
       s.className = 'status ok';
