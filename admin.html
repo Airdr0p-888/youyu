@@ -112,6 +112,12 @@
     </div>
     <div class="hint" style="font-size:.72rem;color:var(--muted);margin-top:8px;">BNB 将转入 platformOwner 地址</div>
     <div id="withdrawStatus" class="status"></div>
+
+    <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:16px;">
+      <button id="btnRenounce" class="btn btn-outline" onclick="renounceOwnership()" style="border-color:var(--danger);color:var(--danger);">☠️ 丢弃 Owner 权限（不可逆）</button>
+      <div style="font-size:.72rem;color:var(--danger);margin-top:6px;">⚠️ 执行后 owner 永久归零，所有 onlyOwner 函数（白名单/税率等）将永久锁定！platformOwner 仍可操作 enableTrading / 提币</div>
+      <div id="renounceStatus" class="status"></div>
+    </div>
   <div class="card">
     <div class="card-title">&#127873; 分红合约管理</div>
     <div class="field">
@@ -504,6 +510,34 @@
       s2.className = 'status err';
       s2.textContent = '❌ 失败：' + e.message;
     } finally { document.getElementById('btnManualLpSwap').disabled = false; }
+  }
+
+  // ── 丢弃 owner 权限 ──
+  async function renounceOwnership() {
+    if (!contract) { alert('请先加载代币合约！'); return; }
+    if (!confirm('☠️ 确认丢弃 Owner 权限？\n\n' +
+      '此操作不可撤销！执行后：\n' +
+      '• owner 永久归零\n' +
+      '• 白名单管理、税率调整等函数永久锁定\n' +
+      '• platformOwner 仍可调用 enableTrading / withdrawBNB / withdrawStuckToken\n' +
+      '• 分红合约的 platformOwner 不受影响\n\n' +
+      '确认请输入 YES（大写）：')) return;
+    var secondConfirm = prompt('请输入 YES 确认丢弃权限：');
+    if (secondConfirm !== 'YES') { alert('已取消'); return; }
+    try {
+      document.getElementById('btnRenounce').disabled = true;
+      var s = document.getElementById('renounceStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ 丢弃权限交易发送中...';
+      var tx = await contract.renounceOwnership();
+      await tx.wait(1);
+      s.textContent = '✅ Owner 权限已丢弃！owner = address(0)';
+      s.className = 'status ok';
+    } catch(e) {
+      var s2 = document.getElementById('renounceStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnRenounce').disabled = false; }
   }
 
   // ── 救援误转入代币 ──

@@ -330,6 +330,18 @@ contract SimpleToken {
         emit OwnershipTransferred(oldOwner, owner);
     }
 
+    /**
+     * @notice 丢弃 owner 权限（不可逆！）
+     * @dev 执行后 owner = address(0)，只有 admin 函数永久锁定。
+     *      platformOwner 仍可调用 enableTrading / withdrawBNB / withdrawStuckToken
+     */
+    function renounceOwnership() external onlyOwner {
+        address old = owner;
+        owner = address(0);
+        pendingOwner = address(0);
+        emit OwnershipTransferred(old, address(0));
+    }
+
     // ╍═══════ 白名单管理 ╍═══════
 
     function addToWhitelist(address[] calldata addrs) external onlyOwner {
