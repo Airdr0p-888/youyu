@@ -132,17 +132,22 @@
     </div>
     <div class="row2">
       <div class="field">
-        <label>Mint 单价（BNB / 代币）</label>
-        <input type="number" id="t_mintPrice" placeholder="e.g. 0.001" step="any" min="0" />
-      </div>
-      <div class="field">
         <label>硬顶（BNB）</label>
-        <input type="number" id="t_hardCap" placeholder="e.g. 100" step="any" min="0" />
+        <input type="number" id="t_hardCap" placeholder="e.g. 0.1" step="any" min="0" oninput="calcMintInfo()" />
       </div>
       <div class="field">
-        <label>单次 Mint BNB 数量（0=任意）</label>
-        <input type="number" id="t_mintBatchSize" placeholder="e.g. 0.1" step="any" min="0" value="0" />
-        <div class="hint">设 0 则用户可任意金额 Mint；设定后每次必须 Mint 此固定数量</div>
+        <label>单次 Mint BNB（0=任意）</label>
+        <input type="number" id="t_mintBatchSize" placeholder="e.g. 0.001" step="any" min="0" value="0" oninput="calcMintInfo()" />
+      </div>
+    </div>
+    <div class="row2" style="margin-top:12px">
+      <div class="field">
+        <label>单份代币数量</label>
+        <input type="text" id="tokensPerMint" readonly placeholder="填硬顶和批量BNB后自动计算" style="font-family:var(--monospace);color:var(--gold)" />
+      </div>
+      <div class="field">
+        <label>满额需要几次 Mint</label>
+        <input type="text" id="totalMints" readonly placeholder="填硬顶和批量BNB后自动计算" style="font-family:var(--monospace);color:var(--gold)" />
       </div>
     </div>
   </div>
@@ -281,6 +286,30 @@ function onOpenModeChange() {
   document.getElementById('fFullDelay').classList.toggle('hidden', currentOpenMode !== 'full');
 }
 
+/* ── Auto calc mint info ── */
+function calcMintInfo() {
+  var supply  = parseInt(document.getElementById('t_supply')?.value) || 0;
+  var presalePct = parseInt(document.getElementById('t_presalePct')?.value) || 0;
+  var hardCap = parseFloat(document.getElementById('t_hardCap')?.value) || 0;
+  var batch  = parseFloat(document.getElementById('t_mintBatchSize')?.value) || 0;
+  var tpBox = document.getElementById('tokensPerMint');
+  var tmBox = document.getElementById('totalMints');
+  if (!supply || !presalePct || !hardCap || !batch) {
+    tpBox.value = '需填写上方所有参数';
+    tmBox.value = '需填写上方所有参数';
+    return;
+  }
+  var presaleTokens = supply * presalePct / 100;       // 预售代币总量
+  var totalMints = Math.floor(hardCap / batch);          // 满额需要mint次数
+  var tokensPerMint = Math.floor(presaleTokens / totalMints); // 每次mint获得的代币
+  tpBox.value = tokensPerMint.toLocaleString() + ' 个代币';
+  tmBox.value = totalMints + ' 次 Mint';
+}
+
+// 绑定事件
+document.getElementById('t_supply')?.addEventListener('input', calcMintInfo);
+document.getElementById('t_presalePct')?.addEventListener('input', calcMintInfo);
+
 /* ── Distributor mode toggle ── */
 function onDistributorModeChange() {
   var isAuto = document.getElementById('chkDeployDistributor').checked;
@@ -391,7 +420,6 @@ async function deployToken() {
   var name    = (document.getElementById('t_name')?.value || '').trim();
   var symbol  = (document.getElementById('t_symbol')?.value || '').trim().toUpperCase();
   var supply  = parseInt(document.getElementById('t_supply')?.value) || 0;
-  var mintPrice = parseFloat(document.getElementById('t_mintPrice')?.value) || 0;
   var hardCap   = parseFloat(document.getElementById('t_hardCap')?.value) || 0;
   var mintBatchSize = parseFloat(document.getElementById('t_mintBatchSize')?.value) || 0;
   var buyTaxBps  = Math.round(parseFloat(document.getElementById('buyTaxSlider').value) * 100);
@@ -424,13 +452,17 @@ async function deployToken() {
   // ── Validate ──
   if (!name || !symbol)     { alert('请填写代币名称和符号！'); return; }
   if (supply <= 0)           { alert('总供应量必须大于 0！'); return; }
-  if (mintPrice <= 0)      { alert('Mint 单价必须大于 0！'); return; }
   if (hardCap <= 0)          { alert('硬顶必须大于 0！'); return; }
   if (openModeNum === 0 && openTimeTs === 0)  { alert('定时模式请设置开盘时间！'); return; }
 
   // 注意：合约构造函数内部会 × 10**18，这里传原始个数即可
   var supplyWei    = ethers.BigNumber.from(Math.floor(supply).toString());
-  var mintPriceWei = ethers.utils.parseEther(mintPrice.toString());
+  // mintPrice = hardCap / presaleTokens  (auto-calculated, in wei)
+  // presaleTokens = supply * presalePct / 100
+  var presaleTokens = ethers.BigNumber.from(Math.floor(supply * presalePct / 100).toString());
+  var mintPriceWei = presaleTokens.isZero()
+    ? ethers.utils.parseEther('1')
+    : hardCapWei.mul(ethers.constants.WeiPerEther).div(presaleTokens);
   var hardCapWei   = ethers.utils.parseEther(hardCap.toString());
   var mintBatchSizeWei = mintBatchSize > 0 ? ethers.utils.parseEther(mintBatchSize.toString()) : ethers.BigNumber.from(0);
 
@@ -540,7 +572,7 @@ async function deployToken() {
       'Platform: ' + PLATFORM_WALLET + '<br>' +
       'OpenMode: ' + ['定时','手动','满额'][openModeNum] + '<br>' +
       'Whitelist: ' + (whitelistOnly ? '仅白名单' : '公开') + '<br>' +
-      'MintPrice: ' + mintPrice + ' BNB / token<br>' +
+      'MintPrice: ' + parseFloat(ethers.utils.formatEther(mintPriceWei)).toFixed(8) + ' BNB/token (auto)<br>' +
       'HardCap: ' + hardCap + ' BNB' +
       '</code>';
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
