@@ -485,7 +485,7 @@ async function deployToken() {
   var presaleTokens = ethers.BigNumber.from(Math.floor(supply * presalePct / 100).toString());
   var mintPriceWei = presaleTokens.isZero()
     ? ethers.utils.parseEther('1')
-    : hardCapWei.mul(ethers.constants.WeiPerEther).div(presaleTokens);
+    : hardCapWei.div(presaleTokens);
 
   openModal();
   setModalStatus('📦 编码构造函数参数...', '', '📦');

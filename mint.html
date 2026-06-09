@@ -138,7 +138,6 @@
       <label>发送 BNB 数量</label>
       <div class="mint-row">
         <input type="number" id="mintBnb" placeholder="0.1" step="any" min="0" oninput="updateEstimate()" />
-        <button class="btn btn-outline" onclick="setMax()" style="padding:7px 14px;font-size:.78rem;">MAX</button>
       </div>
       <div class="hint">输入你想发送的 BNB 数量，自动计算可获得代币</div>
     </div>
@@ -304,20 +303,6 @@
     var bal = await provider.getBalance(userAddr);
     document.getElementById('userBnb').textContent = parseFloat(ethers.utils.formatEther(bal)).toFixed(4) + ' BNB';
   }
-
-  function setMax() {
-    if (!userAddr) return;
-    provider.getBalance(userAddr).then(bal => {
-      // 留一点 BNB 作为 gas
-      var gasReserve = ethers.utils.parseEther('0.005');
-      var max = bal.gt(gasReserve) ? bal.sub(gasReserve) : ethers.BigNumber.from(0);
-      if (max.gt(0)) {
-        document.getElementById('mintBnb').value = parseFloat(ethers.utils.formatEther(max)).toFixed(4);
-        updateEstimate();
-      }
-    });
-  }
-
   // ── 执行 Mint ────────────────────────────────────
   async function doMint() {
     if (!signer) return alert('请先连接钱包');
