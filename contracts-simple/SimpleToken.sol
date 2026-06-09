@@ -60,6 +60,7 @@ contract SimpleToken {
     uint8   public openMode;
     uint256 public openTime;
     uint256 public fullOpenDelay;
+    uint256 public capReachedTime;     // 满额模式：达到硬顶的时间戳，0=未满额
 
     // ── 白名单 ──
     bool    public whitelistOnly;
@@ -284,9 +285,8 @@ contract SimpleToken {
         // 通知 distributor 更新持仓
         _notifyDistributor(msg.sender);
 
-        if (openMode == 2 && totalMinted >= hardCap) {
-            tradingEnabled = true;
-            emit TradingEnabled();
+        if (openMode == 2 && totalMinted >= hardCap && capReachedTime == 0) {
+            capReachedTime = block.timestamp;
         }
     }
 
@@ -399,7 +399,12 @@ contract SimpleToken {
     function _transfer(address from, address to, uint256 amount) internal {
         if (balanceOf[from] < amount) revert("insuf bal");
         if (from != owner && to != owner && from != address(this)) {
-            if (!tradingEnabled) revert("not open");
+            // Mode 2 (满额模式): capReachedTime + fullOpenDelay 后才算开启
+            bool isOpen = tradingEnabled;
+            if (!isOpen && openMode == 2 && capReachedTime > 0 && block.timestamp >= capReachedTime + fullOpenDelay) {
+                isOpen = true;
+            }
+            if (!isOpen) revert("not open");
         }
 
         if (limitsEnabled) {
