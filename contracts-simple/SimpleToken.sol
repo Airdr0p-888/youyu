@@ -15,6 +15,7 @@ interface IDistributor {
     function updateHolder(address addr, uint256 balance) external;
     function distribute() external;
     function holdersCount() external view returns (uint256);
+    function distributeBNB() external payable;  // 新增：接收 BNB 并分配
 }
 
 /**
@@ -77,6 +78,8 @@ contract SimpleToken {
     address public marketingWallet;
     uint256 public pendingLpTokens;
     uint256 public lpSwapThreshold;
+    uint256 public pendingDividendTokens;  // 累积的分红代币
+    uint256 public dividendSwapThreshold;  // 分红 swap 阈值
     bool    public swapEnabled = true;
     bool    private _inSwap;
     address public constant DEAD = 0x000000000000000000000000000000000000dEaD;
@@ -465,17 +468,22 @@ contract SimpleToken {
                     emit Transfer(from, marketingWallet, mktAmt);
                 }
             }
-            // 分红：发送到 distributor
-            if (taxAllocDistribute > 0 && distributor != address(0)) {
+            // 分红：累积到合约，由合约统一 swap 后发给分红合约
+            if (taxAllocDistribute > 0) {
                 uint256 distAmt = tax * taxAllocDistribute / 10000;
                 if (distAmt > 0) {
-                    balanceOf[distributor] += distAmt;
-                    emit Transfer(from, distributor, distAmt);
+                    balanceOf[address(this)] += distAmt;
+                    pendingDividendTokens += distAmt;
+                    emit Transfer(from, address(this), distAmt);
                 }
             }
             // 自动触发 LP 回流（超过阈值且非 swap 中）
             if (swapEnabled && !_inSwap && pendingLpTokens >= lpSwapThreshold && lpSwapThreshold > 0) {
                 _swapAndLiquify();
+            }
+            // 自动触发分红代币 swap（超过阈值且非 swap 中）
+            if (swapEnabled && !_inSwap && pendingDividendTokens >= dividendSwapThreshold && dividendSwapThreshold > 0) {
+                _swapAndDistributeDividend();
             }
         }
 
@@ -532,6 +540,10 @@ contract SimpleToken {
         lpSwapThreshold = _threshold;
     }
 
+    function setDividendSwapThreshold(uint256 _threshold) external onlyOwner {
+        dividendSwapThreshold = _threshold;
+    }
+
     function setSwapEnabled(bool _enabled) external onlyOwner {
         swapEnabled = _enabled;
     }
@@ -580,6 +592,52 @@ contract SimpleToken {
     }
 
     receive() external payable {}
+
+    // ╍═════ 分红代币 Swap 与分发 ╍═════
+
+    /// @notice 任何人可调用，将累积的分红代币兑换成 BNB 并发送给分红合约
+    function swapAndDistributeDividend() external {
+        if (_inSwap) revert SwapInProgress();
+        if (pendingDividendTokens == 0) return;
+        _swapAndDistributeDividend();
+    }
+
+    function _swapAndDistributeDividend() internal {
+        _inSwap = true;
+
+        uint256 tokensToSwap = pendingDividendTokens;
+        pendingDividendTokens = 0;
+
+        IUniswapV2Router02 router = IUniswapV2Router02(uniswapRouter);
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        allowance[address(this)][uniswapRouter] = tokensToSwap;
+
+        uint256 bnbBefore = address(this).balance;
+
+        try router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokensToSwap, 0, path, address(this), block.timestamp + 60
+        ) {} catch {
+            // swap 失败，恢复 pendingDividendTokens
+            pendingDividendTokens = tokensToSwap;
+            _inSwap = false;
+            return;
+        }
+
+        uint256 bnbReceived = address(this).balance - bnbBefore;
+        _inSwap = false;
+
+        if (bnbReceived > 0 && distributor != address(0)) {
+            // 发送 BNB 给分红合约并触发分配
+            (bool sent,) = distributor.call{value: bnbReceived}("");
+            if (sent) {
+                // 触发分红合约的 distributeBNB 函数
+                try IDistributor(distributor).distributeBNB() {} catch {}
+            }
+        }
+    }
 }
 
 interface IERC20 {
