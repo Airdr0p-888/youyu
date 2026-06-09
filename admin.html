@@ -196,6 +196,7 @@
       s.textContent = '✅ 合约加载成功！Owner：' + await contract.owner();
       document.getElementById('btnManualDivSwap').disabled = false;
       document.getElementById('btnManualLpSwap').disabled = false;
+      document.getElementById('btnTriggerDiv').disabled = false;
       refreshBalance();
     } catch(e) {
       var s2 = document.getElementById('contractStatus');
@@ -353,15 +354,15 @@
   }
 
   async function triggerDistribute() {
-    if (!distContract) { alert('请先加载分红合约！'); return; }
+    if (!contract) { alert('请先加载代币合约！'); return; }
     try {
       document.getElementById('btnTriggerDiv').disabled = true;
       var s = document.getElementById('triggerStatus');
       s.className = 'status ok';
-      s.textContent = '⏳ 分红交易发送中...';
-      var tx = await distContract.distribute();
+      s.textContent = '⏳ 正在 swap 分红代币 → BNB → 发送到分红合约...';
+      var tx = await contract.swapAndDistributeDividend();
       await tx.wait(1);
-      s.textContent = '✅ 分红完成！';
+      s.textContent = '✅ 分红 swap 完成！BNB 已发送到分红合约并自动分配';
       await refreshDistPool();
     } catch(e) {
       var s2 = document.getElementById('triggerStatus');
@@ -399,7 +400,7 @@
       var bnb = parseFloat(ethers.utils.formatEther(bal)).toFixed(6);
       if (!confirm('⚠️ 危险操作！确认提取分红合约中全部 ' + bnb + ' BNB 到 ADMIN 地址？\n\n此操作将清空所有待领取的分红 BNB！')) return;
       document.getElementById('btnWithdrawDivBNB').disabled = true;
-      var tx = await distContract.withdrawStuckBNB(userAddr);
+      var tx = await distContract.withdrawBNB(userAddr);
       await tx.wait(1);
       var s = document.getElementById('divWithdrawStatus');
       s.className = 'status ok';
