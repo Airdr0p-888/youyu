@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>参与 Mint — SquidLaunch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+    :root {
+      --bg:#030812; --bg2:rgba(6,30,50,.65); --bg3:#0d1f33; --bg4:#132940;
+      --border:rgba(0,212,255,.15); --border2:rgba(0,212,255,.25);
+      --cyan:#00d4ff; --magenta:#ff2daa; --green:#00ffb2; --yellow:#ffe600;
+      --danger:#ff4466; --success:#00ffb2; --text:#eaf6ff; --muted:#5a8ab5;
+      --focus:rgba(0,212,255,.3); --radius:10px;
+      --font:'Inter','PingFang SC','Noto Sans SC',system-ui,sans-serif;
+      --mono:'JetBrains Mono','Space Mono',monospace;
+    }
+    body { background:var(--bg); color:var(--text); font-family:var(--font); line-height:1.6; min-height:100vh; }
+    body::after { content:''; position:fixed; inset:0; pointer-events:none; z-index:9999; opacity:.4;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    }
+    header { position:sticky; top:0; z-index:200; background:rgba(3,8,18,.92); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); }
+    nav { max-width:1100px; margin:0 auto; padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:68px; }
+    .logo { display:flex; align-items:center; gap:11px; text-decoration:none; }
+    .logo-icon { width:38px; height:38px; border-radius:9px; background:linear-gradient(135deg,var(--cyan),var(--magenta)); display:flex; align-items:center; justify-content:center; font-size:1.3rem; box-shadow:0 0 16px rgba(0,212,255,.25); }
+    .logo-name strong { font-size:1.05rem; font-weight:700; color:var(--cyan); letter-spacing:1.5px; display:block; line-height:1.1; }
+    .logo-name span { font-size:.62rem; color:var(--muted); letter-spacing:2.5px; text-transform:uppercase; }
+    .nav-right { display:flex; align-items:center; gap:10px; }
+    .btn { display:inline-flex; align-items:center; gap:7px; padding:9px 20px; border-radius:8px; font-family:var(--font); font-weight:600; font-size:.875rem; cursor:pointer; text-decoration:none; border:none; transition:all .2s; }
+    .btn-cyan { background:linear-gradient(135deg,var(--cyan),var(--magenta)); color:#0a0a0a; }
+    .btn-cyan:hover { transform:translateY(-2px); box-shadow:0 4px 24px rgba(0,212,255,.35); }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border2); }
+    .btn-outline:hover { border-color:var(--cyan); color:var(--cyan); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
+    .wallet-chip { font-size:.8rem; color:var(--cyan); font-family:var(--mono); background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.2); padding:5px 14px; border-radius:50px; display:none; }
+    .page-hero { text-align:center; padding:50px 24px 30px; position:relative; z-index:1; }
+    .page-hero h1 { font-size:clamp(1.6rem,3.5vw,2.4rem); font-weight:700; letter-spacing:-1px; margin-bottom:8px; }
+    .page-hero h1 span { color:var(--cyan); }
+    .page-hero p { color:var(--muted); font-size:.9rem; }
+    .container { max-width:560px; margin:0 auto; padding:0 24px 80px; position:relative; z-index:1; }
+    .card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:28px; margin-bottom:24px; }
+    .card-title { font-size:1rem; font-weight:600; color:var(--cyan); margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+    .field { margin-bottom:16px; }
+    .field label { display:block; font-size:.78rem; color:var(--muted); margin-bottom:6px; letter-spacing:.5px; text-transform:uppercase; }
+    .field input, .field textarea { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; color:var(--text); font-family:var(--font); font-size:.9rem; transition:border-color .2s; }
+    .field input:focus, .field textarea:focus { outline:none; border-color:var(--cyan); box-shadow:0 0 0 3px var(--focus); }
+    .hint { font-size:.72rem; color:var(--muted); margin-top:4px; }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+    .stat-box { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius); padding:14px; text-align:center; }
+    .stat-box .stat-val { font-size:1.15rem; font-weight:700; color:var(--cyan); font-family:var(--mono); word-break:break-all; }
+    .stat-box .stat-label { font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:4px; }
+    .progress-bar { width:100%; height:8px; background:var(--bg4); border-radius:4px; overflow:hidden; margin:14px 0; }
+    .progress-fill { height:100%; background:linear-gradient(90deg,var(--cyan),var(--magenta)); border-radius:4px; transition:width .4s; }
+    .mint-row { display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+    .mint-row input { flex:1; }
+    .mint-row .btn { white-space:nowrap; }
+    .est-row { display:flex; justify-content:space-between; font-size:.82rem; color:var(--muted); margin-bottom:6px; }
+    .est-row span { color:var(--text); font-weight:600; }
+    .warn-box { background:rgba(255,68,102,.08); border:1px solid rgba(255,68,102,.25); border-radius:var(--radius); padding:12px 16px; font-size:.78rem; color:var(--danger); margin-top:14px; }
+    .success-box { background:rgba(0,255,178,.08); border:1px solid rgba(0,255,178,.25); border-radius:var(--radius); padding:12px 16px; font-size:.78rem; color:var(--green); margin-top:14px; }
+    .loading { text-align:center; padding:40px; color:var(--muted); }
+    .loading-spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .hidden { display:none!important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <nav>
+    <a class="logo" href="launch.html">
+      <div class="logo-icon">🦑</div>
+      <div class="logo-name"><strong>SQUIDLAUNCH</strong><span>Token Launcher</span></div>
+    </a>
+    <div class="nav-right">
+      <div class="wallet-chip" id="walletChip">未连接</div>
+      <button class="btn btn-outline" id="btnConnect" onclick="connectWallet()">连接钱包</button>
+    </div>
+  </nav>
+</header>
+
+<section class="page-hero">
+  <h1>参与 <span>Mint</span></h1>
+  <p>⚡ 每钱包限 Mint 一次 · 连接钱包，发送 BNB 获得代币</p>
+</section>
+
+<div class="container">
+
+  <!-- Step 1: 输入合约地址 -->
+  <div class="card" id="addrCard">
+    <div class="card-title">📍 代币合约地址</div>
+    <div class="field">
+      <label>合约地址（Contract Address）</label>
+      <input type="text" id="tokenAddr" placeholder="0x..." />
+      <div class="hint">部署后在 BscScan 上复制合约地址，粘贴到这里</div>
+    </div>
+    <button class="btn btn-cyan" style="width:100%" onclick="loadToken()">加载代币信息</button>
+  </div>
+
+  <!-- Step 2: 代币信息 + Mint -->
+  <div class="card hidden" id="mintCard">
+    <div class="card-title">💰 Mint 代币</div>
+
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),var(--magenta));display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🪙</div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;" id="tkName">--</div>
+        <div style="font-size:.78rem;color:var(--muted);font-family:var(--mono);" id="tkSymbol">--</div>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="stMintPrice">--</div>
+        <div class="stat-label">Mint 单价 (BNB)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stHardCap">--</div>
+        <div class="stat-label">硬顶 (BNB)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stMinted">--</div>
+        <div class="stat-label">已 Mint (BNB)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="stProgress">0%</div>
+        <div class="stat-label">进度</div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+
+    <div class="field">
+      <label>发送 BNB 数量</label>
+      <div class="mint-row">
+        <input type="number" id="mintBnb" placeholder="0.1" step="any" min="0" oninput="updateEstimate()" />
+        <button class="btn btn-outline" onclick="setMax()" style="padding:7px 14px;font-size:.78rem;">MAX</button>
+      </div>
+      <div class="hint">输入你想发送的 BNB 数量，自动计算可获得代币</div>
+    </div>
+
+    <div class="est-row"><span>预计获得代币</span><span id="estTokens">--</span></div>
+    <div class="est-row"><span>你的余额 (BNB)</span><span id="userBnb">--</span></div>
+
+    <button class="btn btn-cyan" style="width:100%;margin-top:14px;" id="btnMint" onclick="doMint()">🚀 Mint 代币</button>
+
+    <div class="warn-box hidden" id="warnBox"></div>
+    <div class="success-box hidden" id="successBox"></div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading hidden" id="loadingBox">
+    <div class="loading-spinner"></div>
+    加载中...
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+<script>
+  const PLATFORM_WALLET = '0x8fdb0A964bEDa0da705d2fe5af2fb9A7001cBb3';
+  var provider, signer, userAddr;
+  var tokenContract, tokenAddr, mintPriceWei, hardCapWei, totalMintedWei, decimals, mintBatchSizeWei;
+
+  // ── 钱包 ──────────────────────────────────────────
+  async function connectWallet() {
+    if (!window.ethereum) return alert('请安装 MetaMask！');
+    try {
+      await window.ethereum.request({ method:'eth_requestAccounts' });
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      signer = provider.getSigner();
+      userAddr = await signer.getAddress();
+      document.getElementById('walletChip').textContent = userAddr.slice(0,6) + '...' + userAddr.slice(-4);
+      document.getElementById('walletChip').style.display = 'inline-block';
+      document.getElementById('btnConnect').style.display = 'none';
+      // 如果 URL 里有 ?token= 自动加载
+      var params = new URLSearchParams(location.search);
+      var t = params.get('token');
+      if (t && t.match(/^0x[0-9a-fA-F]{40}$/)) {
+        document.getElementById('tokenAddr').value = t;
+        loadToken();
+      }
+    } catch(e) { console.error(e); }
+  }
+
+  // ── 加载代币 ─────────────────────────────────────
+  async function loadToken() {
+    tokenAddr = document.getElementById('tokenAddr').value.trim();
+    if (!tokenAddr.match(/^0x[0-9a-fA-F]{40}$/)) return alert('合约地址格式不正确');
+
+    document.getElementById('addrCard').classList.add('hidden');
+    document.getElementById('loadingBox').classList.remove('hidden');
+
+    try {
+      // 最小 ABI
+      var abi = [
+        'function name() view returns (string)',
+        'function symbol() view returns (string)',
+        'function decimals() view returns (uint8)',
+        'function mintPrice() view returns (uint256)',
+        'function hardCap() view returns (uint256)',
+        'function totalMinted() view returns (uint256)',
+        'function mint() payable',
+        'function tradingEnabled() view returns (bool)',
+        'function openMode() view returns (uint8)',
+        'function balanceOf(address) view returns (uint256)',
+        'function whitelistOnly() view returns (bool)',
+        'function whitelist(address) view returns (bool)',
+        'function hasMinted(address) view returns (bool)',
+        'function mintBatchSize() view returns (uint256)',
+      ];
+      tokenContract = new ethers.Contract(tokenAddr, abi, provider);
+
+      var [name, symbol, dec, mp, hc, tm, te, mbs] = await Promise.all([
+        tokenContract.name(),
+        tokenContract.symbol(),
+        tokenContract.decimals(),
+        tokenContract.mintPrice(),
+        tokenContract.hardCap(),
+        tokenContract.totalMinted(),
+        tokenContract.tradingEnabled().catch(()=>false),
+        tokenContract.mintBatchSize().catch(()=>ethers.BigNumber.from(0)),
+      ]);
+
+      decimals = dec;
+      mintPriceWei = mp;
+      hardCapWei = hc;
+      totalMintedWei = tm;
+      mintBatchSizeWei = mbs;
+
+      var mpBnb  = parseFloat(ethers.utils.formatEther(mp));
+      var hcBnb  = parseFloat(ethers.utils.formatEther(hc));
+      var tmBnb  = parseFloat(ethers.utils.formatEther(tm));
+      var mbsBnb = parseFloat(ethers.utils.formatEther(mbs));
+      var pct    = hcBnb > 0 ? (tmBnb / hcBnb * 100).toFixed(1) : '0.0';
+
+      document.getElementById('tkName').textContent    = name;
+      document.getElementById('tkSymbol').textContent  = symbol + ' (#' + decimals + ')';
+      document.getElementById('stMintPrice').textContent = mpBnb.toFixed(6);
+      document.getElementById('stHardCap').textContent   = hcBnb.toFixed(4);
+      document.getElementById('stMinted').textContent   = tmBnb.toFixed(4);
+      document.getElementById('stProgress').textContent   = pct + '%';
+      document.getElementById('progressFill').style.width  = Math.min(pct, 100) + '%';
+
+      if (te) {
+        document.getElementById('warnBox').textContent = '⚠️ 交易已开启，Mint 已结束。可以去 PancakeSwap 交易。';
+        document.getElementById('warnBox').classList.remove('hidden');
+        document.getElementById('btnMint').disabled = true;
+      }
+
+      // 如果 mintBatchSize > 0，自动填入固定数量，隐藏输入框
+      if (mbsBnb > 0 && !mbs.isZero()) {
+        var mintInput = document.getElementById('mintBnb');
+        mintInput.value = mbsBnb.toFixed(6);
+        mintInput.readOnly = true;
+        mintInput.style.opacity = '0.6';
+        document.querySelector('.mint-row').nextElementSibling.textContent = '单次固定 Mint：' + mbsBnb.toFixed(6) + ' BNB（部署时已设定）';
+        document.getElementById('btnMint').textContent = '🚀 Mint ' + mbsBnb.toFixed(6) + ' BNB 代币';
+        updateEstimate();
+      }
+
+      // 如果已连接钱包，刷新余额 + 检查是否已 mint
+      if (userAddr) {
+        updateUserBnb();
+        try {
+          var minted = await tokenContract.hasMinted(userAddr);
+          if (minted) {
+            document.getElementById('btnMint').disabled = true;
+            document.getElementById('warnBox').textContent = '⚠️ 每个钱包只能 Mint 一次，您已完成 Mint';
+            document.getElementById('warnBox').classList.remove('hidden');
+          }
+        } catch(e) { console.log('hasMinted check failed', e); }
+      }
+
+      document.getElementById('loadingBox').classList.add('hidden');
+      document.getElementById('mintCard').classList.remove('hidden');
+
+    } catch(e) {
+      document.getElementById('loadingBox').classList.add('hidden');
+      document.getElementById('addrCard').classList.remove('hidden');
+      console.error(e);
+      alert('加载失败：' + (e.reason || e.message || '请检查合约地址是否正确'));
+    }
+  }
+
+  // ── 估算 ────────────────────────────────────────
+  function updateEstimate() {
+    var bnb = parseFloat(document.getElementById('mintBnb').value) || 0;
+    if (!mintPriceWei || bnb <= 0) {
+      document.getElementById('estTokens').textContent = '--';
+      return;
+    }
+    var bnbWei = ethers.utils.parseEther(bnb.toString());
+    var tokens = bnbWei.mul(ethers.BigNumber.from(10).pow(decimals)).div(mintPriceWei);
+    document.getElementById('estTokens').textContent = parseFloat(ethers.utils.formatUnits(tokens, decimals)).toLocaleString() + ' ' + (document.getElementById('tkSymbol').textContent.split(' ')[0] || '');
+  }
+
+  async function updateUserBnb() {
+    if (!userAddr) return;
+    var bal = await provider.getBalance(userAddr);
+    document.getElementById('userBnb').textContent = parseFloat(ethers.utils.formatEther(bal)).toFixed(4) + ' BNB';
+  }
+
+  function setMax() {
+    if (!userAddr) return;
+    provider.getBalance(userAddr).then(bal => {
+      // 留一点 BNB 作为 gas
+      var gasReserve = ethers.utils.parseEther('0.005');
+      var max = bal.gt(gasReserve) ? bal.sub(gasReserve) : ethers.BigNumber.from(0);
+      if (max.gt(0)) {
+        document.getElementById('mintBnb').value = parseFloat(ethers.utils.formatEther(max)).toFixed(4);
+        updateEstimate();
+      }
+    });
+  }
+
+  // ── 执行 Mint ────────────────────────────────────
+  async function doMint() {
+    if (!signer) return alert('请先连接钱包');
+    var bnb = parseFloat(document.getElementById('mintBnb').value) || 0;
+    if (bnb <= 0) return alert('请输入 BNB 数量');
+
+    var bnbWei = ethers.utils.parseEther(bnb.toString());
+
+    // 检查硬顶
+    if (totalMintedWei.add(bnbWei).gt(hardCapWei)) {
+      var remaining = hardCapWei.sub(totalMintedWei);
+      return alert('超过硬顶！最多还能 Mint ' + parseFloat(ethers.utils.formatEther(remaining)).toFixed(4) + ' BNB');
+    }
+
+    document.getElementById('btnMint').disabled = true;
+    document.getElementById('btnMint').textContent = '⏳ 等待钱包确认...';
+    document.getElementById('warnBox').classList.add('hidden');
+    document.getElementById('successBox').classList.add('hidden');
+
+    try {
+      var contractWithSigner = tokenContract.connect(signer);
+      var tx = await contractWithSigner.mint({ value: bnbWei, gasLimit: 500000 });
+      document.getElementById('btnMint').textContent = '⏳ 等待链上确认...';
+      await tx.wait(1);
+
+      document.getElementById('successBox').textContent = '✅ Mint 成功！Tx: ' + tx.hash.slice(0,10) + '...' + tx.hash.slice(-6);
+      document.getElementById('successBox').classList.remove('hidden');
+
+      // 刷新数据
+      totalMintedWei = await tokenContract.totalMinted();
+      var tmBnb = parseFloat(ethers.utils.formatEther(totalMintedWei));
+      var hcBnb = parseFloat(ethers.utils.formatEther(hardCapWei));
+      var pct   = hcBnb > 0 ? (tmBnb / hcBnb * 100).toFixed(1) : '0.0';
+      document.getElementById('stMinted').textContent = tmBnb.toFixed(4);
+      document.getElementById('stProgress').textContent = pct + '%';
+      document.getElementById('progressFill').style.width = Math.min(pct, 100) + '%';
+      document.getElementById('mintBnb').value = '';
+      document.getElementById('estTokens').textContent = '--';
+      updateUserBnb();
+
+      // 每钱包限 Mint 一次，禁用按钮
+      document.getElementById('btnMint').disabled = true;
+      document.getElementById('warnBox').textContent = '✅ 您已完成 Mint（每钱包限一次）';
+      document.getElementById('warnBox').classList.remove('hidden');
+
+      // 检查 trading 是否自动开启
+      var te = await tokenContract.tradingEnabled().catch(()=>false);
+      if (te) {
+        document.getElementById('warnBox').textContent = '🎉 Mint 已满，交易已自动开启！可以去 PancakeSwap 交易。';
+        document.getElementById('warnBox').classList.remove('hidden');
+        document.getElementById('btnMint').disabled = true;
+      }
+
+    } catch(e) {
+      console.error(e);
+      var msg = '';
+      if (e.message && e.message.indexOf('user rejected') >= 0) msg = '用户在钱包中取消';
+      else if (e.message && e.message.indexOf('insufficient funds') >= 0) msg = 'BNB 余额不足';
+      else if (e.data && e.data.message) msg = e.data.message;
+      else if (e.reason) msg = e.reason;
+      else msg = (e.message || '').substring(0, 100);
+      document.getElementById('warnBox').textContent = '❌ Mint 失败：' + msg;
+      document.getElementById('warnBox').classList.remove('hidden');
+    }
+
+    document.getElementById('btnMint').disabled = false;
+    document.getElementById('btnMint').textContent = '🚀 Mint 代币';
+  }
+
+  // ── 自动加载 URL 参数 ──────────────────────────
+  window.addEventListener('load', function() {
+    var params = new URLSearchParams(location.search);
+    var t = params.get('token');
+    if (t && t.match(/^0x[0-9a-fA-F]{40}$/)) {
+      document.getElementById('tokenAddr').value = t;
+      // 如果钱包已连接则自动加载，否则等用户点按钮
+      if (window.ethereum && window.ethereum.selectedAddress) connectWallet();
+    }
+  });
+</script>
+</body>
+</html>

@@ -139,6 +139,11 @@
         <label>硬顶（BNB）</label>
         <input type="number" id="t_hardCap" placeholder="e.g. 100" step="any" min="0" />
       </div>
+      <div class="field">
+        <label>单次 Mint BNB 数量（0=任意）</label>
+        <input type="number" id="t_mintBatchSize" placeholder="e.g. 0.1" step="any" min="0" value="0" />
+        <div class="hint">设 0 则用户可任意金额 Mint；设定后每次必须 Mint 此固定数量</div>
+      </div>
     </div>
   </div>
 
@@ -241,6 +246,7 @@
     <h3>✅ 部署成功！</h3>
     <div style="margin-bottom:10px">
       <a href="#" id="bscLink" target="_blank">在 BscScan 查看合约 →</a>
+      <a href="#" id="mintLink" target="_blank" style="display:inline-block;margin-top:8px;color:var(--green);font-size:.82rem;">🚀 参与 Mint →</a>
     </div>
     <div id="constructorArgs" style="margin-top:10px"></div>
   </div>
@@ -387,6 +393,7 @@ async function deployToken() {
   var supply  = parseInt(document.getElementById('t_supply')?.value) || 0;
   var mintPrice = parseFloat(document.getElementById('t_mintPrice')?.value) || 0;
   var hardCap   = parseFloat(document.getElementById('t_hardCap')?.value) || 0;
+  var mintBatchSize = parseFloat(document.getElementById('t_mintBatchSize')?.value) || 0;
   var buyTaxBps  = Math.round(parseFloat(document.getElementById('buyTaxSlider').value) * 100);
   var sellTaxBps = Math.round(parseFloat(document.getElementById('sellTaxSlider').value) * 100);
   var maxTxPct   = parseInt(document.getElementById('t_maxTx')?.value) || 0;
@@ -425,6 +432,7 @@ async function deployToken() {
   var supplyWei    = ethers.BigNumber.from(Math.floor(supply).toString());
   var mintPriceWei = ethers.utils.parseEther(mintPrice.toString());
   var hardCapWei   = ethers.utils.parseEther(hardCap.toString());
+  var mintBatchSizeWei = mintBatchSize > 0 ? ethers.utils.parseEther(mintBatchSize.toString()) : ethers.BigNumber.from(0);
 
   openModal();
   setModalStatus('📦 编码构造函数参数...', '', '📦');
@@ -457,6 +465,7 @@ async function deployToken() {
       PANCAKE_ROUTER,
       mintPriceWei,
       hardCapWei,
+      mintBatchSizeWei,
       ethers.BigNumber.from(buyTaxBps.toString()),
       ethers.BigNumber.from(sellTaxBps.toString()),
       ethers.BigNumber.from(maxTxPct.toString()),
@@ -492,7 +501,7 @@ async function deployToken() {
         name, symbol,
         supplyWei,
         userAddr, PLATFORM_WALLET, PANCAKE_ROUTER,
-        mintPriceWei, hardCapWei,
+        mintPriceWei, hardCapWei, mintBatchSizeWei,
         ethers.BigNumber.from(buyTaxBps.toString()),
         ethers.BigNumber.from(sellTaxBps.toString()),
         ethers.BigNumber.from(maxTxPct.toString()),
@@ -520,6 +529,7 @@ async function deployToken() {
     closeModal();
     document.getElementById('deployResult').style.display = 'block';
     document.getElementById('bscLink').href = 'https://bscscan.com/address/' + deployedAddr;
+    document.getElementById('mintLink').href = 'mint.html?token=' + deployedAddr;
     var modeText = openModeNum === 0 ? '定时开盘（' + (document.getElementById('t_openTime')?.value || '') + '）' :
                   openModeNum === 1 ? '手动开盘（部署后需调用 enableTrading）' :
                   '满额开盘（硬顶达 ' + hardCap + ' BNB 后自动开盘）';

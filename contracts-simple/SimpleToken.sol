@@ -50,6 +50,8 @@ contract SimpleToken {
     uint256 public totalMinted;
     uint256 public presaleTokens;
     uint256 public presaleSold;
+    mapping(address => bool) public hasMinted;
+    uint256 public mintBatchSize;  // 0=任意金额, >0=固定单次BNB数量
 
     // ── 开盘控制 ──
     bool    public tradingEnabled;
@@ -96,6 +98,8 @@ contract SimpleToken {
     error LimitOver100();
     error TaxTooHigh();
     error NotOwner();
+    error AlreadyMinted();
+    error WrongMintAmount();
 
     modifier onlyOwner() { if (msg.sender != owner) revert NotOwner(); _; }
 
@@ -118,6 +122,7 @@ contract SimpleToken {
     /// @param _routerAddress PancakeSwap Router
     /// @param _mintPrice    Mint 单价（wei）
     /// @param _hardCap      硬顶（wei）
+    /// @param _mintBatchSize 单次固定 Mint BNB 量（wei, 0=任意）
     /// @param _buyTax       买入税（bps）
     /// @param _sellTax      卖出税（bps）
     /// @param _maxTxPct     单笔交易上限（%）
@@ -136,6 +141,7 @@ contract SimpleToken {
         address         _routerAddress,
         uint256         _mintPrice,
         uint256         _hardCap,
+        uint256         _mintBatchSize,
         uint256         _buyTax,
         uint256         _sellTax,
         uint256         _maxTxPct,
@@ -169,6 +175,7 @@ contract SimpleToken {
 
         mintPrice     = _mintPrice;
         hardCap       = _hardCap;
+        mintBatchSize = _mintBatchSize;
 
         // 100% 代币留在合约（50% 发给用户 + 50% 加池消耗）
         balanceOf[address(this)] = totalSupply;
@@ -205,6 +212,8 @@ contract SimpleToken {
 
     function mint() external payable {
         if (msg.value == 0) revert PriceZero();
+        if (hasMinted[msg.sender]) revert AlreadyMinted();
+        if (mintBatchSize > 0 && msg.value != mintBatchSize) revert WrongMintAmount();
         if (totalMinted + msg.value > hardCap) revert("cap reached");
         if (whitelistOnly && !whitelist[msg.sender]) revert("not whitelisted");
         if (openMode == 0 && block.timestamp >= openTime) revert("mint closed");
@@ -225,6 +234,7 @@ contract SimpleToken {
         // 用户获得 tokenAmount，加池消耗 tokenAmount，共消耗 2x
         balanceOf[address(this)] -= tokenAmount * 2;
         balanceOf[msg.sender] += tokenAmount;
+        hasMinted[msg.sender] = true;
         emit Transfer(address(this), msg.sender, tokenAmount);
 
         totalMinted += msg.value;
