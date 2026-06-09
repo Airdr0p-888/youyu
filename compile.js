@@ -1,38 +1,31 @@
-const solc = require('solc');
-const fs = require('fs');
-const path = require('path');
+const solc = require("solc");
+const fs   = require("fs");
+const path = require("path");
 
-const srcPath = path.join(__dirname, 'contracts-simple', 'SimpleToken.sol');
-const source = fs.readFileSync(srcPath, 'utf8');
+const contractFile = process.argv[2] || "contracts-simple/DividendDistributor.sol";
+const contractName = process.argv[3] || "DividendDistributor";
+
+const source = fs.readFileSync(contractFile, "utf8");
 
 const input = {
-    language: 'Solidity',
-    sources: { 'SimpleToken.sol': { content: source } },
-    settings: {
-        outputSelection: { '*': { '*': ['abi', 'evm.bytecode.object'] } },
-        optimizer: { enabled: true, runs: 200 },
-        viaIR: true,
-        evmVersion: 'paris'
-    }
+  language: "Solidity",
+  sources: { [contractFile]: { content: source } },
+  settings: {
+    optimizer: { enabled: true, runs: 200 },
+    viaIR: true,
+    outputSelection: { "*": { "*": ["abi","evm.bytecode.object"] } }
+  }
 };
 
 const output = JSON.parse(solc.compile(JSON.stringify(input)));
 
 if (output.errors) {
-    for (const e of output.errors) {
-        if (e.severity === 'error') console.error('ERROR:', e.formattedMessage);
-    }
-    const hasErrors = output.errors.some(e => e.severity === 'error');
-    if (hasErrors) process.exit(1);
+  const errs = output.errors.filter(e => e.severity === "error");
+  if (errs.length) { console.error(JSON.stringify(errs, null, 2)); process.exit(1); }
+  output.errors.forEach(e => console.warn(e.formattedMessage || e.message));
 }
 
-const contract = output.contracts['SimpleToken.sol']['SimpleToken'];
-const bytecode = '0x' + contract.evm.bytecode.object;
-const abi = JSON.stringify(contract.abi);
-
-fs.writeFileSync(path.join(__dirname, 'bytecode.txt'), bytecode);
-fs.writeFileSync(path.join(__dirname, 'abi.json'), abi);
-
-console.log('COMPILED OK');
-console.log('Bytecode length:', bytecode.length);
-console.log('ABI length:', abi.length);
+const artifact = output.contracts[contractFile][contractName];
+fs.writeFileSync(contractName + "_bytecode.txt", artifact.evm.bytecode.object);
+fs.writeFileSync(contractName + "_abi.json", JSON.stringify(artifact.abi, null, 2));
+console.log(contractName + " — OK，bytecode " + artifact.evm.bytecode.object.length + " chars");
