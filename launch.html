@@ -353,6 +353,9 @@ var currentOpenMode = 'auto';
 var PLATFORM_WALLET = '0x8fDb0a964BEDA0dA705d2Fe5af2fb9a7001CBb36';
 var PANCAKE_ROUTER   = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
 
+// 页面加载时初始化：默认定时开盘，显示时间选择器
+onOpenModeChange();
+
 /* ── Open mode toggle ── */
 function onOpenModeChange() {
   currentOpenMode = document.querySelector('input[name="openMode"]:checked').value;
