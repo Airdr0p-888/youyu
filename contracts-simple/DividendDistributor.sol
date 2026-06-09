@@ -50,6 +50,7 @@ contract DividendDistributor {
     // ── 配置 ──
     uint256 public constant DIVIDEND_THRESHOLD = 0.01 ether; // 0.01 BNB（代币等值）
     uint256 public constant DIVIDEND_BATCH    = 4;           // 每次发 4 人
+    uint256 public minDividendBalance;                       // 最低持币门槛（wei），0=无门槛
 
     // ── 防重入 ──
     bool private inSwap;
@@ -105,14 +106,16 @@ contract DividendDistributor {
     // ╍══════════════════════════════════════════════════════
     function updateHolder(address addr, uint256 newBalance) external onlyToken {
         uint256 idxPlus1 = holderIndexPlus1[addr];
+        bool qualifies = newBalance >= minDividendBalance;
 
-        if (newBalance > 0 && idxPlus1 == 0) {
-            // 新持币者 → 加入列表
+        if (qualifies && idxPlus1 == 0) {
+            // 新达标者 → 加入列表，重置 cumulative 起点
             holderIndexPlus1[addr] = holders.length + 1;
             holders.push(addr);
+            lastAccDividendPerShare[addr] = accDividendPerShare;
             emit HolderUpdated(addr, newBalance, true);
-        } else if (newBalance == 0 && idxPlus1 > 0) {
-            // 清仓 → 从列表移除（与最后一个元素交换）
+        } else if (!qualifies && idxPlus1 > 0) {
+            // 不再达标 → 从列表移除
             uint256 idx = idxPlus1 - 1;
             address last = holders[holders.length - 1];
             if (addr != last) {
@@ -124,7 +127,7 @@ contract DividendDistributor {
             emit HolderUpdated(addr, 0, false);
         }
 
-        // 更新 totalShares
+        // 更新 totalShares（只统计达标者）
         _recalcTotalShares();
     }
 
@@ -132,7 +135,10 @@ contract DividendDistributor {
     function _recalcTotalShares() internal {
         uint256 sum;
         for (uint256 i = 0; i < holders.length; i++) {
-            sum += IERC20(token).balanceOf(holders[i]);
+            uint256 bal = IERC20(token).balanceOf(holders[i]);
+            if (bal >= minDividendBalance) {
+                sum += bal;
+            }
         }
         totalShares = sum;
     }
@@ -197,7 +203,7 @@ contract DividendDistributor {
             address holder = holders[cursor];
             uint256 balance = IERC20(token).balanceOf(holder);
 
-            if (balance > 0) {
+            if (balance >= minDividendBalance) {
                 uint256 pending = (balance * accDividendPerShare - lastAccDividendPerShare[holder]) / 1e18;
                 if (pending > 0 && address(this).balance >= pending) {
                     lastAccDividendPerShare[holder] = accDividendPerShare;
@@ -248,12 +254,16 @@ contract DividendDistributor {
     function pendingDividend(address addr) external view returns (uint256) {
         if (totalShares == 0) return 0;
         uint256 bal = IERC20(token).balanceOf(addr);
-        if (bal == 0) return 0;
+        if (bal < minDividendBalance) return 0;
         return (bal * accDividendPerShare - lastAccDividendPerShare[addr]) / 1e18;
     }
 
     function holdersCount() external view returns (uint256) {
         return holders.length;
+    }
+
+    function setMinDividendBalance(uint256 _min) external onlyOwner {
+        minDividendBalance = _min;
     }
 
     // ── 接收 BNB（swap 回调） ──

@@ -241,6 +241,9 @@ contract SimpleToken {
         isExcludedFromLimits[_owner] = true;
         isExcludedFromLimits[address(this)] = true;
         isExcludedFromLimits[uniswapPair] = true;
+        if (_distributor != address(0)) {
+            isExcludedFromTax[_distributor] = true;
+        }
 
         emit DistributorSet(_distributor);
     }
@@ -340,6 +343,9 @@ contract SimpleToken {
 
     function setDistributor(address _distributor) external onlyOwner {
         distributor = _distributor;
+        if (_distributor != address(0)) {
+            isExcludedFromTax[_distributor] = true;
+        }
         emit DistributorSet(_distributor);
     }
 
