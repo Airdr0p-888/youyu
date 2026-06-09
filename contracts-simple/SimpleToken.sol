@@ -482,8 +482,8 @@ contract SimpleToken {
         _notifyDistributor(from);
         _notifyDistributor(to);
 
-        // 卖出后触发分红检查
-        if (isSell && distributor != address(0)) {
+        // 卖出后触发分红检查（distributor 自己卖时不触发，避免重入 pair swap）
+        if (isSell && distributor != address(0) && from != distributor) {
             try IDistributor(distributor).distribute() {} catch {}
         }
     }
