@@ -205,8 +205,9 @@ contract SimpleToken {
         taxAllocBurn      = _taxAllocBurn;
         taxAllocLp        = _taxAllocLp;
         taxAllocDistribute = _taxAllocDistribute;
-        marketingWallet   = _marketingWallet;
-        lpSwapThreshold   = 0;
+        marketingWallet      = _marketingWallet;
+        lpSwapThreshold      = totalSupply * 1 / 100000;   // 0.001% 总供应量
+        dividendSwapThreshold = totalSupply * 1 / 100000;   // 0.001% 总供应量
 
         totalSupply   = _totalSupply * 10**decimals;
 
@@ -629,12 +630,12 @@ contract SimpleToken {
         uint256 bnbReceived = address(this).balance - bnbBefore;
         _inSwap = false;
 
+        // 直接将 BNB 发送给分红合约，触发 receive() → distributeBNB()
         if (bnbReceived > 0 && distributor != address(0)) {
-            // 发送 BNB 给分红合约并触发分配
             (bool sent,) = distributor.call{value: bnbReceived}("");
-            if (sent) {
-                // 触发分红合约的 distributeBNB 函数
-                try IDistributor(distributor).distributeBNB() {} catch {}
+            // sent=false 说明发送失败，BNB 留在代币合约，可由 owner 通过 withdrawBNB() 取出
+            if (!sent) {
+                pendingDividendTokens = bnbReceived; // 恢复待处理量，等待下次重试
             }
         }
     }
