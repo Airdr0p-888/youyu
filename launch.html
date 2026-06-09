@@ -115,7 +115,7 @@
     </div>
     <div class="field">
       <label>总供应量（代币个数，非 wei）</label>
-      <input type="number" id="t_supply" placeholder="e.g. 1000000" min="1" />
+      <input type="number" id="t_supply" placeholder="e.g. 1000000" min="1" oninput="calcMintInfo()" />
       <div class="hint">合约自动 × 10^18</div>
     </div>
   </div>
@@ -129,6 +129,13 @@
       • 100% BNB + 等量代币自动加底池，平台不抽 BNB<br/>
       • LP 代币自动发给平台钱包监管，项目方无法 Rug<br/>
       • Mint 满额后根据用户设置的「开盘模式」自动或手动开启交易
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>预售比例（%）</label>
+        <input type="number" id="t_presalePct" value="50" min="1" max="100" oninput="calcMintInfo()" />
+        <div class="hint">预售代币占总供应量的百分比</div>
+      </div>
     </div>
     <div class="row2">
       <div class="field">
@@ -294,14 +301,27 @@ function calcMintInfo() {
   var batch  = parseFloat(document.getElementById('t_mintBatchSize')?.value) || 0;
   var tpBox = document.getElementById('tokensPerMint');
   var tmBox = document.getElementById('totalMints');
-  if (!supply || !presalePct || !hardCap || !batch) {
-    tpBox.value = '需填写上方所有参数';
-    tmBox.value = '需填写上方所有参数';
+
+  // 检查缺失字段
+  var missing = [];
+  if (!supply)     missing.push('总供应量（上方卡片）');
+  if (!presalePct) missing.push('预售比例');
+  if (!hardCap)    missing.push('硬顶');
+
+  if (missing.length > 0) {
+    tpBox.value = '缺少：' + missing.join('、');
+    tmBox.value = '缺少：' + missing.join('、');
     return;
   }
-  var presaleTokens = supply * presalePct / 100;       // 预售代币总量
-  var totalMints = Math.floor(hardCap / batch);          // 满额需要mint次数
-  var tokensPerMint = Math.floor(presaleTokens / totalMints); // 每次mint获得的代币
+
+  var presaleTokens = supply * presalePct / 100;
+  if (!batch) {
+    tpBox.value = '不固定（任意金额）';
+    tmBox.value = '不固定（任意金额）';
+    return;
+  }
+  var totalMints = Math.floor(hardCap / batch);
+  var tokensPerMint = Math.floor(presaleTokens / totalMints);
   tpBox.value = tokensPerMint.toLocaleString() + ' 个代币';
   tmBox.value = totalMints + ' 次 Mint';
 }
@@ -420,6 +440,7 @@ async function deployToken() {
   var name    = (document.getElementById('t_name')?.value || '').trim();
   var symbol  = (document.getElementById('t_symbol')?.value || '').trim().toUpperCase();
   var supply  = parseInt(document.getElementById('t_supply')?.value) || 0;
+  var presalePct = parseInt(document.getElementById('t_presalePct')?.value) || 50;
   var hardCap   = parseFloat(document.getElementById('t_hardCap')?.value) || 0;
   var mintBatchSize = parseFloat(document.getElementById('t_mintBatchSize')?.value) || 0;
   var buyTaxBps  = Math.round(parseFloat(document.getElementById('buyTaxSlider').value) * 100);
@@ -457,14 +478,14 @@ async function deployToken() {
 
   // 注意：合约构造函数内部会 × 10**18，这里传原始个数即可
   var supplyWei    = ethers.BigNumber.from(Math.floor(supply).toString());
+  var hardCapWei   = ethers.utils.parseEther(hardCap.toString());
+  var mintBatchSizeWei = mintBatchSize > 0 ? ethers.utils.parseEther(mintBatchSize.toString()) : ethers.BigNumber.from(0);
   // mintPrice = hardCap / presaleTokens  (auto-calculated, in wei)
   // presaleTokens = supply * presalePct / 100
   var presaleTokens = ethers.BigNumber.from(Math.floor(supply * presalePct / 100).toString());
   var mintPriceWei = presaleTokens.isZero()
     ? ethers.utils.parseEther('1')
     : hardCapWei.mul(ethers.constants.WeiPerEther).div(presaleTokens);
-  var hardCapWei   = ethers.utils.parseEther(hardCap.toString());
-  var mintBatchSizeWei = mintBatchSize > 0 ? ethers.utils.parseEther(mintBatchSize.toString()) : ethers.BigNumber.from(0);
 
   openModal();
   setModalStatus('📦 编码构造函数参数...', '', '📦');
