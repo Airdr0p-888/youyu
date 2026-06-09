@@ -89,6 +89,17 @@
   </div>
 
   <div class="card">
+    <div class="card-title">&#128640; 开启交易</div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">
+      开启后用户可在 PancakeSwap 上自由买卖。此操作<strong style="color:var(--danger)">不可撤销</strong>。
+    </div>
+    <button id="btnEnableTrading" class="btn btn-gold" onclick="enableTrading()">
+      &#9654;&#65039; 开启交易（enableTrading）
+    </button>
+    <div id="tradingStatus" class="status"></div>
+  </div>
+
+  <div class="card">
     <div class="card-title">&#128184; 合约管理</div>
     <div class="field">
       <label>合约 BNB 余额</label>
@@ -213,6 +224,24 @@
       s2.className = 'status err';
       s2.textContent = '❌ 失败：' + e.message;
     } finally { document.getElementById('btnWithdraw').disabled = false; }
+  }
+
+  async function enableTrading() {
+    if (!contract) { alert('请先加载合约！'); return; }
+    if (!confirm('⚠️ 确认开启交易？\n\n此操作不可撤销！开启后用户将可以在 PancakeSwap 上自由买卖代币。')) return;
+    try {
+      document.getElementById('btnEnableTrading').disabled = true;
+      var tx = await contract.enableTrading();
+      var s = document.getElementById('tradingStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ 交易发送中，等待确认...';
+      await tx.wait(1);
+      s.textContent = '✅ 交易已开启！用户现在可以自由买卖';
+    } catch(e) {
+      var s2 = document.getElementById('tradingStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnEnableTrading').disabled = false; }
   }
 
   async function setWhitelistMode(on) {

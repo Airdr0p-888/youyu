@@ -186,6 +186,53 @@
     </div>
   </div>
 
+  <!-- 税收分配 -->
+  <div class="card">
+    <div class="card-title">📊 税收分配（四项总和 = 100%）</div>
+    <div class="hint" style="margin-bottom:12px">
+      • <b>营销</b>：税收代币发给项目方钱包 &nbsp;|&nbsp;
+      <b>销毁</b>：打入黑洞地址永久销毁 &nbsp;|&nbsp;
+      <b>回流底池</b>：兑换 BNB 后添加 LP &nbsp;|&nbsp;
+      <b>分红</b>：发给持币人
+    </div>
+    <div class="field">
+      <label>营销：<span id="taxMktVal" style="color:var(--gold)">0</span>%</label>
+      <div class="slider-row">
+        <input type="range" id="taxMktSlider" min="0" max="100" value="0" oninput="onTaxAllocChange('marketing')" />
+      </div>
+    </div>
+    <div class="field">
+      <label>销毁：<span id="taxBurnVal" style="color:var(--red)">0</span>%</label>
+      <div class="slider-row">
+        <input type="range" id="taxBurnSlider" min="0" max="100" value="0" oninput="onTaxAllocChange('burn')" />
+      </div>
+    </div>
+    <div class="field">
+      <label>回流底池：<span id="taxLpVal" style="color:var(--cyan)">0</span>%</label>
+      <div class="slider-row">
+        <input type="range" id="taxLpSlider" min="0" max="100" value="0" oninput="onTaxAllocChange('lp')" />
+      </div>
+    </div>
+    <div class="field">
+      <label>分红：<span id="taxDistVal" style="color:var(--green)">100</span>%</label>
+      <div class="slider-row">
+        <input type="range" id="taxDistSlider" min="0" max="100" value="100" oninput="onTaxAllocChange('distribute')" />
+      </div>
+    </div>
+    <!-- 分配可视化条 -->
+    <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:8px;background:var(--border)">
+      <div id="taxBarMkt" style="background:var(--gold);width:0%;transition:width .2s"></div>
+      <div id="taxBarBurn" style="background:var(--red);width:0%;transition:width .2s"></div>
+      <div id="taxBarLp" style="background:var(--cyan);width:0%;transition:width .2s"></div>
+      <div id="taxBarDist" style="background:var(--green);width:100%;transition:width .2s"></div>
+    </div>
+    <div class="field" style="margin-top:14px">
+      <label>营销收款地址（留空 = 不分发营销）</label>
+      <input type="text" id="t_marketingWallet" placeholder="0x... 或留空" />
+      <div class="hint">默认使用 owner 钱包；如不需要营销可留空</div>
+    </div>
+  </div>
+
   <!-- 开盘模式 -->
   <div class="card">
     <div class="card-title">🕐 开盘模式</div>
@@ -330,6 +377,111 @@ function calcMintInfo() {
 document.getElementById('t_supply')?.addEventListener('input', calcMintInfo);
 document.getElementById('t_presalePct')?.addEventListener('input', calcMintInfo);
 
+/* ── 税收分配滑块联动 ── */
+var _taxVals = { marketing:0, burn:0, lp:0, distribute:100 };  // 默认全部分红
+
+function onTaxAllocChange(changed) {
+  var sliders = {
+    marketing:  'taxMktSlider',
+    burn:       'taxBurnSlider',
+    lp:         'taxLpSlider',
+    distribute: 'taxDistSlider'
+  };
+  var displays = {
+    marketing:  'taxMktVal',
+    burn:       'taxBurnVal',
+    lp:         'taxLpVal',
+    distribute: 'taxDistVal'
+  };
+  var barDivs = {
+    marketing:  'taxBarMkt',
+    burn:       'taxBarBurn',
+    lp:         'taxBarLp',
+    distribute: 'taxBarDist'
+  };
+
+  var newVal = parseInt(document.getElementById(sliders[changed]).value) || 0;
+
+  // 计算当前其他总和
+  var otherSum = 0, others = [];
+  for (var k in _taxVals) {
+    if (k !== changed) { otherSum += _taxVals[k]; others.push(k); }
+  }
+
+  // 上限：不能超过 100
+  if (newVal + otherSum > 100) {
+    newVal = 100 - otherSum;
+    document.getElementById(sliders[changed]).value = newVal;
+  }
+
+  var delta = newVal - _taxVals[changed];
+  if (delta === 0) { updateTaxAllocBar(barDivs); return; }
+
+  if (delta > 0) {
+    // 增加 → 按比例减少其他
+    var remaining = delta;
+    for (var i = 0; i < others.length; i++) {
+      var kk = others[i];
+      var reduce;
+      if (i === others.length - 1) {
+        reduce = Math.min(_taxVals[kk], remaining);
+      } else {
+        reduce = otherSum > 0 ? Math.min(_taxVals[kk], Math.round(remaining * _taxVals[kk] / otherSum)) : 0;
+      }
+      _taxVals[kk] -= reduce;
+      remaining -= reduce;
+      document.getElementById(sliders[kk]).value = _taxVals[kk];
+      document.getElementById(displays[kk]).textContent = _taxVals[kk];
+    }
+    // 如有剩余（因为取整），从 distribute 扣
+    if (remaining > 0 && _taxVals.distribute >= remaining) {
+      _taxVals.distribute -= remaining;
+      document.getElementById(sliders.distribute).value = _taxVals.distribute;
+      document.getElementById(displays.distribute).textContent = _taxVals.distribute;
+    }
+  } else {
+    // 减少 → 按比例增加其他
+    var addTotal = -delta;
+    var otherTotal = 0;
+    for (var j = 0; j < others.length; j++) { otherTotal += _taxVals[others[j]]; }
+    if (otherTotal === 0) {
+      // 如果其他全是 0，全加到 distribute
+      _taxVals.distribute += addTotal;
+      document.getElementById(sliders.distribute).value = _taxVals.distribute;
+      document.getElementById(displays.distribute).textContent = _taxVals.distribute;
+    } else {
+      var remaining2 = addTotal;
+      for (var j2 = 0; j2 < others.length; j2++) {
+        var kk2 = others[j2];
+        var add;
+        if (j2 === others.length - 1) {
+          add = remaining2;
+        } else {
+          add = Math.round(addTotal * _taxVals[kk2] / otherTotal);
+        }
+        _taxVals[kk2] += add;
+        remaining2 -= add;
+        document.getElementById(sliders[kk2]).value = _taxVals[kk2];
+        document.getElementById(displays[kk2]).textContent = _taxVals[kk2];
+      }
+    }
+  }
+
+  _taxVals[changed] = newVal;
+  document.getElementById(displays[changed]).textContent = newVal;
+  updateTaxAllocBar(barDivs);
+}
+
+function updateTaxAllocBar(barDivs) {
+  if (!barDivs) {
+    barDivs = { marketing:'taxBarMkt', burn:'taxBarBurn', lp:'taxBarLp', distribute:'taxBarDist' };
+  }
+  document.getElementById('taxBarMkt').style.width = _taxVals.marketing + '%';
+  document.getElementById('taxBarBurn').style.width = _taxVals.burn + '%';
+  document.getElementById('taxBarLp').style.width = _taxVals.lp + '%';
+  document.getElementById('taxBarDist').style.width = _taxVals.distribute + '%';
+}
+
 /* ── Distributor mode toggle ── */
 function onDistributorModeChange() {
   var isAuto = document.getElementById('chkDeployDistributor').checked;
@@ -461,6 +613,21 @@ async function deployToken() {
 
   var whitelistOnly = document.getElementById('whitelistChk')?.checked || false;
 
+  // ── 税收分配 ──
+  var taxAllocMkt  = parseInt(document.getElementById('taxMktSlider')?.value) || 0;
+  var taxAllocBurn = parseInt(document.getElementById('taxBurnSlider')?.value) || 0;
+  var taxAllocLp   = parseInt(document.getElementById('taxLpSlider')?.value) || 0;
+  var taxAllocDist = parseInt(document.getElementById('taxDistSlider')?.value) || 0;
+  var allocSum = taxAllocMkt + taxAllocBurn + taxAllocLp + taxAllocDist;
+  // 百分比 → bps（万分之一）
+  var taxMktBps  = taxAllocMkt * 100;
+  var taxBurnBps = taxAllocBurn * 100;
+  var taxLpBps   = taxAllocLp * 100;
+  var taxDistBps = taxAllocDist * 100;
+  // 营销钱包
+  var mktWalletInput = (document.getElementById('t_marketingWallet')?.value || '').trim();
+  var marketingWalletAddr = mktWalletInput || userAddr;  // 默认 = owner
+
   // ── 分红合约模式 ──
   var deployDistributor = document.getElementById('chkDeployDistributor')?.checked || false;
   var distributorAddr;
@@ -474,6 +641,7 @@ async function deployToken() {
   if (!name || !symbol)     { alert('请填写代币名称和符号！'); return; }
   if (supply <= 0)           { alert('总供应量必须大于 0！'); return; }
   if (hardCap <= 0)          { alert('硬顶必须大于 0！'); return; }
+  if (allocSum !== 100)      { alert('税收分配四项总和必须为 100%！当前：' + allocSum + '%'); return; }
   if (openModeNum === 0 && openTimeTs === 0)  { alert('定时模式请设置开盘时间！'); return; }
 
   // 注意：合约构造函数内部会 × 10**18，这里传原始个数即可
@@ -507,7 +675,7 @@ async function deployToken() {
     var ABI      = CONTRACT_DATA.ABI;
     var BYTECODE = CONTRACT_DATA.BYTECODE;
 
-    // Encode 18 flat constructor arguments
+    // Encode 23 flat constructor arguments
     var iface = new ethers.utils.Interface(ABI);
     var encodedArgs = iface.encodeDeploy([
       name,
@@ -527,7 +695,12 @@ async function deployToken() {
       ethers.BigNumber.from(openTimeTs.toString()),
       ethers.BigNumber.from(fullOpenDelay.toString()),
       whitelistOnly,
-      distributorAddr
+      distributorAddr,
+      ethers.BigNumber.from(taxMktBps.toString()),
+      ethers.BigNumber.from(taxBurnBps.toString()),
+      ethers.BigNumber.from(taxLpBps.toString()),
+      ethers.BigNumber.from(taxDistBps.toString()),
+      marketingWalletAddr
     ]).slice(2);
 
     var creationCode = BYTECODE + encodedArgs;
@@ -563,7 +736,12 @@ async function deployToken() {
         ethers.BigNumber.from(openTimeTs.toString()),
         ethers.BigNumber.from(fullOpenDelay.toString()),
         whitelistOnly,
-        distributorAddr
+        distributorAddr,
+        ethers.BigNumber.from(taxMktBps.toString()),
+        ethers.BigNumber.from(taxBurnBps.toString()),
+        ethers.BigNumber.from(taxLpBps.toString()),
+        ethers.BigNumber.from(taxDistBps.toString()),
+        marketingWalletAddr
       );
       setModalStatus('⏳ 等待确认...', '区块确认中', '⏳');
       await contract.deployTransaction.wait(1);
@@ -594,7 +772,10 @@ async function deployToken() {
       'OpenMode: ' + ['定时','手动','满额'][openModeNum] + '<br>' +
       'Whitelist: ' + (whitelistOnly ? '仅白名单' : '公开') + '<br>' +
       'MintPrice: ' + parseFloat(ethers.utils.formatEther(mintPriceWei)).toFixed(8) + ' BNB/token (auto)<br>' +
-      'HardCap: ' + hardCap + ' BNB' +
+      'HardCap: ' + hardCap + ' BNB<br>' +
+      'TaxAlloc: 营销' + taxAllocMkt + '% 销毁' + taxAllocBurn + '% LP回流' + taxAllocLp + '% 分红' + taxAllocDist + '%<br>' +
+      'MktWallet: ' + marketingWalletAddr + '<br>' +
+      'Distributor: ' + (distributorAddr === ethers.constants.Address0 ? '无' : distributorAddr) +
       '</code>';
     document.getElementById('deployResult').scrollIntoView({behavior:'smooth'});
     document.getElementById('btnLaunch').textContent = '部署成功 ✓';
