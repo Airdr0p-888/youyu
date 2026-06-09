@@ -188,49 +188,56 @@
 
   <!-- 税收分配 -->
   <div class="card">
-    <div class="card-title">📊 税收分配（四项总和 = 100%）</div>
-    <div class="hint" style="margin-bottom:10px">
-      拖动下方三个滑块，<b style="color:var(--green)">分红</b> 自动 = 100% 减去其余比例
+    <div class="card-title">📊 税收分配（四项独立，总和必须 = 100%）</div>
+    <div class="hint" style="margin-bottom:6px">
+      四个滑块各自独立拖动。拖动任意一个时<b>不会影响其他三项</b>，超出剩余空间自动截断。
+    </div>
+    <div style="font-size:.78rem;margin-bottom:12px;padding:6px 14px;background:var(--bg3);border-radius:8px;display:inline-block">
+      ⚡ 剩余可分配：<strong id="taxRemaining" style="font-size:1rem;color:var(--danger)">0%</strong>
     </div>
 
     <div class="field">
-      <label><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--gold);margin-right:6px"></span>营销：<span id="taxMktVal">0</span>%</label>
+      <label><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--gold);margin-right:6px;vertical-align:middle"></span>营销：<strong id="taxMktVal">0</strong>%</label>
       <div class="slider-row">
-        <span style="color:var(--muted);font-size:.75rem">0</span>
+        <span style="color:var(--muted);font-size:.72rem">0</span>
         <input type="range" id="taxMktSlider" min="0" max="100" value="0" oninput="onTaxAllocChange('marketing')" />
-        <span style="color:var(--muted);font-size:.75rem">100</span>
+        <span style="color:var(--muted);font-size:.72rem">100</span>
       </div>
     </div>
 
     <div class="field">
-      <label><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--red);margin-right:6px"></span>销毁：<span id="taxBurnVal">0</span>%</label>
+      <label><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);margin-right:6px;vertical-align:middle"></span>销毁：<strong id="taxBurnVal">0</strong>%</label>
       <div class="slider-row">
-        <span style="color:var(--muted);font-size:.75rem">0</span>
+        <span style="color:var(--muted);font-size:.72rem">0</span>
         <input type="range" id="taxBurnSlider" min="0" max="100" value="0" oninput="onTaxAllocChange('burn')" />
-        <span style="color:var(--muted);font-size:.75rem">100</span>
+        <span style="color:var(--muted);font-size:.72rem">100</span>
       </div>
     </div>
 
     <div class="field">
-      <label><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--cyan);margin-right:6px"></span>回流底池：<span id="taxLpVal">0</span>%</label>
+      <label><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--cyan);margin-right:6px;vertical-align:middle"></span>回流底池：<strong id="taxLpVal">0</strong>%</label>
       <div class="slider-row">
-        <span style="color:var(--muted);font-size:.75rem">0</span>
+        <span style="color:var(--muted);font-size:.72rem">0</span>
         <input type="range" id="taxLpSlider" min="0" max="100" value="0" oninput="onTaxAllocChange('lp')" />
-        <span style="color:var(--muted);font-size:.75rem">100</span>
+        <span style="color:var(--muted);font-size:.72rem">100</span>
       </div>
     </div>
 
-    <div class="field" style="margin-top:16px;padding:12px;background:rgba(0,255,178,.04);border-radius:10px;border:1px solid rgba(0,255,178,.1)">
-      <label><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--green);margin-right:6px"></span>分红：<strong id="taxDistVal" style="font-size:1.1rem;color:var(--green)">100</strong>% <span style="font-size:.72rem;color:var(--muted)">（自动计算）</span></label>
-      <div style="font-size:.72rem;color:var(--muted);margin-top:2px">100% - 营销 - 销毁 - LP回流 = 分红目标</div>
+    <div class="field">
+      <label><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:6px;vertical-align:middle"></span>分红：<strong id="taxDistVal">100</strong>%</label>
+      <div class="slider-row">
+        <span style="color:var(--muted);font-size:.72rem">0</span>
+        <input type="range" id="taxDistSlider" min="0" max="100" value="100" oninput="onTaxAllocChange('distribute')" />
+        <span style="color:var(--muted);font-size:.72rem">100</span>
+      </div>
     </div>
 
     <!-- 分配可视化条 -->
-    <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-top:12px;background:var(--border)">
-      <div id="taxBarMkt" style="background:var(--gold);width:0%;transition:width .25s"></div>
-      <div id="taxBarBurn" style="background:var(--red);width:0%;transition:width .25s"></div>
-      <div id="taxBarLp" style="background:var(--cyan);width:0%;transition:width .25s"></div>
-      <div id="taxBarDist" style="background:var(--green);width:100%;transition:width .25s"></div>
+    <div style="display:flex;height:14px;border-radius:7px;overflow:hidden;margin-top:12px;background:var(--border)">
+      <div id="taxBarMkt" style="background:var(--gold);width:0%;transition:width .2s"></div>
+      <div id="taxBarBurn" style="background:var(--red);width:0%;transition:width .2s"></div>
+      <div id="taxBarLp" style="background:var(--cyan);width:0%;transition:width .2s"></div>
+      <div id="taxBarDist" style="background:var(--green);width:100%;transition:width .2s"></div>
     </div>
 
     <div class="field" style="margin-top:14px">
@@ -270,8 +277,14 @@
 
   <!-- 白名单 -->
   <div class="card">
-    <div class="card-title">🛡️ 白名单</div>
-    <div class="hint">若填写，税费代币将转给该地址处理分发</div>
+    <div class="card-title">🛡️ 白名单模式</div>
+    <div class="checkbox-field">
+      <input type="checkbox" id="whitelistChk" />
+      <label for="whitelistChk">开启白名单模式（仅白名单地址可 Mint）</label>
+    </div>
+    <div class="hint">
+      开启后只有被添加到白名单的地址才能参与 Mint。部署后可在<b>管理员界面</b>添加/移除白名单地址。
+    </div>
   </div>
 </div>
 
@@ -385,9 +398,9 @@ document.getElementById('t_supply')?.addEventListener('input', calcMintInfo);
 document.getElementById('t_presalePct')?.addEventListener('input', calcMintInfo);
 
 /* ── 税收分配滑块 ──
-   简单逻辑：分红 = 100% - 营销 - 销毁 - LP回流
-   拖动任意一个滑块时，自动调整分红兜底
-   如果四项之和超过100%，截断当前滑块
+   四个独立滑块，各自拖动，互不影响。
+   超出剩余空间时自动截断当前滑块。
+   部署时校验四项之和 = 100%。
 ────────────────────────────────────────── */
 var _taxVals = { marketing:0, burn:0, lp:0, distribute:100 };
 
@@ -401,31 +414,24 @@ function onTaxAllocChange(changed) {
     lp:'taxLpVal', distribute:'taxDistVal'
   };
 
-  var newVal = parseInt(document.getElementById(sliderIds[changed]).value) || 0;
+  var slider = document.getElementById(sliderIds[changed]);
+  var newVal = parseInt(slider.value) || 0;
 
-  if (changed === 'distribute') {
-    // 分红滑块：上限受到营销+销毁+LP 的限制
-    var usedByOthers = _taxVals.marketing + _taxVals.burn + _taxVals.lp;
-    newVal = Math.min(newVal, 100 - usedByOthers);
-    document.getElementById(sliderIds.distribute).value = newVal;
-    _taxVals.distribute = newVal;
-  } else {
-    // 营销 / 销毁 / LP：上限 = 100 - 另外两个（不含分红）
-    var peerSum = 0;
-    for (var k in _taxVals) {
-      if (k !== changed && k !== 'distribute') peerSum += _taxVals[k];
-    }
-    newVal = Math.min(newVal, 100 - peerSum);
-    document.getElementById(sliderIds[changed]).value = newVal;
-    _taxVals[changed] = newVal;
-    // 分红 = 差额
-    _taxVals.distribute = 100 - newVal - peerSum;
-    document.getElementById(sliderIds.distribute).value = _taxVals.distribute;
-    document.getElementById(displayIds.distribute).textContent = _taxVals.distribute;
+  // 计算其他三项之和，截断上限
+  var otherSum = 0;
+  for (var k in _taxVals) {
+    if (k !== changed) otherSum += _taxVals[k];
   }
 
-  document.getElementById(displayIds[changed]).textContent = newVal;
+  var capped = Math.min(newVal, 100 - otherSum);
+  if (capped !== newVal) {
+    slider.value = capped;
+  }
+
+  _taxVals[changed] = capped;
+  document.getElementById(displayIds[changed]).textContent = capped;
   updateTaxBar();
+  updateTaxRemaining();
 }
 
 function updateTaxBar() {
@@ -433,6 +439,14 @@ function updateTaxBar() {
   document.getElementById('taxBarBurn').style.width = _taxVals.burn + '%';
   document.getElementById('taxBarLp').style.width   = _taxVals.lp + '%';
   document.getElementById('taxBarDist').style.width = _taxVals.distribute + '%';
+}
+
+function updateTaxRemaining() {
+  var sum = _taxVals.marketing + _taxVals.burn + _taxVals.lp + _taxVals.distribute;
+  var r = 100 - sum;
+  var el = document.getElementById('taxRemaining');
+  el.textContent = r + '%';
+  el.style.color = r === 0 ? 'var(--success)' : 'var(--danger)';
 }
 
 /* ── Distributor mode toggle ── */
