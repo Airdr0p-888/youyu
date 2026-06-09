@@ -508,6 +508,7 @@
 
   // ── 救援误转入代币 ──
   var rescueTokenContract = null;
+  var rescueTokenBalanceWei = '0'; // 保存余额（wei），用于旧合约
 
   async function checkRescueToken() {
     if (!distContract) { alert('请先加载分红合约！'); return; }
@@ -527,6 +528,7 @@
       var formatted = ethers.utils.formatUnits(bal, decimals);
       document.getElementById('rescueTokenBalance').value = parseFloat(formatted).toLocaleString(undefined,{maximumFractionDigits:6}) + ' ' + symbol;
       rescueTokenContract = tempContract;
+      rescueTokenBalanceWei = bal.toString(); // 保存 wei 格式的余额
       document.getElementById('btnRescueToken').disabled = bal.isZero();
       if (bal.isZero()) {
         alert('分红合约中没有该代币！');
@@ -550,7 +552,17 @@
       var s = document.getElementById('rescueTokenStatus');
       s.className = 'status ok';
       s.textContent = '⏳ 提取交易发送中...';
-      var tx = await distContract.withdrawStuckToken(tokenAddr);
+      var tx;
+      // 先尝试新合约的 withdrawStuckToken（提取全部）
+      try {
+        tx = await distContract.withdrawStuckToken(tokenAddr);
+      } catch(_e1) {
+        // 新函数不存在，回退到旧合约的 withdrawToken（需要指定数量）
+        if (rescueTokenBalanceWei === '0') {
+          throw new Error('请先查询余额！');
+        }
+        tx = await distContract.withdrawToken(tokenAddr, rescueTokenBalanceWei);
+      }
       await tx.wait(1);
       s.textContent = '✅ 代币已提取到 platformOwner 地址';
       document.getElementById('rescueTokenBalance').value = '0';
