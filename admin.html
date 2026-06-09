@@ -120,6 +120,7 @@
     </div>
     <button id="btnLoadDist" class="btn btn-outline" onclick="loadDistributor()">加载分红合约</button>
     <div id="distStatus" class="status"></div>
+    <div id="divOwnerInfo" style="font-size:.78rem;color:var(--muted);margin-top:6px;"></div>
 
     <div style="margin-top:16px;">
       <div class="field">
@@ -326,7 +327,13 @@
       distContract = new ethers.Contract(addr, DISTRIBUTOR_DATA.ABI, signer);
       document.getElementById('btnSetMinDiv').disabled = false;
       document.getElementById('btnTriggerDiv').disabled = false;
-      document.getElementById('btnWithdrawDivBNB').disabled = false;
+      var ownerAddr = await distContract.platformOwner();
+      // 检查当前钱包是否是 platformOwner，只有 owner 才能启用提 BNB
+      var isOwner = (userAddr.toLowerCase() === ownerAddr.toLowerCase());
+      document.getElementById('btnWithdrawDivBNB').disabled = !isOwner;
+      document.getElementById('divOwnerInfo').innerHTML =
+        'PlatformOwner: <b>' + ownerAddr.slice(0,6) + '...' + ownerAddr.slice(-4) + '</b>' +
+        (isOwner ? ' ✅ 当前钱包' : ' ⚠️ 当前钱包不是 Owner，无法提 BNB');
       var minDiv = await distContract.minDividendBalance();
       document.getElementById('curMinDiv').textContent = parseFloat(ethers.utils.formatEther(minDiv)).toLocaleString() + ' 个';
       await refreshDistPool();
