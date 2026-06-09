@@ -85,11 +85,12 @@ contract DividendDistributor {
         inSwap = false;
     }
 
-    constructor(address _platformOwner, address _router) {
-        if (_platformOwner == address(0)) revert TokenAlreadySet(); // 复用 error
-        if (_router == address(0)) revert NotToken(); // 复用 error
+    constructor(address _platformOwner, address _router, uint256 _minDividendBalance) {
+        if (_platformOwner == address(0)) revert TokenAlreadySet();
+        if (_router == address(0)) revert NotToken();
         platformOwner = _platformOwner;
         PANCAKE       = _router;
+        minDividendBalance = _minDividendBalance;
     }
 
     // ── 绑定代币地址（只能调用一次，在 Token 部署后执行） ──

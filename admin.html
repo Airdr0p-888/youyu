@@ -111,13 +111,32 @@
     </div>
     <div class="hint" style="font-size:.72rem;color:var(--muted);margin-top:8px;">BNB 将转入 platformOwner 地址</div>
     <div id="withdrawStatus" class="status"></div>
+  <div class="card">
+    <div class="card-title">&#127873; 分红合约管理</div>
+    <div class="field">
+      <label>分红合约地址（DividendDistributor）</label>
+      <input type="text" id="distributorAddr" placeholder="0x..." />
+    </div>
+    <button id="btnLoadDist" class="btn btn-outline" onclick="loadDistributor()">加载分红合约</button>
+    <div id="distStatus" class="status"></div>
+
+    <div style="margin-top:16px;">
+      <div class="field">
+        <label>最低持币分红门槛（代币个数，0 = 无门槛）</label>
+        <input type="number" id="minDivInput" placeholder="0" step="any" min="0" value="0" />
+        <div class="hint" style="font-size:.72rem;color:var(--muted);margin-top:4px;">当前值：<span id="curMinDiv">--</span></div>
+      </div>
+      <button id="btnSetMinDiv" class="btn btn-gold" onclick="setMinDividend()" disabled>设置最低门槛</button>
+      <div id="minDivStatus" class="status"></div>
+    </div>
   </div>
 </div>
 
 <script src="ethers.umd.min.js"></script>
 <script src="contract_data.js"></script>
+<script src="distributor_data.js"></script>
 <script>
-  var signer, userAddr, contract = null;
+  var signer, userAddr, contract = null, distContract = null;
 
   async function connectWallet() {
     if (!window.ethereum) { alert('请安装 MetaMask！'); return; }
@@ -262,6 +281,46 @@
       document.getElementById('btnWOn').disabled = false;
       document.getElementById('btnWOff').disabled = false;
     }
+  }
+
+  /* ── 分红合约管理 ── */
+  async function loadDistributor() {
+    if (!signer) { alert('请先连接钱包！'); return; }
+    var addr = document.getElementById('distributorAddr').value.trim();
+    if (!addr) { alert('请输入分红合约地址！'); return; }
+    try {
+      distContract = new ethers.Contract(addr, DISTRIBUTOR_DATA.ABI, signer);
+      document.getElementById('btnSetMinDiv').disabled = false;
+      var minDiv = await distContract.minDividendBalance();
+      document.getElementById('curMinDiv').textContent = parseFloat(ethers.utils.formatEther(minDiv)).toLocaleString() + ' 个';
+      var s = document.getElementById('distStatus');
+      s.className = 'status ok';
+      s.textContent = '✅ 分红合约加载成功';
+    } catch(e) {
+      var s2 = document.getElementById('distStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 加载失败：' + e.message;
+    }
+  }
+
+  async function setMinDividend() {
+    if (!distContract) { alert('请先加载分红合约！'); return; }
+    var val = parseFloat(document.getElementById('minDivInput').value) || 0;
+    var wei = ethers.utils.parseEther(val.toString());
+    try {
+      document.getElementById('btnSetMinDiv').disabled = true;
+      var tx = await distContract.setMinDividendBalance(wei);
+      var s = document.getElementById('minDivStatus');
+      s.className = 'status ok';
+      s.textContent = '⏳ 交易发送中，等待确认...';
+      await tx.wait(1);
+      s.textContent = '✅ 最低持币门槛已设为 ' + val.toLocaleString() + ' 个';
+      document.getElementById('curMinDiv').textContent = val.toLocaleString() + ' 个';
+    } catch(e) {
+      var s2 = document.getElementById('minDivStatus');
+      s2.className = 'status err';
+      s2.textContent = '❌ 失败：' + e.message;
+    } finally { document.getElementById('btnSetMinDiv').disabled = false; }
   }
 </script>
 </body>

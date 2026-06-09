@@ -298,6 +298,11 @@
     <div id="autoDistributorInfo" class="hint" style="margin-bottom:12px">
       ✓ 将使用平台钱包作为管理员自动部署分红合约，并自动绑定代币地址
     </div>
+    <div class="field" id="minDividendField">
+      <label>最低持币分红门槛（代币个数，0 = 无门槛）</label>
+      <input type="number" id="t_minDividend" placeholder="0" step="any" min="0" value="0" />
+      <div class="hint">持币低于此数量的地址不参与分红累计。0 表示所有人都有分红资格。</div>
+    </div>
     <div id="manualDistributorField" style="display:none">
       <div class="field">
         <label>分红合约地址（空 = 税费留在代币合约中）</label>
@@ -456,6 +461,7 @@ function updateTaxRemaining() {
 function onDistributorModeChange() {
   var isAuto = document.getElementById('chkDeployDistributor').checked;
   document.getElementById('autoDistributorInfo').style.display = isAuto ? 'block' : 'none';
+  document.getElementById('minDividendField').style.display = isAuto ? 'block' : 'none';
   document.getElementById('manualDistributorField').style.display = isAuto ? 'none' : 'block';
 }
 
@@ -632,8 +638,10 @@ async function deployToken() {
     // ── 自动部署分红合约（如勾选） ──
     if (deployDistributor) {
       setModalStatus('🎁 部署分红合约...', '请在钱包中确认交易', '🎁');
+      var minDividendVal = parseFloat(document.getElementById('t_minDividend')?.value) || 0;
+      var minDividendWei = minDividendVal > 0 ? ethers.utils.parseEther(minDividendVal.toString()) : ethers.BigNumber.from(0);
       var distFactory = new ethers.ContractFactory(DISTRIBUTOR_DATA.ABI, DISTRIBUTOR_DATA.BYTECODE, signer);
-      var distContract = await distFactory.deploy(PLATFORM_WALLET, PANCAKE_ROUTER);
+      var distContract = await distFactory.deploy(PLATFORM_WALLET, PANCAKE_ROUTER, minDividendWei);
       setModalStatus('等待分红合约确认...', '区块确认中', '⏳');
       await distContract.deployTransaction.wait(1);
       distributorAddr = distContract.address;
