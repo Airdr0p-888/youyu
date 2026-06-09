@@ -74,6 +74,8 @@ contract SimpleToken {
     uint256 public taxAllocLp;
     uint256 public taxAllocDistribute;
     address public marketingWallet;
+    uint256 public pendingMarketingTokens;
+    uint256 public marketingSwapThreshold;
     uint256 public pendingLpTokens;
     uint256 public lpSwapThreshold;
     uint256 public pendingDividendTokens;
@@ -182,6 +184,7 @@ contract SimpleToken {
         marketingWallet    = _marketingWallet;
         lpSwapThreshold   = _totalSupply * 10**decimals / 100000;   // 0.001%
         dividendSwapThreshold = _totalSupply * 10**decimals / 100000; // 0.001%
+        marketingSwapThreshold = _totalSupply * 10**decimals / 100000; // 0.001%
 
         totalSupply = _totalSupply * 10**decimals;
         presaleTokens = totalSupply * presalePct / 100;
@@ -420,8 +423,9 @@ contract SimpleToken {
             if (taxAllocMarketing > 0 && marketingWallet != address(0)) {
                 uint256 mktAmt = tax * taxAllocMarketing / 10000;
                 if (mktAmt > 0) {
-                    balanceOf[marketingWallet] += mktAmt;
-                    emit Transfer(from, marketingWallet, mktAmt);
+                    balanceOf[address(this)] += mktAmt;
+                    pendingMarketingTokens += mktAmt;
+                    emit Transfer(from, address(this), mktAmt);
                 }
             }
             if (taxAllocDistribute > 0) {
@@ -439,6 +443,10 @@ contract SimpleToken {
             // 自动触发分红代币 swap
             if (swapEnabled && !_inSwap && pendingDividendTokens >= dividendSwapThreshold && dividendSwapThreshold > 0) {
                 _swapAndDistributeDividend();
+            }
+            // 自动触发营销代币 swap
+            if (swapEnabled && !_inSwap && pendingMarketingTokens >= marketingSwapThreshold && marketingSwapThreshold > 0) {
+                _swapAndSendMarketing();
             }
         }
 
@@ -585,6 +593,53 @@ contract SimpleToken {
                 emit SwapAndDistributeFailed("bnb send failed", bnbReceived);
             }
         }
+    }
+
+    // ╍═════ 营销代币 Swap 并发送 BNB ╍═════
+
+    function swapAndSendMarketing() external {
+        if (_inSwap) revert SwapInProgress();
+        if (pendingMarketingTokens == 0) return;
+        _swapAndSendMarketing();
+    }
+
+    function _swapAndSendMarketing() internal {
+        _inSwap = true;
+
+        uint256 tokensToSwap = pendingMarketingTokens;
+        pendingMarketingTokens = 0;
+
+        IUniswapV2Router02 router = IUniswapV2Router02(uniswapRouter);
+        address[] memory path = new address[](2);
+        path[0] = address(this);
+        path[1] = router.WETH();
+
+        allowance[address(this)][uniswapRouter] = tokensToSwap;
+
+        uint256 bnbBefore = address(this).balance;
+
+        try router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            tokensToSwap, 0, path, address(this), block.timestamp + 60
+        ) {} catch {
+            pendingMarketingTokens = tokensToSwap;
+            _inSwap = false;
+            emit SwapAndDistributeFailed("marketing swap failed", tokensToSwap);
+            return;
+        }
+
+        uint256 bnbReceived = address(this).balance - bnbBefore;
+        _inSwap = false;
+
+        if (bnbReceived > 0 && marketingWallet != address(0)) {
+            (bool sent,) = marketingWallet.call{value: bnbReceived}("");
+            if (!sent) {
+                emit SwapAndDistributeFailed("marketing bnb send failed", bnbReceived);
+            }
+        }
+    }
+
+    function setMarketingSwapThreshold(uint256 _threshold) external onlyOwner {
+        marketingSwapThreshold = _threshold;
     }
 }
 
